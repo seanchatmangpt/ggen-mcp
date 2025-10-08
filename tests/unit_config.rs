@@ -39,7 +39,7 @@ fn merges_config_file_and_cli_overrides() {
     assert!(enabled.remove("list_workbooks"));
     assert!(enabled.remove("sheet_page"));
     assert!(enabled.is_empty());
-    assert_eq!(config.transport, TransportKind::Http);
+    assert_eq!(config.transport, TransportKind::Sse);
     assert_eq!(
         config.http_bind_address,
         "127.0.0.1:8079".parse().expect("default bind")
@@ -113,6 +113,21 @@ fn transport_cli_override_parses() {
     let config = ServerConfig::from_args(args).expect("config");
 
     assert_eq!(config.transport, TransportKind::Stdio);
+}
+
+#[test]
+fn http_transport_alias_still_parses() {
+    let workspace = tempfile::tempdir().expect("workspace tempdir");
+    let args = CliArgs::parse_from([
+        "gridbench-mcp",
+        "--workspace-root",
+        workspace.path().to_str().unwrap(),
+        "--transport",
+        "http",
+    ]);
+    let config = ServerConfig::from_args(args).expect("config");
+
+    assert_eq!(config.transport, TransportKind::Http);
 }
 
 #[test]

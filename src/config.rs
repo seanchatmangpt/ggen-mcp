@@ -13,7 +13,10 @@ const DEFAULT_HTTP_BIND: &str = "127.0.0.1:8079";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransportKind {
+    #[value(alias = "stream-http", alias = "stream_http")]
+    #[serde(alias = "stream-http", alias = "stream_http")]
     Http,
+    Sse,
     Stdio,
 }
 
@@ -21,6 +24,7 @@ impl std::fmt::Display for TransportKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TransportKind::Http => write!(f, "http"),
+            TransportKind::Sse => write!(f, "sse"),
             TransportKind::Stdio => write!(f, "stdio"),
         }
     }
@@ -153,7 +157,7 @@ impl ServerConfig {
 
         let transport = cli_transport
             .or(file_transport)
-            .unwrap_or(TransportKind::Http);
+            .unwrap_or(TransportKind::Sse);
 
         let http_bind_address = cli_http_bind.or(file_http_bind).unwrap_or_else(|| {
             DEFAULT_HTTP_BIND

@@ -17,7 +17,7 @@
 
 ## Quick Start
 ```bash
-# Run directly from the repository (HTTP transport on 127.0.0.1:8079/mcp)
+# Run directly from the repository (SSE transport at http://127.0.0.1:8079/mcp/sse)
 cargo run --release -- \
   --workspace-root /path/to/workbooks \
   --cache-capacity 10
@@ -29,7 +29,7 @@ cargo install --path spreadsheet-read-mcp
 spreadsheet-read-mcp --workspace-root /path/to/workbooks
 ```
 
-By default the server speaks MCP over HTTP using the streamable transport at `http://127.0.0.1:8079/mcp`. Provide `--http-bind <ADDR>` to choose a different address, or `--transport stdio` to retain the classic stdio mode.
+By default the server speaks MCP over Server-Sent Events (SSE). Connect an MCP-aware client to `GET http://127.0.0.1:8079/mcp/sse` and use the initial event payload to post JSON requests to `http://127.0.0.1:8079/mcp/message`. Provide `--http-bind <ADDR>` to choose a different address, `--transport http` for the streamable HTTP transport, or `--transport stdio` to retain the classic stdio mode.
 
 ## Configuration Options
 You can configure the server through CLI flags, environment variables, or a YAML/JSON config file.
@@ -42,8 +42,8 @@ You can configure the server through CLI flags, environment variables, or a YAML
 | `--extensions ext1,ext2` | `SPREADSHEET_MCP_EXTENSIONS` | Allowed file extensions (defaults to `xlsx,xls,xlsb`). |
 | `--workbook <FILE>` | `SPREADSHEET_MCP_WORKBOOK` | Lock the server to a single workbook without scanning the workspace. |
 | `--enabled-tools tool1,tool2` | `SPREADSHEET_MCP_ENABLED_TOOLS` | Restrict execution to the named tools; others return an MCP `invalid_request`. |
-| `--transport <http|stdio>` | `SPREADSHEET_MCP_TRANSPORT` | Select the transport implementation (defaults to `http`). |
-| `--http-bind <ADDR>` | `SPREADSHEET_MCP_HTTP_BIND` | Bind address for HTTP transport, defaults to `127.0.0.1:8079`. |
+| `--transport <sse|http|stdio>` | `SPREADSHEET_MCP_TRANSPORT` | Select the transport implementation (defaults to `sse`). |
+| `--http-bind <ADDR>` | `SPREADSHEET_MCP_HTTP_BIND` | Bind address for network transports (SSE/HTTP), defaults to `127.0.0.1:8079`. |
 | `--config <FILE>` | – | Load settings from a YAML or JSON file. CLI/env values override file entries. |
 
 ### Config File Example (`config.yaml`)
@@ -56,7 +56,8 @@ extensions: ["xlsx", "xlsb"]
 Start the server with `spreadsheet-read-mcp --config config.yaml`.
 
 ## Transports
-- `http` (default): Serves the MCP streamable HTTP interface at `/mcp` on the configured bind address. Suitable for local development workflows where an MCP client connects over HTTP.
+- `sse` (default): Serves the MCP SSE interface with `GET /mcp/sse` for events and `POST /mcp/message` for JSON payloads. Ideal for local development where clients expect the classic SSE workflow.
+- `http`: Enables the streamable HTTP transport at `/mcp`, which combines JSON payloads and event streams over a single upgraded connection.
 - `stdio`: Keeps compatibility with stdio-based clients. Use `--transport stdio` to enable it.
 
 ## Tool Surface

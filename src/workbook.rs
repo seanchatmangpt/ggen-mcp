@@ -10,7 +10,9 @@ use crate::model::{
     WorkbookDescription, WorkbookId, WorkbookListResponse,
 };
 use crate::tools::filters::WorkbookFilter;
-use crate::utils::{hash_path_metadata, make_short_workbook_id, system_time_to_rfc3339};
+use crate::utils::{
+    hash_path_metadata, make_short_workbook_id, path_to_forward_slashes, system_time_to_rfc3339,
+};
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
@@ -110,7 +112,7 @@ impl WorkbookContext {
             workbook_id: self.id.clone(),
             short_id: self.short_id.clone(),
             slug: self.slug.clone(),
-            path: self.path.to_string_lossy().to_string(),
+            path: path_to_forward_slashes(&self.path),
             bytes: self.bytes,
             sheet_count: book.get_sheet_collection().len(),
             defined_names: defined_names_count,
@@ -386,16 +388,15 @@ pub fn build_workbook_list(
         let caps = BackendCaps::xlsx();
 
         if filter.matches(&slug, folder.as_deref(), single) {
+            let relative = single
+                .strip_prefix(&config.workspace_root)
+                .unwrap_or(single);
             let descriptor = crate::model::WorkbookDescriptor {
                 workbook_id: id,
                 short_id,
                 slug,
                 folder,
-                path: single
-                    .strip_prefix(&config.workspace_root)
-                    .unwrap_or(single)
-                    .to_string_lossy()
-                    .to_string(),
+                path: path_to_forward_slashes(relative),
                 bytes: metadata.len(),
                 last_modified: metadata
                     .modified()
@@ -437,16 +438,13 @@ pub fn build_workbook_list(
             continue;
         }
 
+        let relative = path.strip_prefix(&config.workspace_root).unwrap_or(path);
         let descriptor = crate::model::WorkbookDescriptor {
             workbook_id: id,
             short_id,
             slug,
             folder,
-            path: path
-                .strip_prefix(&config.workspace_root)
-                .unwrap_or(path)
-                .to_string_lossy()
-                .to_string(),
+            path: path_to_forward_slashes(relative),
             bytes: metadata.len(),
             last_modified: metadata
                 .modified()

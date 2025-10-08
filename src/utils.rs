@@ -54,3 +54,12 @@ pub fn make_short_workbook_id(slug: &str, canonical_id: &str) -> String {
     let short_hash: String = canonical_id.chars().take(8).collect();
     format!("{}-{}", slug_part, short_hash)
 }
+
+pub fn path_to_forward_slashes(path: &Path) -> String {
+    let raw = path.to_string_lossy();
+    if raw.contains('\\') {
+        raw.replace('\\', "/")
+    } else {
+        raw.into_owned()
+    }
+}

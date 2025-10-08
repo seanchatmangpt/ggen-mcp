@@ -77,7 +77,7 @@ impl TestWorkspace {
                 .collect(),
             single_workbook: None,
             enabled_tools: None,
-            transport: TransportKind::Http,
+            transport: TransportKind::Sse,
             http_bind_address: "127.0.0.1:8079".parse().unwrap(),
         }
     }
