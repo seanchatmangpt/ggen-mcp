@@ -1,5 +1,8 @@
 # Spreadsheet Read MCP
 
+# Spreadsheet Read MCP
+![Spreadsheet Read MCP](assets/banner.jpeg)
+
 Read-only MCP server for spreadsheet analysis with a slim, token-efficient tool surface. Emphasis: find the right region fast, profile lightly, then read only what you need. XLSX-first (via `umya-spreadsheet`), enumerates `.xls`/`.xlsb` files.
 
 ## Tool Surface (≤10 exposed)
