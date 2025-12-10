@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
+use spreadsheet_read_mcp::model::CellValue;
 use spreadsheet_read_mcp::tools::TableFilter;
 use spreadsheet_read_mcp::tools::{
     ListWorkbooksParams, ReadTableParams, list_workbooks, read_table,
@@ -307,5 +308,146 @@ async fn read_table_handles_huge_sheet_sampling() -> Result<()> {
     assert!(table.total_rows >= 9990);
     assert!(table.has_more);
 
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn read_table_handles_empty_header_cells_in_multi_row() -> Result<()> {
+    let workspace = support::TestWorkspace::new();
+    let _path = workspace.create_workbook("empty_headers.xlsx", |book| {
+        let sheet = book.get_sheet_by_name_mut("Sheet1").unwrap();
+        sheet.get_cell_mut("A1").set_value("Category");
+        sheet.get_cell_mut("A2").set_value("Sub");
+        sheet.get_cell_mut("B1").set_value("Values");
+        sheet.get_cell_mut("C1").set_value("Values");
+        sheet.get_cell_mut("C2").set_value("Amt");
+        sheet.get_cell_mut("A3").set_value("foo");
+        sheet.get_cell_mut("B3").set_value_number(1);
+        sheet.get_cell_mut("C3").set_value_number(100);
+    });
+    let state = workspace.app_state();
+    let workbook_id = list_workbooks(
+        state.clone(),
+        ListWorkbooksParams {
+            slug_prefix: None,
+            folder: None,
+            path_glob: None,
+        },
+    )
+    .await?
+    .workbooks
+    .remove(0)
+    .workbook_id;
+
+    let table = read_table(
+        state,
+        ReadTableParams {
+            workbook_id,
+            sheet_name: Some("Sheet1".into()),
+            header_rows: Some(2),
+            limit: Some(10),
+            ..Default::default()
+        },
+    )
+    .await?;
+    assert_eq!(table.headers.len(), 3);
+    assert!(table.headers[0].contains("Category"));
+    assert!(table.headers[0].contains("Sub"));
+    assert!(table.headers[1].contains("Values"));
+    assert!(table.headers[2].contains("Values"));
+    assert!(table.headers[2].contains("Amt"));
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn read_table_filter_contains_case_insensitive() -> Result<()> {
+    let workspace = support::TestWorkspace::new();
+    let _path = workspace.create_workbook("contains.xlsx", |book| {
+        let sheet = book.get_sheet_by_name_mut("Sheet1").unwrap();
+        sheet.get_cell_mut("A1").set_value("Name");
+        sheet.get_cell_mut("A2").set_value("Apple Pie");
+        sheet.get_cell_mut("A3").set_value("Banana Bread");
+        sheet.get_cell_mut("A4").set_value("Cherry Cake");
+    });
+    let state = workspace.app_state();
+    let workbook_id = list_workbooks(
+        state.clone(),
+        ListWorkbooksParams {
+            slug_prefix: None,
+            folder: None,
+            path_glob: None,
+        },
+    )
+    .await?
+    .workbooks
+    .remove(0)
+    .workbook_id;
+
+    let table = read_table(
+        state,
+        ReadTableParams {
+            workbook_id,
+            sheet_name: Some("Sheet1".into()),
+            filters: Some(vec![TableFilter {
+                column: "Name".into(),
+                op: "contains".into(),
+                value: json!("BREAD"),
+            }]),
+            limit: Some(10),
+            ..Default::default()
+        },
+    )
+    .await?;
+    assert_eq!(table.total_rows, 1);
+    let row = table.rows.first().unwrap();
+    assert!(matches!(
+        row.get("Name").and_then(|v| v.as_ref()),
+        Some(CellValue::Text(s)) if s.contains("Banana")
+    ));
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn read_table_resolves_excel_table_by_name() -> Result<()> {
+    let workspace = support::TestWorkspace::new();
+    let _path = workspace.create_workbook("with_table.xlsx", |book| {
+        let sheet = book.get_sheet_by_name_mut("Sheet1").unwrap();
+        sheet.get_cell_mut("B2").set_value("ID");
+        sheet.get_cell_mut("C2").set_value("Amount");
+        sheet.get_cell_mut("B3").set_value_number(1);
+        sheet.get_cell_mut("C3").set_value_number(100);
+        sheet.get_cell_mut("B4").set_value_number(2);
+        sheet.get_cell_mut("C4").set_value_number(200);
+        let mut table = umya_spreadsheet::structs::Table::new("SalesData", ("B2", "C4"));
+        table.set_display_name("SalesData");
+        sheet.add_table(table);
+    });
+    let state = workspace.app_state();
+    let workbook_id = list_workbooks(
+        state.clone(),
+        ListWorkbooksParams {
+            slug_prefix: None,
+            folder: None,
+            path_glob: None,
+        },
+    )
+    .await?
+    .workbooks
+    .remove(0)
+    .workbook_id;
+
+    let table = read_table(
+        state,
+        ReadTableParams {
+            workbook_id,
+            table_name: Some("SalesData".into()),
+            limit: Some(10),
+            ..Default::default()
+        },
+    )
+    .await?;
+    assert_eq!(table.table_name, Some("SalesData".into()));
+    assert_eq!(table.headers, vec!["ID", "Amount"]);
+    assert_eq!(table.total_rows, 2);
     Ok(())
 }

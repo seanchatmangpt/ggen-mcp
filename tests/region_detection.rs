@@ -280,22 +280,19 @@ fn outputs_band_detected() {
     let workspace = support::TestWorkspace::new();
     let path = workspace.create_workbook("outputs.xlsx", |book| {
         let sheet = book.get_sheet_by_name_mut("Sheet1").unwrap();
-        sheet.get_cell_mut("A1").set_value("Calc");
-        for row in 2..=20 {
+        sheet.get_cell_mut("A1").set_value("Input");
+        sheet.get_cell_mut("B1").set_value("Rate");
+        for row in 2..=15 {
+            sheet.get_cell_mut((1u32, row)).set_value_number(row as f64);
             sheet
-                .get_cell_mut((1u32, row))
-                .set_formula("A1*2")
-                .set_value_number(2.0);
+                .get_cell_mut((2u32, row))
+                .set_formula("A1*0.1")
+                .set_value_number(0.1);
         }
-        sheet.get_cell_mut("C20").set_value("Output");
-        sheet
-            .get_cell_mut("D20")
-            .set_formula("SUM(A2:A20)")
-            .set_value_number(38.0);
-        sheet
-            .get_cell_mut("E20")
-            .set_formula("D20*2")
-            .set_value_number(76.0);
+        sheet.get_cell_mut("A18").set_value("Totals");
+        for col in 2..=4 {
+            sheet.get_cell_mut((col, 18u32)).set_formula("SUM(A2:A15)");
+        }
     });
     let ctx = WorkbookContext::load(&workspace.config().into(), &path).expect("load");
     let regions = ctx
@@ -303,11 +300,19 @@ fn outputs_band_detected() {
         .expect("metrics")
         .detected_regions
         .clone();
-    assert_eq!(regions.len(), 1);
-    let region = &regions[0];
-    // With current heuristic this may classify as data; ensure high confidence on the band
-    assert_eq!(region.bounds, "A1:A20");
-    assert!(region.confidence >= 0.5);
+    assert!(regions.len() >= 1, "expected at least 1 region");
+    let outputs_region = regions
+        .iter()
+        .find(|r| r.bounds.contains("18"))
+        .expect("outputs region exists");
+    assert!(
+        matches!(
+            outputs_region.region_kind,
+            Some(spreadsheet_read_mcp::model::RegionKind::Outputs)
+        ),
+        "expected Outputs, got {:?}",
+        outputs_region.region_kind
+    );
 }
 
 #[test]

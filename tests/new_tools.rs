@@ -164,6 +164,66 @@ async fn new_tools_cover_navigation_and_reads() -> Result<()> {
     Ok(())
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn find_value_search_headers_only() -> Result<()> {
+    let workspace = support::TestWorkspace::new();
+    let _path = workspace.create_workbook("headers_search.xlsx", |book| {
+        let sheet = book.get_sheet_by_name_mut("Sheet1").unwrap();
+        sheet.get_cell_mut("A1").set_value("Name");
+        sheet.get_cell_mut("B1").set_value("Value");
+        sheet.get_cell_mut("A2").set_value("Name");
+        sheet.get_cell_mut("B2").set_value_number(100);
+        sheet.get_cell_mut("A3").set_value("Other");
+        sheet.get_cell_mut("B3").set_value_number(200);
+    });
+    let state = workspace.app_state();
+    let workbooks = list_workbooks(
+        state.clone(),
+        spreadsheet_read_mcp::tools::ListWorkbooksParams {
+            slug_prefix: None,
+            folder: None,
+            path_glob: None,
+        },
+    )
+    .await?;
+    let workbook_id = workbooks.workbooks[0].workbook_id.clone();
+
+    let all_matches = find_value(
+        state.clone(),
+        FindValueParams {
+            workbook_id: workbook_id.clone(),
+            query: "Name".into(),
+            search_headers_only: false,
+            ..Default::default()
+        },
+    )
+    .await?;
+    assert_eq!(
+        all_matches.matches.len(),
+        2,
+        "should find 'Name' in both row 1 and row 2"
+    );
+
+    let header_only_matches = find_value(
+        state,
+        FindValueParams {
+            workbook_id,
+            query: "Name".into(),
+            search_headers_only: true,
+            ..Default::default()
+        },
+    )
+    .await?;
+    assert_eq!(
+        header_only_matches.matches.len(),
+        1,
+        "should only find 'Name' in header row"
+    );
+    assert_eq!(header_only_matches.matches[0].address, "A1");
+
+    Ok(())
+}
+
 fn build_inputs_workbook(book: &mut Spreadsheet) {
     let inputs = book.get_sheet_by_name_mut("Sheet1").unwrap();
     inputs.set_name("Inputs");

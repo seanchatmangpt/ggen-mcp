@@ -212,7 +212,6 @@ pub enum SheetPageFormat {
     ValuesOnly,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SheetPageCompact {
     pub headers: Vec<String>,

@@ -759,18 +759,18 @@ fn detect_headers(occupancy: &Occupancy, rect: &Rect) -> HeaderInfo {
         if hr < rect.end_row
             && let Some((_, score_next, text_next, non_empty_next)) =
                 candidates.iter().find(|(r, _, _, _)| *r == hr + 1)
-                && *text_next >= 1
-                    && *text_next * 2 >= *non_empty_next
-                    && *score_next
-                        >= 0.6
-                            * candidates
-                                .iter()
-                                .find(|(r, _, _, _)| *r == hr)
-                                .map(|c| c.1)
-                                .unwrap_or(0.0)
-                {
-                    header_rows.push(hr + 1);
-                }
+            && *text_next >= 1
+            && *text_next * 2 >= *non_empty_next
+            && *score_next
+                >= 0.6
+                    * candidates
+                        .iter()
+                        .find(|(r, _, _, _)| *r == hr)
+                        .map(|c| c.1)
+                        .unwrap_or(0.0)
+        {
+            header_rows.push(hr + 1);
+        }
     }
 
     let mut headers = Vec::new();
@@ -829,7 +829,9 @@ fn classify_region(
     };
 
     let mut kind = crate::model::RegionKind::Data;
-    if formula_ratio > 0.55 {
+    if formula_ratio > 0.25 && is_outputs_band(rect, metrics, height, width) {
+        kind = crate::model::RegionKind::Outputs;
+    } else if formula_ratio > 0.55 {
         kind = crate::model::RegionKind::Calculator;
     } else if height <= 3
         && width <= 4
@@ -847,11 +849,6 @@ fn classify_region(
     } else if height <= 4 && width <= 6 && formula_ratio < 0.2 && text_ratio > 0.4 && density < 0.5
     {
         kind = crate::model::RegionKind::Metadata;
-    } else if formula_ratio > 0.25
-        && height <= 6
-        && rect.end_row > metrics.row_count.saturating_sub(6)
-    {
-        kind = crate::model::RegionKind::Outputs;
     }
 
     let mut confidence: f32 = 0.4;
@@ -872,6 +869,17 @@ fn classify_region(
     }
 
     (kind, confidence)
+}
+
+fn is_outputs_band(rect: &Rect, metrics: &SheetMetrics, height: u32, width: u32) -> bool {
+    let near_bottom = rect.end_row >= metrics.row_count.saturating_sub(6);
+    let near_right = rect.end_col >= metrics.column_count.saturating_sub(3);
+    let is_shallow = height <= 6;
+    let is_narrow_at_edge = width <= 6 && near_right;
+    let not_at_top_left = rect.start_row > 1 || rect.start_col > 1;
+    let sheet_has_depth = metrics.row_count > 10 || metrics.column_count > 6;
+    let is_band = (is_shallow && near_bottom) || is_narrow_at_edge;
+    is_band && not_at_top_left && sheet_has_depth
 }
 
 fn gather_named_ranges(
