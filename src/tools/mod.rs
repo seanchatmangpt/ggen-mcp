@@ -610,6 +610,7 @@ struct PageBuildResult {
     end_row: u32,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_page(
     sheet: &umya_spreadsheet::Worksheet,
     start_row: u32,
@@ -1021,6 +1022,7 @@ fn resolve_table_target(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn extract_table_rows(
     sheet: &umya_spreadsheet::Worksheet,
     target: &TableTarget,
@@ -1343,6 +1345,7 @@ fn summarize_columns(headers: &[String], rows: &[TableRow]) -> Vec<ColumnTypeSum
     summaries
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_value_matches(
     sheet: &umya_spreadsheet::Worksheet,
     sheet_name: &str,
