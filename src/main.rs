@@ -7,6 +7,10 @@ async fn main() -> anyhow::Result<()> {
     init_tracing();
     let cli = CliArgs::parse();
     let config = ServerConfig::from_args(cli)?;
+
+    // Validate configuration before server startup (fail-fast)
+    config.validate()?;
+
     run_server(config).await
 }
 

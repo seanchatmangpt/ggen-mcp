@@ -7,6 +7,7 @@ use crate::analysis::{formula::FormulaGraph, stats};
 use crate::model::*;
 use crate::state::AppState;
 use crate::utils::column_number_to_name;
+use crate::validation::validate_sample_size;
 use crate::workbook::{WorkbookContext, cell_to_value};
 use anyhow::{Result, anyhow};
 use regex::Regex;
@@ -2443,7 +2444,7 @@ pub async fn table_profile(
         },
     )?;
 
-    let sample_size = params.sample_size.unwrap_or(10) as usize;
+    let requested_sample_size = params.sample_size.unwrap_or(10) as usize;
     let sample_mode = params
         .sample_mode
         .clone()
@@ -2457,11 +2458,15 @@ pub async fn table_profile(
             None,
             None,
             None,
-            sample_size,
+            requested_sample_size,
             0,
             &sample_mode,
         )
     })??;
+
+    // Validate sample size doesn't exceed total rows
+    let sample_size = validate_sample_size(requested_sample_size, total_rows)
+        .map_err(|e| anyhow!("sample size validation failed: {}", e))?;
 
     let column_types = summarize_columns(&headers, &rows);
 

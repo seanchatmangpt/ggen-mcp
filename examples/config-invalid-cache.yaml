@@ -1,0 +1,9 @@
+# Example invalid configuration: cache_capacity too large
+# This will fail validation with:
+# "cache_capacity must not exceed 1000 (got 5000)"
+
+workspace_root: "."
+cache_capacity: 5000
+extensions:
+  - xlsx
+  - xlsm

@@ -13,6 +13,12 @@ impl WorkbookId {
     }
 }
 
+impl std::fmt::Display for WorkbookId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct WorkbookDescriptor {
     pub workbook_id: WorkbookId,

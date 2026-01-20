@@ -17,27 +17,15 @@ use std::collections::HashMap;
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::task;
-use tracing::debug;
 use walkdir::WalkDir;
 
-/// Application state with enhanced concurrency protection
 pub struct AppState {
     config: Arc<ServerConfig>,
-    /// Workbook cache with RwLock for concurrent read access
     cache: RwLock<LruCache<WorkbookId, Arc<WorkbookContext>>>,
-    /// Workbook ID to path index with RwLock for concurrent reads
     index: RwLock<HashMap<WorkbookId, PathBuf>>,
-    /// Alias to workbook ID mapping with RwLock for concurrent reads
     alias_index: RwLock<HashMap<String, WorkbookId>>,
-    /// Cache operation counter for monitoring
-    cache_ops: AtomicU64,
-    /// Cache hit counter for statistics
-    cache_hits: AtomicU64,
-    /// Cache miss counter for statistics
-    cache_misses: AtomicU64,
     #[cfg(feature = "recalc")]
     fork_registry: Option<Arc<ForkRegistry>>,
     #[cfg(feature = "recalc")]
@@ -50,7 +38,9 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(config: Arc<ServerConfig>) -> Self {
-        let capacity = NonZeroUsize::new(config.cache_capacity.max(1)).unwrap();
+        // cache_capacity is already validated and clamped in ServerConfig
+        let capacity = NonZeroUsize::new(config.cache_capacity)
+            .expect("cache_capacity must be non-zero (validated in config)");
 
         #[cfg(feature = "recalc")]
         let (fork_registry, recalc_backend, recalc_semaphore, screenshot_semaphore) =
@@ -92,9 +82,6 @@ impl AppState {
             cache: RwLock::new(LruCache::new(capacity)),
             index: RwLock::new(HashMap::new()),
             alias_index: RwLock::new(HashMap::new()),
-            cache_ops: AtomicU64::new(0),
-            cache_hits: AtomicU64::new(0),
-            cache_misses: AtomicU64::new(0),
             #[cfg(feature = "recalc")]
             fork_registry,
             #[cfg(feature = "recalc")]
@@ -130,22 +117,8 @@ impl AppState {
         self.screenshot_semaphore.as_ref()
     }
 
-    /// Get cache statistics
-    pub fn cache_stats(&self) -> CacheStats {
-        CacheStats {
-            operations: self.cache_ops.load(Ordering::Relaxed),
-            hits: self.cache_hits.load(Ordering::Relaxed),
-            misses: self.cache_misses.load(Ordering::Relaxed),
-            size: self.cache.read().len(),
-            capacity: self.cache.read().cap().get(),
-        }
-    }
-
     pub fn list_workbooks(&self, filter: WorkbookFilter) -> Result<WorkbookListResponse> {
         let response = build_workbook_list(&self.config, &filter)?;
-
-        // Use write lock only when actually updating indices
-        // This minimizes lock contention
         {
             let mut index = self.index.write();
             let mut aliases = self.alias_index.write();
@@ -158,39 +131,26 @@ impl AppState {
                 );
             }
         }
-
         Ok(response)
     }
 
     pub async fn open_workbook(&self, workbook_id: &WorkbookId) -> Result<Arc<WorkbookContext>> {
-        self.cache_ops.fetch_add(1, Ordering::Relaxed);
-
         let canonical = self.canonicalize_workbook_id(workbook_id)?;
-
-        // First, try to get from cache with read lock only
         {
             let mut cache = self.cache.write();
             if let Some(entry) = cache.get(&canonical) {
-                self.cache_hits.fetch_add(1, Ordering::Relaxed);
-                debug!(workbook_id = %canonical, "cache hit");
                 return Ok(entry.clone());
             }
         }
 
-        self.cache_misses.fetch_add(1, Ordering::Relaxed);
-        debug!(workbook_id = %canonical, "cache miss");
-
-        // Load workbook outside of locks to avoid blocking other operations
         let path = self.resolve_workbook_path(&canonical)?;
         let config = self.config.clone();
         let path_buf = path.clone();
         let workbook_id_clone = canonical.clone();
-
         let workbook =
             task::spawn_blocking(move || WorkbookContext::load(&config, &path_buf)).await??;
         let workbook = Arc::new(workbook);
 
-        // Update alias index with minimal lock holding
         {
             let mut aliases = self.alias_index.write();
             aliases.insert(
@@ -199,105 +159,71 @@ impl AppState {
             );
         }
 
-        // Insert into cache with write lock
-        {
-            let mut cache = self.cache.write();
-            cache.put(workbook_id_clone, workbook.clone());
-        }
-
-        debug!(workbook_id = %canonical, "workbook loaded and cached");
+        let mut cache = self.cache.write();
+        cache.put(workbook_id_clone, workbook.clone());
         Ok(workbook)
     }
 
     pub fn close_workbook(&self, workbook_id: &WorkbookId) -> Result<()> {
         let canonical = self.canonicalize_workbook_id(workbook_id)?;
-
-        // Atomic cache operation
-        {
-            let mut cache = self.cache.write();
-            cache.pop(&canonical);
-        }
-
-        debug!(workbook_id = %canonical, "workbook closed");
+        let mut cache = self.cache.write();
+        cache.pop(&canonical);
         Ok(())
     }
 
     pub fn evict_by_path(&self, path: &Path) {
-        // Use read lock to find the workbook ID
-        let workbook_id = {
-            let index = self.index.read();
-            index
-                .iter()
-                .find(|(_, p)| *p == path)
-                .map(|(id, _)| id.clone())
-        };
+        let index = self.index.read();
+        let workbook_id = index
+            .iter()
+            .find(|(_, p)| *p == path)
+            .map(|(id, _)| id.clone());
+        drop(index);
 
         if let Some(id) = workbook_id {
             let mut cache = self.cache.write();
             cache.pop(&id);
-            debug!(path = ?path, workbook_id = %id, "evicted workbook by path");
         }
     }
 
     fn resolve_workbook_path(&self, workbook_id: &WorkbookId) -> Result<PathBuf> {
-        // Check fork registry first with minimal locking
         #[cfg(feature = "recalc")]
-        if let Some(registry) = &self.fork_registry {
-            if let Some(fork_path) = registry.get_fork_path(workbook_id.as_str()) {
-                debug!(workbook_id = %workbook_id, "resolved to fork path");
-                return Ok(fork_path);
-            }
-        }
-
-        // Check index with read lock
+        if let Some(registry) = &self.fork_registry
+            && let Some(fork_path) = registry.get_fork_path(workbook_id.as_str())
         {
-            let index = self.index.read();
-            if let Some(path) = index.get(workbook_id).cloned() {
-                debug!(workbook_id = %workbook_id, "resolved from index");
-                return Ok(path);
-            }
+            return Ok(fork_path);
         }
 
-        // Scan filesystem if not found
-        debug!(workbook_id = %workbook_id, "scanning filesystem");
+        if let Some(path) = self.index.read().get(workbook_id).cloned() {
+            return Ok(path);
+        }
+
         let located = self.scan_for_workbook(workbook_id.as_str())?;
         self.register_location(&located);
         Ok(located.path)
     }
 
     fn canonicalize_workbook_id(&self, workbook_id: &WorkbookId) -> Result<WorkbookId> {
-        // Check fork registry first
         #[cfg(feature = "recalc")]
-        if let Some(registry) = &self.fork_registry {
-            if registry.get_fork_path(workbook_id.as_str()).is_some() {
-                return Ok(workbook_id.clone());
-            }
-        }
-
-        // Check index with read lock
+        if let Some(registry) = &self.fork_registry
+            && registry.get_fork_path(workbook_id.as_str()).is_some()
         {
-            let index = self.index.read();
-            if index.contains_key(workbook_id) {
-                return Ok(workbook_id.clone());
-            }
+            return Ok(workbook_id.clone());
         }
 
-        // Check aliases with read lock
+        if self.index.read().contains_key(workbook_id) {
+            return Ok(workbook_id.clone());
+        }
+        let aliases = self.alias_index.read();
+        if let Some(mapped) = aliases.get(workbook_id.as_str()).cloned() {
+            return Ok(mapped);
+        }
+        let lowered = workbook_id.as_str().to_ascii_lowercase();
+        if lowered != workbook_id.as_str()
+            && let Some(mapped) = aliases.get(&lowered).cloned()
         {
-            let aliases = self.alias_index.read();
-            if let Some(mapped) = aliases.get(workbook_id.as_str()).cloned() {
-                return Ok(mapped);
-            }
-
-            let lowered = workbook_id.as_str().to_ascii_lowercase();
-            if lowered != workbook_id.as_str() {
-                if let Some(mapped) = aliases.get(&lowered).cloned() {
-                    return Ok(mapped);
-                }
-            }
+            return Ok(mapped);
         }
 
-        // Scan filesystem if not found
         let located = self.scan_for_workbook(workbook_id.as_str())?;
         let canonical = located.workbook_id.clone();
         self.register_location(&located);
@@ -358,21 +284,13 @@ impl AppState {
     }
 
     fn register_location(&self, located: &LocatedWorkbook) {
-        // Atomic registration of both index and alias
-        let mut index = self.index.write();
-        let mut aliases = self.alias_index.write();
+        self.index
+            .write()
+            .insert(located.workbook_id.clone(), located.path.clone());
 
-        index.insert(located.workbook_id.clone(), located.path.clone());
-        aliases.insert(
+        self.alias_index.write().insert(
             located.short_id.to_ascii_lowercase(),
             located.workbook_id.clone(),
-        );
-
-        debug!(
-            workbook_id = %located.workbook_id,
-            short_id = %located.short_id,
-            path = ?located.path,
-            "registered workbook location"
         );
     }
 }
@@ -391,24 +309,4 @@ fn has_supported_extension(allowed: &[String], path: &Path) -> bool {
             allowed.iter().any(|candidate| candidate == &lower)
         })
         .unwrap_or(false)
-}
-
-/// Cache statistics for monitoring
-#[derive(Debug, Clone)]
-pub struct CacheStats {
-    pub operations: u64,
-    pub hits: u64,
-    pub misses: u64,
-    pub size: usize,
-    pub capacity: usize,
-}
-
-impl CacheStats {
-    pub fn hit_rate(&self) -> f64 {
-        if self.operations == 0 {
-            0.0
-        } else {
-            self.hits as f64 / self.operations as f64
-        }
-    }
 }

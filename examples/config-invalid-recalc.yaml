@@ -1,0 +1,11 @@
+# Example invalid configuration: too many concurrent recalcs
+# This will fail validation with:
+# "max_concurrent_recalcs must not exceed 100 (got 200)"
+
+workspace_root: "."
+cache_capacity: 10
+recalc_enabled: true
+max_concurrent_recalcs: 200
+extensions:
+  - xlsx
+  - xlsm

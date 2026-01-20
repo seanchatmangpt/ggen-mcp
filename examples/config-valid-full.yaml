@@ -1,0 +1,17 @@
+# Example valid configuration with all validation checks passing
+
+workspace_root: "."
+cache_capacity: 50
+extensions:
+  - xlsx
+  - xlsm
+  - xls
+  - xlsb
+transport: http
+http_bind: "127.0.0.1:8080"
+recalc_enabled: true
+vba_enabled: false
+max_concurrent_recalcs: 5
+tool_timeout_ms: 60000
+max_response_bytes: 5000000
+allow_overwrite: false

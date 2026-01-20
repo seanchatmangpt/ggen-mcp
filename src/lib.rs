@@ -1,4 +1,5 @@
 pub mod analysis;
+pub mod audit;
 pub mod caps;
 pub mod config;
 pub mod domain;
@@ -11,17 +12,20 @@ pub mod formula;
 pub mod model;
 #[cfg(feature = "recalc")]
 pub mod recalc;
+pub mod recovery;
 pub mod server;
 pub mod state;
 pub mod styles;
 pub mod tools;
 pub mod utils;
+pub mod validation;
 pub mod workbook;
 
 pub use config::{CliArgs, ServerConfig, TransportKind};
 pub use server::SpreadsheetServer;
 
 use anyhow::Result;
+use audit::{AuditConfig, init_audit_logger};
 use axum::Router;
 use model::WorkbookListResponse;
 use rmcp::transport::streamable_http_server::{
@@ -40,6 +44,15 @@ const HTTP_SERVICE_PATH: &str = "/mcp";
 pub async fn run_server(config: ServerConfig) -> Result<()> {
     let config = Arc::new(config);
     config.ensure_workspace_root()?;
+
+    // Initialize audit logger
+    let audit_config = AuditConfig::default();
+    if let Err(e) = init_audit_logger(audit_config) {
+        tracing::warn!("failed to initialize audit logger: {}", e);
+    } else {
+        tracing::info!("audit trail logging enabled");
+    }
+
     let state = Arc::new(AppState::new(config.clone()));
 
     tracing::info!(

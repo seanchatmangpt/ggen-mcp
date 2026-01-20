@@ -16,10 +16,13 @@ pub struct Ontology {
 
 impl Ontology {
     pub fn validate(&self) -> Result<(), String> {
+        // Guard against empty graph
         if self.graph.is_empty() {
             return Err("RDF graph cannot be empty".to_string());
         }
-        let pattern = Regex::new(r"^ont-[a-z0-9]{10}$").unwrap();
+        // Regex pattern is static and should always compile successfully
+        let pattern = Regex::new(r"^ont-[a-z0-9]{10}$")
+            .expect("Valid regex pattern should always compile");
         if !pattern.is_match(&self.id) {
             return Err("ID must match pattern: ont-[a-z0-9]{10}".to_string());
         }
