@@ -1,0 +1,185 @@
+# =============================================================================
+# MCP Prompt Definitions Extraction
+# Extracts prompt templates with arguments, workflow steps, and guided sequences
+# =============================================================================
+# Pattern: Prompts are parameterized templates for LLM interactions
+# Output feeds: mcp-prompts.tera template generation
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract MCP Prompt definitions with arguments
+SELECT ?promptName ?promptDescription ?argName ?argType ?argRequired ?argDescription
+       ?workflowRef ?approvalRequired
+WHERE {
+  ?prompt a mcp:Prompt .
+  ?prompt rdfs:label ?promptName .
+
+  OPTIONAL { ?prompt rdfs:comment ?promptDescription }
+
+  # Prompt arguments (optional)
+  OPTIONAL {
+    ?prompt mcp:hasArgument ?arg .
+    ?arg rdfs:label ?argName .
+    ?arg mcp:argType ?argType .
+    OPTIONAL { ?arg mcp:required ?argRequired }
+    OPTIONAL { ?arg rdfs:comment ?argDescription }
+  }
+
+  # Workflow binding (for guided sequences)
+  OPTIONAL {
+    ?prompt ggen:guidesWorkflow ?workflow .
+    ?workflow rdfs:label ?workflowRef .
+    OPTIONAL { ?workflow ggen:requiresApproval ?approvalRequired }
+  }
+}
+ORDER BY ?promptName ?argName
+
+---
+
+# Query 2: CONSTRUCT - Build MCP Prompt configuration objects
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?prompt a mcp:CompiledPrompt ;
+    mcp:promptName ?name ;
+    mcp:promptDescription ?description ;
+    mcp:templateContent ?content ;
+    mcp:workflowBinding ?workflowName ;
+    mcp:stepCount ?stepCount ;
+    rdfs:comment "Extracted MCP prompt definition" .
+}
+WHERE {
+  ?prompt a mcp:Prompt ;
+    rdfs:label ?name .
+
+  OPTIONAL { ?prompt rdfs:comment ?description }
+  OPTIONAL { ?prompt mcp:templateContent ?content }
+
+  OPTIONAL {
+    ?prompt ggen:guidesWorkflow ?workflow .
+    ?workflow rdfs:label ?workflowName .
+
+    # Count workflow steps
+    {
+      SELECT ?workflow (COUNT(?step) AS ?stepCount)
+      WHERE {
+        ?workflow ddd:steps ?stepList .
+        ?stepList ?p ?step .
+        FILTER(?p != <http://www.w3.org/1999/02/22-rdf-syntax-ns#first>)
+        FILTER(?p != <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest>)
+      }
+      GROUP BY ?workflow
+    }
+  }
+}
+
+---
+
+# Query 3: Extract workflow-based prompts with step details
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?promptName ?workflowName ?stepLabel ?stepOrder ?isManualGate ?toolBinding
+WHERE {
+  ?prompt a mcp:Prompt ;
+    rdfs:label ?promptName ;
+    ggen:guidesWorkflow ?workflow .
+
+  ?workflow rdfs:label ?workflowName ;
+    ddd:steps ?steps .
+
+  # Extract steps from RDF list
+  ?steps ?index ?step .
+  ?step rdfs:label ?stepLabel .
+
+  # Compute step order from list position
+  BIND(xsd:integer(REPLACE(STR(?index), ".*#_", "")) AS ?stepOrder)
+
+  OPTIONAL {
+    ?step ggen:isManualGate ?isManualGate
+  }
+
+  OPTIONAL {
+    ?step ggen:invokesTool ?tool .
+    ?tool rdfs:label ?toolBinding .
+  }
+}
+ORDER BY ?promptName ?stepOrder
+
+---
+
+# Query 4: Extract prompts with manual approval gates
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?promptName ?description ?manualStepCount ?totalSteps ?approvalChain
+WHERE {
+  ?prompt a mcp:Prompt ;
+    rdfs:label ?promptName .
+
+  OPTIONAL { ?prompt rdfs:comment ?description }
+
+  ?prompt ggen:guidesWorkflow ?workflow .
+
+  # Count manual steps
+  {
+    SELECT ?workflow (COUNT(?manualStep) AS ?manualStepCount)
+    WHERE {
+      ?workflow ddd:steps ?steps .
+      ?steps ?p ?manualStep .
+      ?manualStep ggen:isManualGate true .
+    }
+    GROUP BY ?workflow
+  }
+
+  # Count total steps
+  {
+    SELECT ?workflow (COUNT(?step) AS ?totalSteps)
+    WHERE {
+      ?workflow ddd:steps ?steps .
+      ?steps ?p ?step .
+      FILTER(ISIRI(?step))
+    }
+    GROUP BY ?workflow
+  }
+
+  OPTIONAL {
+    ?workflow ggen:approvalChain ?approvalChain
+  }
+}
+ORDER BY ?promptName
+
+---
+
+# Query 5: Prompt argument validation rules
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?promptName ?argName ?argType ?pattern ?minLength ?maxLength ?enumValues
+WHERE {
+  ?prompt a mcp:Prompt ;
+    rdfs:label ?promptName ;
+    mcp:hasArgument ?arg .
+
+  ?arg rdfs:label ?argName ;
+       mcp:argType ?argType .
+
+  OPTIONAL { ?arg sh:pattern ?pattern }
+  OPTIONAL { ?arg sh:minLength ?minLength }
+  OPTIONAL { ?arg sh:maxLength ?maxLength }
+  OPTIONAL { ?arg mcp:enum ?enumValues }
+}
+ORDER BY ?promptName ?argName

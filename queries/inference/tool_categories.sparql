@@ -1,0 +1,208 @@
+##############################################################################
+# TOOL CATEGORY INFERENCE RULES
+# ============================================================================
+# Derive tool categories from tool definitions in the MCP ontology
+# These rules classify MCP tools based on their properties and behaviors
+##############################################################################
+
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Rule 1: Classify Read-Only Tools
+# Tools that only query/read data without modification
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:ReadOnlyTool ;
+    mcp:categoryReason "Tool performs read-only operations" ;
+    mcp:requiresWriteAccess false .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?label .
+
+  # Match tools with read-only patterns in their names
+  FILTER (
+    CONTAINS(LCASE(?label), "list") ||
+    CONTAINS(LCASE(?label), "get") ||
+    CONTAINS(LCASE(?label), "describe") ||
+    CONTAINS(LCASE(?label), "find") ||
+    CONTAINS(LCASE(?label), "query") ||
+    CONTAINS(LCASE(?label), "overview") ||
+    CONTAINS(LCASE(?label), "summary")
+  )
+
+  # Exclude tools that have write operations
+  FILTER NOT EXISTS {
+    ?tool mcp:hasOperation ?op .
+    ?op mcp:operationType mcp:WriteOperation .
+  }
+}
+
+---
+
+# Rule 2: Classify Write/Mutating Tools
+# Tools that modify state or data
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:MutatingTool ;
+    mcp:categoryReason "Tool performs write/mutating operations" ;
+    mcp:requiresWriteAccess true ;
+    mcp:requiresAuditLog true .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?label .
+
+  # Match tools with write patterns
+  {
+    FILTER (
+      CONTAINS(LCASE(?label), "create") ||
+      CONTAINS(LCASE(?label), "edit") ||
+      CONTAINS(LCASE(?label), "save") ||
+      CONTAINS(LCASE(?label), "delete") ||
+      CONTAINS(LCASE(?label), "update") ||
+      CONTAINS(LCASE(?label), "transform") ||
+      CONTAINS(LCASE(?label), "apply")
+    )
+  }
+  UNION
+  {
+    # Or tools that explicitly have write operations
+    ?tool mcp:hasOperation ?op .
+    ?op mcp:operationType mcp:WriteOperation .
+  }
+}
+
+---
+
+# Rule 3: Classify Fork-Based Tools (Spreadsheet-specific)
+# Tools that operate on editable forks/copies
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:ForkTool ;
+    mcp:categoryReason "Tool operates on fork-based editing" ;
+    mcp:requiresForkId true ;
+    mcp:supportsCheckpoint true ;
+    mcp:supportsRollback true .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?label .
+
+  FILTER (
+    CONTAINS(LCASE(?label), "fork") ||
+    CONTAINS(LCASE(?label), "checkpoint") ||
+    CONTAINS(LCASE(?label), "restore")
+  )
+}
+
+---
+
+# Rule 4: Classify Analysis Tools
+# Tools that perform data analysis or computation
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:AnalysisTool ;
+    mcp:categoryReason "Tool performs data analysis" ;
+    mcp:returnsAnalyticsData true .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?label .
+
+  FILTER (
+    CONTAINS(LCASE(?label), "formula") ||
+    CONTAINS(LCASE(?label), "trace") ||
+    CONTAINS(LCASE(?label), "statistics") ||
+    CONTAINS(LCASE(?label), "profile") ||
+    CONTAINS(LCASE(?label), "analyze") ||
+    CONTAINS(LCASE(?label), "volatile")
+  )
+}
+
+---
+
+# Rule 5: Classify VBA/Macro Tools
+# Tools that work with VBA projects
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:VBATool ;
+    mcp:categoryReason "Tool inspects VBA/macro content" ;
+    mcp:requiresVBAEnabled true ;
+    mcp:securityLevel "elevated" .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?label .
+
+  FILTER (
+    CONTAINS(LCASE(?label), "vba") ||
+    CONTAINS(LCASE(?label), "macro") ||
+    CONTAINS(LCASE(?label), "module")
+  )
+}
+
+---
+
+# Rule 6: Derive Tool Category Hierarchy
+# Build category inheritance relationships
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:allCategories ?category ;
+    mcp:categoryHierarchy ?hierarchy .
+
+  ?category mcp:hasTool ?tool ;
+    mcp:toolCount ?count .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    mcp:toolCategory ?category .
+
+  # Build hierarchy string
+  BIND(
+    IF(?category = mcp:ReadOnlyTool, "query → read-only",
+      IF(?category = mcp:MutatingTool, "command → mutating",
+        IF(?category = mcp:ForkTool, "command → mutating → fork",
+          IF(?category = mcp:AnalysisTool, "query → analysis",
+            IF(?category = mcp:VBATool, "query → vba → security-sensitive",
+              "unknown")))))
+    AS ?hierarchy
+  )
+
+  # Count tools per category
+  {
+    SELECT ?category (COUNT(?t) AS ?count)
+    WHERE {
+      ?t mcp:toolCategory ?category .
+    }
+    GROUP BY ?category
+  }
+}
+
+---
+
+# Rule 7: Classify Composite Tools
+# Tools that combine multiple operations
+# ============================================================================
+CONSTRUCT {
+  ?tool mcp:toolCategory mcp:CompositeTool ;
+    mcp:categoryReason "Tool performs multiple operation types" ;
+    mcp:operationCount ?opCount .
+}
+WHERE {
+  ?tool a mcp:Tool .
+
+  # Tool has multiple categories already assigned
+  {
+    SELECT ?tool (COUNT(DISTINCT ?cat) AS ?opCount)
+    WHERE {
+      ?tool mcp:toolCategory ?cat .
+    }
+    GROUP BY ?tool
+    HAVING (COUNT(DISTINCT ?cat) > 1)
+  }
+}

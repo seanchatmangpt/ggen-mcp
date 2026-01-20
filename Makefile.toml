@@ -1,26 +1,183 @@
 [config]
 default_to_workspace = false
 
+# ============================================================================
+# Code Generation Tasks
+# ============================================================================
+
 [tasks.sync]
 description = "Generate domain code from ontology (ggen sync)"
 command = "ggen"
 args = ["sync", "--manifest", "ggen.toml"]
 cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
 
+[tasks.sync-dry-run]
+description = "Preview code generation without writing files"
+command = "ggen"
+args = ["sync", "--manifest", "ggen.toml", "--dry_run", "true"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.sync-validate]
+description = "Run pre-flight validation only"
+command = "ggen"
+args = ["sync", "--manifest", "ggen.toml", "--validate_only", "true"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.sync-force]
+description = "Force regenerate all code (overwrites existing)"
+command = "ggen"
+args = ["sync", "--manifest", "ggen.toml", "--force", "true"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.sync-script]
+description = "Run ggen sync using the shell script"
+script = ["./scripts/ggen-sync.sh"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
 [tasks.gen]
 description = "Generate domain code and run tests"
 dependencies = ["sync", "test"]
 
-[tasks.test]
-description = "Run all tests (unit + generated)"
-command = "cargo"
-args = ["test", "--lib", "--test", "domain_tests"]
+# ============================================================================
+# Build and Check Tasks
+# ============================================================================
 
 [tasks.check]
 description = "Check compilation"
 command = "cargo"
 args = ["check"]
 
+[tasks.build]
+description = "Build the project"
+command = "cargo"
+args = ["build"]
+
+[tasks.build-release]
+description = "Build release version"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.fmt]
+description = "Format code with rustfmt"
+command = "cargo"
+args = ["fmt"]
+
+[tasks.fmt-check]
+description = "Check code formatting"
+command = "cargo"
+args = ["fmt", "--check"]
+
+[tasks.lint]
+description = "Run clippy linter"
+command = "cargo"
+args = ["clippy", "--", "-D", "warnings"]
+
+# ============================================================================
+# Test Tasks
+# ============================================================================
+
+[tasks.test]
+description = "Run all tests (unit + generated)"
+command = "cargo"
+args = ["test", "--lib", "--test", "domain_tests"]
+
+[tasks.test-all]
+description = "Run all tests including integration"
+command = "cargo"
+args = ["test"]
+
+[tasks.test-integration]
+description = "Run ggen integration tests"
+command = "cargo"
+args = ["test", "--test", "ggen_integration"]
+
+[tasks.test-ggen]
+description = "Run all ggen-related tests"
+command = "cargo"
+args = ["test", "--test", "ggen_integration", "--test", "domain_tests"]
+
+[tasks.test-traceability]
+description = "Run ontology-to-code traceability tests"
+command = "cargo"
+args = ["test", "--test", "ggen_integration", "traceability_tests"]
+
+[tasks.test-ddd]
+description = "Run DDD pipeline tests"
+command = "cargo"
+args = ["test", "--test", "ggen_integration", "ddd_pipeline_tests"]
+
+[tasks.test-determinism]
+description = "Run determinism tests"
+command = "cargo"
+args = ["test", "--test", "ggen_integration", "determinism_tests"]
+
+# ============================================================================
+# Development Workflow Tasks
+# ============================================================================
+
 [tasks.pre-commit]
 description = "Sync, check, test before commit"
 dependencies = ["sync", "check", "test"]
+
+[tasks.ci]
+description = "Full CI pipeline: format, lint, check, test"
+dependencies = ["fmt-check", "lint", "check", "test-all"]
+
+[tasks.dev]
+description = "Development workflow: sync, build, test"
+dependencies = ["sync", "build", "test"]
+
+[tasks.validate-pipeline]
+description = "Validate the full DDD pipeline"
+dependencies = ["sync-validate", "check", "test-integration"]
+
+# ============================================================================
+# Clean Tasks
+# ============================================================================
+
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+[tasks.clean-generated]
+description = "Remove generated code files"
+script = ["rm -f generated/*.rs"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.regenerate]
+description = "Clean generated code and regenerate"
+dependencies = ["clean-generated", "sync"]
+
+# ============================================================================
+# Documentation Tasks
+# ============================================================================
+
+[tasks.doc]
+description = "Generate documentation"
+command = "cargo"
+args = ["doc", "--no-deps"]
+
+[tasks.doc-open]
+description = "Generate and open documentation"
+command = "cargo"
+args = ["doc", "--no-deps", "--open"]
+
+# ============================================================================
+# ggen Submodule Tasks
+# ============================================================================
+
+[tasks.ggen-build]
+description = "Build ggen from submodule"
+script = ["cd ggen && cargo build --release"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.ggen-test]
+description = "Run ggen tests"
+script = ["cd ggen && cargo test"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.ggen-install]
+description = "Install ggen from submodule"
+script = ["cd ggen && cargo install --path crates/ggen-cli"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"

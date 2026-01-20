@@ -1,0 +1,275 @@
+##############################################################################
+# HANDLER IMPLEMENTATION INFERENCE RULES
+# ============================================================================
+# Infer handler implementations from tool schemas and command definitions
+# These rules derive handler traits, method signatures, and async behaviors
+##############################################################################
+
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Rule 1: Derive Handler from Command Definition
+# Create handler implementations for each command
+# ============================================================================
+CONSTRUCT {
+  ?handler a mcp:GeneratedHandler ;
+    rdfs:label ?handlerLabel ;
+    mcp:handlesCommand ?command ;
+    mcp:handlerMethod ?methodName ;
+    mcp:isAsync true ;
+    mcp:returnsResult true ;
+    mcp:implTrait "ToolHandler" ;
+    rdfs:comment ?comment .
+}
+WHERE {
+  ?command a ddd:Command ;
+    rdfs:label ?cmdLabel .
+
+  # Generate handler name from command
+  BIND(CONCAT(?cmdLabel, "Handler") AS ?handlerLabel)
+  BIND(CONCAT("handle_", LCASE(REPLACE(?cmdLabel, " ", "_"))) AS ?methodName)
+  BIND(CONCAT("Handler implementation for ", ?cmdLabel) AS ?comment)
+}
+
+---
+
+# Rule 2: Derive Handler Parameters from Command Parameters
+# Extract parameter types and validation rules
+# ============================================================================
+CONSTRUCT {
+  ?handler mcp:hasParameter ?param ;
+    mcp:parameterType ?paramType ;
+    mcp:parameterName ?paramName ;
+    mcp:parameterRequired ?required .
+
+  ?param a mcp:HandlerParameter ;
+    mcp:rustType ?rustType ;
+    mcp:jsonSchemaType ?jsonType ;
+    mcp:validation ?validationRule .
+}
+WHERE {
+  ?handler a mcp:GeneratedHandler ;
+    mcp:handlesCommand ?command .
+
+  ?command ddd:hasParameter ?param .
+  ?param rdfs:label ?paramName ;
+    ddd:type ?paramType .
+
+  # Map to Rust types
+  BIND(
+    IF(?paramType = "String", "String",
+      IF(?paramType = "PathBuf", "std::path::PathBuf",
+        IF(?paramType = "i32", "i32",
+          IF(?paramType = "u64", "u64",
+            IF(?paramType = "bool", "bool",
+              IF(?paramType = "Instant", "std::time::Instant",
+                "serde_json::Value"))))))
+    AS ?rustType
+  )
+
+  # Map to JSON Schema types
+  BIND(
+    IF(?paramType = "String", "string",
+      IF(?paramType = "PathBuf", "string",
+        IF(?paramType = "i32" || ?paramType = "u64", "integer",
+          IF(?paramType = "bool", "boolean",
+            "object"))))
+    AS ?jsonType
+  )
+
+  # Determine if required (non-optional)
+  BIND(
+    IF(EXISTS { ?param sh:minCount 1 }, true, false)
+    AS ?required
+  )
+
+  # Extract validation rules
+  OPTIONAL {
+    ?param sh:pattern ?validationRule .
+  }
+}
+
+---
+
+# Rule 3: Derive Handler Response Types from Events
+# Create response type definitions
+# ============================================================================
+CONSTRUCT {
+  ?handler mcp:returnsType ?responseType ;
+    mcp:responseTypeName ?typeName ;
+    mcp:responseFields ?fields ;
+    mcp:emitsEvent ?event .
+
+  ?responseType a mcp:ResponseType ;
+    rdfs:label ?typeName ;
+    mcp:deriveTraits ("Debug" "Clone" "Serialize" "Deserialize" "JsonSchema") .
+}
+WHERE {
+  ?handler a ddd:Handler ;
+    ddd:emits ?event .
+  ?event rdfs:label ?eventLabel .
+
+  # Generate response type name
+  BIND(CONCAT(?eventLabel, "Response") AS ?typeName)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?typeName, " ", ""))) AS ?responseType)
+
+  # Extract fields from event properties
+  {
+    SELECT ?event (GROUP_CONCAT(?fieldName; separator=", ") AS ?fields)
+    WHERE {
+      ?event ddd:hasProperty ?prop .
+      ?prop rdfs:label ?fieldName .
+    }
+    GROUP BY ?event
+  }
+}
+
+---
+
+# Rule 4: Derive Async Handler Traits
+# Determine async execution requirements
+# ============================================================================
+CONSTRUCT {
+  ?handler mcp:asyncBehavior ?behavior ;
+    mcp:requiresTokio true ;
+    mcp:spawnBlocking ?needsBlocking ;
+    mcp:timeout ?timeoutMs .
+}
+WHERE {
+  ?handler a mcp:GeneratedHandler ;
+    mcp:handlesCommand ?command .
+
+  # Determine async behavior based on command type
+  {
+    # File I/O operations need spawn_blocking
+    ?command ddd:hasParameter ?param .
+    ?param ddd:type "PathBuf" .
+    BIND("spawn_blocking" AS ?behavior)
+    BIND(true AS ?needsBlocking)
+    BIND(30000 AS ?timeoutMs)
+  }
+  UNION
+  {
+    # Pure computation can be async
+    FILTER NOT EXISTS {
+      ?command ddd:hasParameter ?param .
+      ?param ddd:type "PathBuf" .
+    }
+    BIND("async" AS ?behavior)
+    BIND(false AS ?needsBlocking)
+    BIND(5000 AS ?timeoutMs)
+  }
+}
+
+---
+
+# Rule 5: Derive Handler Dependencies
+# Identify service and repository dependencies
+# ============================================================================
+CONSTRUCT {
+  ?handler mcp:dependsOn ?dependency ;
+    mcp:dependencyType ?depType ;
+    mcp:injectVia ?injection .
+}
+WHERE {
+  ?handler a ddd:Handler ;
+    ddd:handles ?command .
+
+  # Find services that handle this type of command
+  {
+    ?service a ddd:Service ;
+      ddd:hasMethod ?method .
+    ?method rdfs:label ?methodLabel .
+
+    # Match service method to command action
+    ?command rdfs:label ?cmdLabel .
+    FILTER(CONTAINS(LCASE(?methodLabel), LCASE(REPLACE(?cmdLabel, " ", "_"))))
+
+    BIND(?service AS ?dependency)
+    BIND("Service" AS ?depType)
+    BIND("Arc<dyn Service>" AS ?injection)
+  }
+  UNION
+  {
+    # Find repositories for aggregate persistence
+    ?command ddd:hasParameter ?param .
+    ?param rdfs:label ?paramLabel .
+
+    ?repo a ddd:Repository ;
+      ddd:forAggregate ?aggregate .
+    ?aggregate rdfs:label ?aggLabel .
+
+    FILTER(CONTAINS(LCASE(?paramLabel), LCASE(?aggLabel)))
+
+    BIND(?repo AS ?dependency)
+    BIND("Repository" AS ?depType)
+    BIND("Arc<dyn Repository>" AS ?injection)
+  }
+}
+
+---
+
+# Rule 6: Derive Handler Error Types
+# Create error handling patterns
+# ============================================================================
+CONSTRUCT {
+  ?handler mcp:errorType ?errorType ;
+    mcp:errorVariants ?variants ;
+    mcp:usesThisError true .
+
+  ?errorType a mcp:HandlerError ;
+    rdfs:label ?errorLabel ;
+    mcp:errorCode ?errorCode .
+}
+WHERE {
+  ?handler a mcp:GeneratedHandler ;
+    mcp:handlesCommand ?command .
+  ?command rdfs:label ?cmdLabel .
+
+  BIND(CONCAT(?cmdLabel, "Error") AS ?errorLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?errorLabel, " ", ""))) AS ?errorType)
+
+  # Generate error variants based on command type
+  BIND(
+    IF(EXISTS { ?command ddd:hasParameter [ ddd:type "PathBuf" ] },
+      "NotFound, InvalidPath, IoError, PermissionDenied",
+      "ValidationFailed, InvalidInput, InternalError")
+    AS ?variants
+  )
+
+  # Assign error codes
+  BIND(CONCAT("E", STRUUID()) AS ?errorCode)
+}
+
+---
+
+# Rule 7: Derive Handler Test Scaffolding
+# Generate test implementations for handlers
+# ============================================================================
+CONSTRUCT {
+  ?test a mcp:HandlerTest ;
+    rdfs:label ?testLabel ;
+    mcp:testsHandler ?handler ;
+    mcp:testArrange ?arrange ;
+    mcp:testAct ?act ;
+    mcp:testAssert ?assert ;
+    mcp:testType "unit" .
+}
+WHERE {
+  ?handler a mcp:GeneratedHandler ;
+    mcp:handlesCommand ?command ;
+    mcp:handlerMethod ?method .
+  ?command rdfs:label ?cmdLabel .
+
+  BIND(CONCAT("test_", LCASE(REPLACE(?cmdLabel, " ", "_")), "_handler") AS ?testLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#Test", REPLACE(?cmdLabel, " ", ""))) AS ?test)
+
+  # Generate AAA test structure
+  BIND(CONCAT("let handler = ", REPLACE(?cmdLabel, " ", ""), "Handler::new(mock_deps())") AS ?arrange)
+  BIND(CONCAT("let result = handler.", ?method, "(test_params()).await") AS ?act)
+  BIND("assert!(result.is_ok())" AS ?assert)
+}

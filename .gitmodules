@@ -1,0 +1,3 @@
+[submodule "ggen"]
+	path = ggen
+	url = https://github.com/seanchatmangpt/ggen.git

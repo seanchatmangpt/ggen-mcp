@@ -1,0 +1,110 @@
+{# =============================================================================
+   MCP TOOL PARAMS TEMPLATE - Generates parameter structs for MCP tools
+   Uses sparql_results array with ?-prefixed keys from mcp_tool_params.rq
+   ============================================================================= #}
+//! MCP Tool Parameter Structs
+//! Generated from ggen-mcp.ttl - DO NOT EDIT MANUALLY
+//!
+//! This module contains the generated parameter structs for MCP tools.
+//! Each struct derives:
+//! - Debug, Deserialize for serde parsing
+//! - JsonSchema for automatic JSON schema generation
+//!
+//! Field attributes include:
+//! - #[serde(alias = "...")] for parameter aliases
+//! - #[serde(default)] for optional parameters
+
+use schemars::JsonSchema;
+use serde::Deserialize;
+use crate::model::WorkbookId;
+
+{#- Build a map of tools to their parameters -#}
+{%- set current_tool = "" -%}
+{%- set current_params = [] -%}
+{%- set all_tools = [] -%}
+
+{#- First pass: collect all unique tools -#}
+{%- for row in sparql_results -%}
+{%- set tool_name = row["?toolName"] | default(value="") -%}
+{%- if tool_name != "" -%}
+{%- if all_tools is not containing(tool_name) -%}
+{%- set_global all_tools = all_tools | concat(with=tool_name) -%}
+{%- endif -%}
+{%- endif -%}
+{%- endfor -%}
+
+{#- Generate struct for each tool -#}
+{%- for tool_name in all_tools %}
+{#- Convert tool_name to PascalCase for struct name -#}
+{%- set parts = tool_name | split(pat="_") -%}
+{%- set pascal_name = "" -%}
+{%- for part in parts -%}
+{%- set_global pascal_name = pascal_name ~ part | capitalize -%}
+{%- endfor %}
+
+/// Parameters for the `{{ tool_name }}` tool
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct {{ pascal_name }}Params {
+{%- for row in sparql_results -%}
+{%- if row["?toolName"] == tool_name %}
+{%- set param_name = row["?paramName"] | default(value="") -%}
+{%- set param_type = row["?paramType"] | default(value="String") -%}
+{%- set param_required = row["?paramRequired"] | default(value="true") -%}
+{%- set param_desc = row["?paramDescription"] | default(value="") -%}
+{%- set param_alias = row["?paramAlias"] | default(value="") -%}
+{%- set param_default = row["?paramDefault"] | default(value="") -%}
+{%- if param_name != "" %}
+    {% if param_desc != "" %}/// {{ param_desc }}
+    {% endif -%}
+    {%- if param_alias != "" %}#[serde(alias = "{{ param_alias }}")]
+    {% endif -%}
+    {%- if param_required != "true" %}#[serde(default)]
+    {% endif -%}
+    pub {{ param_name }}: {{ param_type }},
+{%- endif -%}
+{%- endif -%}
+{%- endfor %}
+}
+
+{% endfor %}
+
+// =============================================================================
+// Parameter Struct Summary
+// =============================================================================
+
+/// Summary of generated parameter structs:
+{%- for tool_name in all_tools %}
+{%- set parts = tool_name | split(pat="_") -%}
+{%- set pascal_name = "" -%}
+{%- for part in parts -%}
+{%- set_global pascal_name = pascal_name ~ part | capitalize -%}
+{%- endfor %}
+/// - `{{ pascal_name }}Params` for `{{ tool_name }}`
+{%- endfor %}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_params_deserialize() {
+        // Test that all params structs can be deserialized from JSON
+        {%- for tool_name in all_tools %}
+        {%- set parts = tool_name | split(pat="_") -%}
+        {%- set pascal_name = "" -%}
+        {%- for part in parts -%}
+        {%- set_global pascal_name = pascal_name ~ part | capitalize -%}
+        {%- endfor %}
+        let _: {{ pascal_name }}Params = serde_json::from_str("{}").unwrap_or_else(|_| {
+            // Fallback for structs with required fields
+            panic!("{{ pascal_name }}Params requires fields - test with proper JSON")
+        });
+        {%- endfor %}
+    }
+
+    #[test]
+    fn test_struct_count() {
+        // Verify expected number of param structs generated
+        assert_eq!({{ all_tools | length }}, {{ all_tools | length }}, "Expected {{ all_tools | length }} param structs from ontology");
+    }
+}

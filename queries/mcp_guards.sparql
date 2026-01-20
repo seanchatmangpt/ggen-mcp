@@ -1,0 +1,145 @@
+# =============================================================================
+# MCP Guard Definitions Extraction
+# Extracts proposal guards, safety constraints, and policy enforcement rules
+# =============================================================================
+# Pattern: Guards enforce pre-execution constraints on tool proposals
+# Critical for: Proposal-not-execution safety boundary
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract Guard definitions with conditions
+SELECT ?guardName ?guardDescription ?condition ?severity ?message
+WHERE {
+  ?guard a chatman:Guard .
+  ?guard rdfs:label ?guardName .
+
+  OPTIONAL { ?guard rdfs:comment ?guardDescription }
+  OPTIONAL { ?guard ggen:condition ?condition }
+  OPTIONAL { ?guard ggen:severity ?severity }
+  OPTIONAL { ?guard ggen:message ?message }
+}
+ORDER BY ?severity DESC ?guardName
+
+---
+
+# Query 2: CONSTRUCT - Build Guard pack configuration
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?guard a chatman:CompiledGuard ;
+    chatman:guardName ?name ;
+    chatman:condition ?condition ;
+    chatman:severity ?severity ;
+    chatman:message ?message ;
+    chatman:proofRequired ?proofRequired ;
+    rdfs:comment "Extracted proposal guard" .
+}
+WHERE {
+  ?guard a chatman:Guard ;
+    rdfs:label ?name .
+
+  OPTIONAL { ?guard ggen:condition ?condition }
+  OPTIONAL { ?guard ggen:severity ?severity }
+  OPTIONAL { ?guard ggen:message ?message }
+
+  BIND(
+    IF(?severity = "CRITICAL" || ?severity = "HIGH", true, false)
+    AS ?proofRequired
+  )
+}
+
+---
+
+# Query 3: Extract Tool-Guard bindings
+SELECT ?toolName ?guardName ?guardCondition ?guardResult ?bindingPriority
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?toolName ;
+    ggen:hasGuard ?guard .
+
+  ?guard rdfs:label ?guardName .
+
+  OPTIONAL { ?guard ggen:condition ?guardCondition }
+  OPTIONAL { ?guard ggen:defaultResult ?guardResult }
+  OPTIONAL { ?guard ggen:priority ?bindingPriority }
+}
+ORDER BY ?toolName ?bindingPriority DESC ?guardName
+
+---
+
+# Query 4: Extract Guard categories and their examples
+SELECT ?category ?guardName ?exampleCondition ?exampleResult ?exampleMessage
+WHERE {
+  ?guard a chatman:Guard ;
+    rdfs:label ?guardName .
+
+  OPTIONAL { ?guard ggen:category ?category }
+
+  OPTIONAL {
+    ?guard ggen:hasExample ?example .
+    ?example ggen:condition ?exampleCondition .
+    OPTIONAL { ?example ggen:result ?exampleResult }
+    OPTIONAL { ?example ggen:message ?exampleMessage }
+  }
+}
+ORDER BY ?category ?guardName
+
+---
+
+# Query 5: Safety boundary constraints (Critical guards)
+SELECT ?constraintName ?constraintValue ?prevents ?severity
+WHERE {
+  ?constraint a ggen:DesignConstraint .
+  ?constraint rdfs:label ?constraintName .
+
+  OPTIONAL { ?constraint rdf:value ?constraintValue }
+  OPTIONAL { ?constraint ggen:prevents ?preventNode . ?preventNode rdf:value ?prevents }
+  OPTIONAL { ?constraint ggen:severity ?severity }
+
+  FILTER(?severity = "CRITICAL" || ?severity = "HIGH")
+}
+ORDER BY ?severity DESC ?constraintName
+
+---
+
+# Query 6: Guard evaluation proof schema
+SELECT ?guardName ?proofField ?proofType ?proofDescription ?hashAlgorithm
+WHERE {
+  ?guard a chatman:Guard ;
+    rdfs:label ?guardName ;
+    chatman:hasProofSchema ?schema .
+
+  ?schema ggen:hasField ?field .
+  ?field ggen:name ?proofField .
+  ?field ggen:type ?proofType .
+
+  OPTIONAL { ?field rdfs:comment ?proofDescription }
+  OPTIONAL { ?field ggen:hashAlgorithm ?hashAlgorithm }
+}
+ORDER BY ?guardName ?proofField
+
+---
+
+# Query 7: Policy-Guard relationships
+SELECT ?policyName ?policyDescription ?enforcedGuard ?guardCondition
+WHERE {
+  ?policy a ddd:Policy ;
+    rdfs:label ?policyName .
+
+  OPTIONAL { ?policy rdfs:comment ?policyDescription }
+
+  ?policy ggen:enforces ?guard .
+  ?guard rdfs:label ?enforcedGuard .
+
+  OPTIONAL { ?guard ggen:condition ?guardCondition }
+}
+ORDER BY ?policyName ?enforcedGuard

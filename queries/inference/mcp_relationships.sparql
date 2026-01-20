@@ -1,0 +1,384 @@
+##############################################################################
+# MCP COMPONENT RELATIONSHIP INFERENCE RULES
+# ============================================================================
+# Build relationships between MCP server components
+# These rules derive service dependencies, event flows, and component graphs
+##############################################################################
+
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Rule 1: Build Bounded Context Relationships
+# Derive context boundaries and inter-context communication
+# ============================================================================
+CONSTRUCT {
+  ?context1 mcp:communicatesWith ?context2 ;
+    mcp:communicationType ?commType ;
+    mcp:sharedEvents ?events ;
+    mcp:anticorruptionLayer ?needsAcl .
+
+  ?context2 mcp:receivesFrom ?context1 .
+}
+WHERE {
+  ?context1 a ddd:BoundedContext ;
+    ddd:publishesEvent ?event1 .
+
+  ?context2 a ddd:BoundedContext ;
+    rdfs:label ?ctx2Label .
+
+  # Find if context2 consumes events from context1
+  ?context2 ddd:owns ?aggregate .
+  ?aggregate ddd:hasProperty ?prop .
+  ?event1 ddd:hasProperty ?eventProp .
+
+  # Match property types between event and aggregate
+  ?prop ddd:type ?propType .
+  ?eventProp ddd:type ?propType .
+
+  FILTER(?context1 != ?context2)
+
+  BIND("event_driven" AS ?commType)
+  BIND(?event1 AS ?events)
+
+  # Determine if ACL needed (different bounded contexts)
+  BIND(true AS ?needsAcl)
+}
+
+---
+
+# Rule 2: Build Command-Event Flow Graph
+# Map the flow from commands through handlers to events
+# ============================================================================
+CONSTRUCT {
+  ?flow a mcp:CommandEventFlow ;
+    rdfs:label ?flowLabel ;
+    mcp:startCommand ?command ;
+    mcp:handledBy ?handler ;
+    mcp:producesEvent ?event ;
+    mcp:aggregateModified ?aggregate ;
+    mcp:flowSteps ?steps .
+}
+WHERE {
+  ?handler a ddd:Handler ;
+    rdfs:label ?handlerLabel ;
+    ddd:handles ?command ;
+    ddd:emits ?event .
+
+  ?command rdfs:label ?cmdLabel .
+  ?event rdfs:label ?eventLabel .
+
+  BIND(CONCAT(?cmdLabel, " → ", ?handlerLabel, " → ", ?eventLabel) AS ?flowLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#Flow", ENCODE_FOR_URI(?cmdLabel))) AS ?flow)
+
+  # Find affected aggregate
+  OPTIONAL {
+    ?command ddd:hasParameter ?param .
+    ?param rdfs:label ?paramLabel .
+    ?aggregate a ddd:AggregateRoot ;
+      rdfs:label ?aggLabel .
+    FILTER(CONTAINS(LCASE(?paramLabel), LCASE(?aggLabel)))
+  }
+
+  BIND(3 AS ?steps)  # Command -> Handler -> Event
+}
+
+---
+
+# Rule 3: Build Service Dependency Graph
+# Map service dependencies and injection points
+# ============================================================================
+CONSTRUCT {
+  ?service mcp:dependsOnRepository ?repo ;
+    mcp:dependsOnService ?otherService ;
+    mcp:dependencyLevel ?level ;
+    mcp:circularDependency ?isCircular .
+
+  ?depGraph a mcp:ServiceDependencyGraph ;
+    mcp:rootService ?service ;
+    mcp:dependencies ?depList .
+}
+WHERE {
+  ?service a ddd:Service ;
+    rdfs:label ?serviceLabel ;
+    ddd:uses ?dependency .
+
+  {
+    # Repository dependency
+    ?dependency a ddd:Repository .
+    BIND(?dependency AS ?repo)
+    BIND(1 AS ?level)
+  }
+  UNION
+  {
+    # Service dependency
+    ?dependency a ddd:Service .
+    BIND(?dependency AS ?otherService)
+    BIND(2 AS ?level)
+  }
+
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#DepGraph", ENCODE_FOR_URI(?serviceLabel))) AS ?depGraph)
+
+  # Check for circular dependencies
+  BIND(
+    EXISTS {
+      ?dependency ddd:uses ?service .
+    }
+    AS ?isCircular
+  )
+
+  # Build dependency list
+  {
+    SELECT ?service (GROUP_CONCAT(?dep; separator=", ") AS ?depList)
+    WHERE {
+      ?service ddd:uses ?dep .
+      ?dep rdfs:label ?depLabel .
+    }
+    GROUP BY ?service
+  }
+}
+
+---
+
+# Rule 4: Build Repository-Aggregate Mapping
+# Map repositories to their aggregates with CRUD operations
+# ============================================================================
+CONSTRUCT {
+  ?repo mcp:managesAggregate ?aggregate ;
+    mcp:crudOperations ?operations ;
+    mcp:persistenceStrategy ?strategy ;
+    mcp:supportsTransactions ?txSupport .
+
+  ?aggregate mcp:persistedBy ?repo ;
+    mcp:identityType ?idType ;
+    mcp:hasLifecycleEvents true .
+}
+WHERE {
+  ?repo a ddd:Repository ;
+    rdfs:label ?repoLabel ;
+    ddd:forAggregate ?aggregate .
+
+  ?aggregate rdfs:label ?aggLabel .
+
+  # Extract CRUD methods
+  {
+    SELECT ?repo (GROUP_CONCAT(?methodLabel; separator=", ") AS ?operations)
+    WHERE {
+      ?repo ddd:hasMethod ?method .
+      ?method rdfs:label ?methodLabel .
+    }
+    GROUP BY ?repo
+  }
+
+  # Determine persistence strategy
+  BIND(
+    IF(CONTAINS(LCASE(?repoLabel), "inmemory"), "in_memory",
+      IF(CONTAINS(LCASE(?repoLabel), "postgres"), "postgres",
+        IF(CONTAINS(LCASE(?repoLabel), "sqlite"), "sqlite",
+          "generic")))
+    AS ?strategy
+  )
+
+  BIND(true AS ?txSupport)
+
+  # Extract identity type
+  OPTIONAL {
+    ?aggregate ddd:hasProperty ?idProp .
+    ?idProp rdfs:label "id" ;
+      ddd:type ?idType .
+  }
+}
+
+---
+
+# Rule 5: Build Event Subscription Graph
+# Map event producers and consumers
+# ============================================================================
+CONSTRUCT {
+  ?event mcp:producedBy ?producer ;
+    mcp:consumedBy ?consumer ;
+    mcp:eventPayload ?payload ;
+    mcp:isAsyncEvent true .
+
+  ?subscription a mcp:EventSubscription ;
+    mcp:subscriber ?consumer ;
+    mcp:subscribesTo ?event ;
+    mcp:deliveryGuarantee "at_least_once" .
+}
+WHERE {
+  ?handler a ddd:Handler ;
+    ddd:emits ?event .
+  ?event rdfs:label ?eventLabel .
+
+  BIND(?handler AS ?producer)
+
+  # Find event properties (payload)
+  {
+    SELECT ?event (GROUP_CONCAT(?propLabel; separator=", ") AS ?payload)
+    WHERE {
+      ?event ddd:hasProperty ?prop .
+      ?prop rdfs:label ?propLabel .
+    }
+    GROUP BY ?event
+  }
+
+  # Find potential consumers (services that might react to this event)
+  OPTIONAL {
+    ?consumer a ddd:Service .
+    ?consumer ddd:uses ?repo .
+    ?repo ddd:forAggregate ?agg .
+    ?event ddd:hasProperty ?eventProp .
+    ?agg ddd:hasProperty ?aggProp .
+    ?eventProp ddd:type ?type .
+    ?aggProp ddd:type ?type .
+  }
+
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#Sub", ENCODE_FOR_URI(?eventLabel))) AS ?subscription)
+}
+
+---
+
+# Rule 6: Build Workflow Step Relationships
+# Map workflow steps and their dependencies
+# ============================================================================
+CONSTRUCT {
+  ?workflow mcp:hasStepRelationships ?relationships ;
+    mcp:stepCount ?count ;
+    mcp:criticalPath ?criticalPath .
+
+  ?step mcp:precedingStep ?prevStep ;
+    mcp:followingStep ?nextStep ;
+    mcp:stepIndex ?index ;
+    mcp:isIdempotent ?idempotent ;
+    mcp:canRetry true .
+}
+WHERE {
+  ?workflow a ddd:Workflow ;
+    rdfs:label ?workflowLabel ;
+    ddd:steps ?stepList .
+
+  # This is complex as RDF lists need special handling
+  # Simplified version using direct step references
+  ?workflow ddd:steps ?step .
+
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#StepRel", ENCODE_FOR_URI(?workflowLabel))) AS ?relationships)
+
+  # Determine idempotency based on step type
+  BIND(
+    IF(CONTAINS(LCASE(STR(?step)), "load") || CONTAINS(LCASE(STR(?step)), "read"), true,
+      IF(CONTAINS(LCASE(STR(?step)), "write") || CONTAINS(LCASE(STR(?step)), "create"), false,
+        true))
+    AS ?idempotent
+  )
+
+  {
+    SELECT ?workflow (COUNT(?s) AS ?count)
+    WHERE {
+      ?workflow ddd:steps ?s .
+    }
+    GROUP BY ?workflow
+  }
+
+  BIND("LoadOntology → ExecuteSPARQL → RenderTemplate → ValidateOutput → WriteArtifact → CreateReceipt" AS ?criticalPath)
+}
+
+---
+
+# Rule 7: Build Policy Enforcement Graph
+# Map policies to components they apply to
+# ============================================================================
+CONSTRUCT {
+  ?policy mcp:enforcedOn ?target ;
+    mcp:enforcementType ?enfType ;
+    mcp:enforcementPoint ?point ;
+    mcp:violationAction ?action .
+
+  ?target mcp:governedByPolicy ?policy ;
+    mcp:policyCount ?policyCount .
+}
+WHERE {
+  ?policy a ddd:Policy ;
+    rdfs:label ?policyLabel .
+
+  {
+    # Policy validates aggregate
+    ?policy ddd:validates ?target .
+    BIND("validation" AS ?enfType)
+    BIND("pre_persist" AS ?point)
+    BIND("reject" AS ?action)
+  }
+  UNION
+  {
+    # Policy applies to workflow
+    ?policy ddd:appliesTo ?target .
+    BIND("constraint" AS ?enfType)
+    BIND("runtime" AS ?point)
+    BIND("fail_workflow" AS ?action)
+  }
+  UNION
+  {
+    # Policy ensures behavior
+    ?policy ddd:ensures ?behavior .
+    ?target a ddd:Workflow .
+    BIND("behavioral" AS ?enfType)
+    BIND("continuous" AS ?point)
+    BIND("alert" AS ?action)
+  }
+
+  # Count policies per target
+  {
+    SELECT ?target (COUNT(?p) AS ?policyCount)
+    WHERE {
+      { ?p ddd:validates ?target }
+      UNION
+      { ?p ddd:appliesTo ?target }
+    }
+    GROUP BY ?target
+  }
+}
+
+---
+
+# Rule 8: Build Component Health Graph
+# Create health check relationships
+# ============================================================================
+CONSTRUCT {
+  ?component mcp:hasHealthCheck ?healthCheck ;
+    mcp:healthCheckEndpoint ?endpoint ;
+    mcp:healthMetrics ?metrics ;
+    mcp:dependencyHealth ?depHealth .
+
+  ?healthCheck a mcp:HealthCheck ;
+    rdfs:label ?healthLabel ;
+    mcp:checksComponent ?component ;
+    mcp:timeout 5000 ;
+    mcp:interval 30000 .
+}
+WHERE {
+  {
+    ?component a ddd:Service .
+    BIND("service" AS ?compType)
+  }
+  UNION
+  {
+    ?component a ddd:Repository .
+    BIND("repository" AS ?compType)
+  }
+
+  ?component rdfs:label ?compLabel .
+
+  BIND(CONCAT(?compLabel, "HealthCheck") AS ?healthLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#HC", ENCODE_FOR_URI(?compLabel))) AS ?healthCheck)
+  BIND(CONCAT("/health/", LCASE(REPLACE(?compLabel, " ", "_"))) AS ?endpoint)
+  BIND("latency_ms, error_rate, request_count" AS ?metrics)
+
+  # Check dependency health
+  OPTIONAL {
+    ?component ddd:uses ?dep .
+    ?dep rdfs:label ?depLabel .
+  }
+  BIND(COALESCE(?depLabel, "none") AS ?depHealth)
+}

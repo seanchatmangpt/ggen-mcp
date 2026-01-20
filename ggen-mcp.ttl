@@ -216,3 +216,377 @@ ggen:RepositoryPersistenceTest a ddd:Test ;
     ddd:hasArrange "let mut repo = InMemoryOntologyRepository::new(); let ont = Ontology::new(\"ont-x\".into(), \"path\".into())" ;
     ddd:hasAct "repo.save(ont.clone()); let retrieved = repo.find_by_id(\"ont-x\")" ;
     ddd:hasAssert "assert_eq!(retrieved, Some(ont))" .
+
+# =============================================================================
+# MCP Tool Schema - Model Context Protocol Tool Definitions
+# =============================================================================
+
+# MCP Schema Prefix
+@prefix mcp: <https://mcp.dev/schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# MCP Tool class hierarchy
+mcp:Tool a rdfs:Class ;
+    rdfs:label "MCP Tool" ;
+    rdfs:comment "A Model Context Protocol tool that can be invoked by clients" .
+
+mcp:ToolParam a rdfs:Class ;
+    rdfs:label "Tool Parameter" ;
+    rdfs:comment "A parameter for an MCP tool" .
+
+mcp:ToolResponse a rdfs:Class ;
+    rdfs:label "Tool Response" ;
+    rdfs:comment "The response type for an MCP tool" .
+
+# MCP Tool Properties
+mcp:toolName a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range xsd:string ;
+    rdfs:label "tool name" ;
+    rdfs:comment "The snake_case name used for tool invocation" .
+
+mcp:toolDescription a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range xsd:string ;
+    rdfs:label "tool description" ;
+    rdfs:comment "Human-readable description shown to clients" .
+
+mcp:hasParam a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range mcp:ToolParam ;
+    rdfs:label "has parameter" .
+
+mcp:returnsResponse a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range mcp:ToolResponse ;
+    rdfs:label "returns response" .
+
+mcp:isEnabled a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "is enabled" ;
+    rdfs:comment "Whether this tool is enabled by default" .
+
+mcp:requiresFeature a rdf:Property ;
+    rdfs:domain mcp:Tool ;
+    rdfs:range xsd:string ;
+    rdfs:label "requires feature" ;
+    rdfs:comment "Cargo feature flag required to enable this tool" .
+
+mcp:paramOrder a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:integer ;
+    rdfs:label "parameter order" ;
+    rdfs:comment "Order of parameter in struct definition" .
+
+# Tool Parameter Properties
+mcp:paramName a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter name" .
+
+mcp:paramType a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter type" ;
+    rdfs:comment "Rust type for this parameter" .
+
+mcp:paramRequired a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "parameter required" .
+
+mcp:paramDescription a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter description" .
+
+mcp:paramDefault a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter default value" .
+
+mcp:paramAlias a rdf:Property ;
+    rdfs:domain mcp:ToolParam ;
+    rdfs:range xsd:string ;
+    rdfs:label "parameter alias" ;
+    rdfs:comment "Serde alias for the parameter" .
+
+# Tool Response Properties
+mcp:responseType a rdf:Property ;
+    rdfs:domain mcp:ToolResponse ;
+    rdfs:range xsd:string ;
+    rdfs:label "response type" ;
+    rdfs:comment "Rust type for the response" .
+
+# =============================================================================
+# MCP Tool Definitions for Spreadsheet Server
+# =============================================================================
+
+# Response Types
+ggen:WorkbookListResponseType a mcp:ToolResponse ;
+    mcp:responseType "WorkbookListResponse" .
+
+ggen:WorkbookDescriptionResponseType a mcp:ToolResponse ;
+    mcp:responseType "WorkbookDescription" .
+
+ggen:SheetListResponseType a mcp:ToolResponse ;
+    mcp:responseType "SheetListResponse" .
+
+ggen:WorkbookSummaryResponseType a mcp:ToolResponse ;
+    mcp:responseType "WorkbookSummaryResponse" .
+
+ggen:SheetOverviewResponseType a mcp:ToolResponse ;
+    mcp:responseType "SheetOverviewResponse" .
+
+ggen:SheetPageResponseType a mcp:ToolResponse ;
+    mcp:responseType "SheetPageResponse" .
+
+ggen:ReadTableResponseType a mcp:ToolResponse ;
+    mcp:responseType "ReadTableResponse" .
+
+ggen:FindValueResponseType a mcp:ToolResponse ;
+    mcp:responseType "FindValueResponse" .
+
+ggen:RangeValuesResponseType a mcp:ToolResponse ;
+    mcp:responseType "RangeValuesResponse" .
+
+ggen:TableProfileResponseType a mcp:ToolResponse ;
+    mcp:responseType "TableProfileResponse" .
+
+# =============================================================================
+# Tool: list_workbooks
+# =============================================================================
+ggen:ListWorkbooksTool a mcp:Tool ;
+    mcp:toolName "list_workbooks" ;
+    mcp:toolDescription "List spreadsheet files in the workspace" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:ListWorkbooksSlugPrefixParam ;
+    mcp:hasParam ggen:ListWorkbooksFolderParam ;
+    mcp:hasParam ggen:ListWorkbooksPathGlobParam ;
+    mcp:returnsResponse ggen:WorkbookListResponseType .
+
+ggen:ListWorkbooksSlugPrefixParam a mcp:ToolParam ;
+    mcp:paramName "slug_prefix" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 1 ;
+    mcp:paramDescription "Filter by slug prefix" .
+
+ggen:ListWorkbooksFolderParam a mcp:ToolParam ;
+    mcp:paramName "folder" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 2 ;
+    mcp:paramDescription "Filter by folder path" .
+
+ggen:ListWorkbooksPathGlobParam a mcp:ToolParam ;
+    mcp:paramName "path_glob" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 3 ;
+    mcp:paramDescription "Filter by glob pattern" .
+
+# =============================================================================
+# Tool: describe_workbook
+# =============================================================================
+ggen:DescribeWorkbookTool a mcp:Tool ;
+    mcp:toolName "describe_workbook" ;
+    mcp:toolDescription "Describe workbook metadata" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:DescribeWorkbookIdParam ;
+    mcp:returnsResponse ggen:WorkbookDescriptionResponseType .
+
+ggen:DescribeWorkbookIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+# =============================================================================
+# Tool: workbook_summary
+# =============================================================================
+ggen:WorkbookSummaryTool a mcp:Tool ;
+    mcp:toolName "workbook_summary" ;
+    mcp:toolDescription "Summarize workbook regions and entry points" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:WorkbookSummaryIdParam ;
+    mcp:returnsResponse ggen:WorkbookSummaryResponseType .
+
+ggen:WorkbookSummaryIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+# =============================================================================
+# Tool: list_sheets
+# =============================================================================
+ggen:ListSheetsTool a mcp:Tool ;
+    mcp:toolName "list_sheets" ;
+    mcp:toolDescription "List sheets with summaries" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:ListSheetsIdParam ;
+    mcp:returnsResponse ggen:SheetListResponseType .
+
+ggen:ListSheetsIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+# =============================================================================
+# Tool: sheet_overview
+# =============================================================================
+ggen:SheetOverviewTool a mcp:Tool ;
+    mcp:toolName "sheet_overview" ;
+    mcp:toolDescription "Get narrative overview for a sheet" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:SheetOverviewWorkbookIdParam ;
+    mcp:hasParam ggen:SheetOverviewSheetNameParam ;
+    mcp:hasParam ggen:SheetOverviewMaxRegionsParam ;
+    mcp:hasParam ggen:SheetOverviewMaxHeadersParam ;
+    mcp:hasParam ggen:SheetOverviewIncludeHeadersParam ;
+    mcp:returnsResponse ggen:SheetOverviewResponseType .
+
+ggen:SheetOverviewWorkbookIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+ggen:SheetOverviewSheetNameParam a mcp:ToolParam ;
+    mcp:paramName "sheet_name" ;
+    mcp:paramType "String" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 2 ;
+    mcp:paramDescription "Name of the sheet" .
+
+ggen:SheetOverviewMaxRegionsParam a mcp:ToolParam ;
+    mcp:paramName "max_regions" ;
+    mcp:paramType "Option<u32>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 3 ;
+    mcp:paramDescription "Maximum regions to detect" .
+
+ggen:SheetOverviewMaxHeadersParam a mcp:ToolParam ;
+    mcp:paramName "max_headers" ;
+    mcp:paramType "Option<u32>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 4 ;
+    mcp:paramDescription "Maximum headers per region" .
+
+ggen:SheetOverviewIncludeHeadersParam a mcp:ToolParam ;
+    mcp:paramName "include_headers" ;
+    mcp:paramType "Option<bool>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 5 ;
+    mcp:paramDescription "Include header values in response" .
+
+# =============================================================================
+# Tool: read_table
+# =============================================================================
+ggen:ReadTableTool a mcp:Tool ;
+    mcp:toolName "read_table" ;
+    mcp:toolDescription "Read structured data from a range or table" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:ReadTableWorkbookIdParam ;
+    mcp:hasParam ggen:ReadTableSheetNameParam ;
+    mcp:hasParam ggen:ReadTableRangeParam ;
+    mcp:hasParam ggen:ReadTableRegionIdParam ;
+    mcp:hasParam ggen:ReadTableLimitParam ;
+    mcp:hasParam ggen:ReadTableOffsetParam ;
+    mcp:returnsResponse ggen:ReadTableResponseType .
+
+ggen:ReadTableWorkbookIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+ggen:ReadTableSheetNameParam a mcp:ToolParam ;
+    mcp:paramName "sheet_name" ;
+    mcp:paramType "String" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 2 ;
+    mcp:paramDescription "Name of the sheet" .
+
+ggen:ReadTableRangeParam a mcp:ToolParam ;
+    mcp:paramName "range" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 3 ;
+    mcp:paramDescription "A1-style range (e.g., A1:C10)" .
+
+ggen:ReadTableRegionIdParam a mcp:ToolParam ;
+    mcp:paramName "region_id" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 4 ;
+    mcp:paramDescription "Region identifier from sheet_overview" .
+
+ggen:ReadTableLimitParam a mcp:ToolParam ;
+    mcp:paramName "limit" ;
+    mcp:paramType "Option<u32>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 5 ;
+    mcp:paramDescription "Maximum number of rows" .
+
+ggen:ReadTableOffsetParam a mcp:ToolParam ;
+    mcp:paramName "offset" ;
+    mcp:paramType "Option<u32>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 6 ;
+    mcp:paramDescription "Number of rows to skip" .
+
+# =============================================================================
+# Tool: table_profile
+# =============================================================================
+ggen:TableProfileTool a mcp:Tool ;
+    mcp:toolName "table_profile" ;
+    mcp:toolDescription "Profile a region or table" ;
+    mcp:isEnabled true ;
+    mcp:hasParam ggen:TableProfileWorkbookIdParam ;
+    mcp:hasParam ggen:TableProfileSheetNameParam ;
+    mcp:hasParam ggen:TableProfileRangeParam ;
+    mcp:hasParam ggen:TableProfileRegionIdParam ;
+    mcp:returnsResponse ggen:TableProfileResponseType .
+
+ggen:TableProfileWorkbookIdParam a mcp:ToolParam ;
+    mcp:paramName "workbook_or_fork_id" ;
+    mcp:paramType "WorkbookId" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 1 ;
+    mcp:paramAlias "workbook_id" ;
+    mcp:paramDescription "Workbook identifier or fork ID" .
+
+ggen:TableProfileSheetNameParam a mcp:ToolParam ;
+    mcp:paramName "sheet_name" ;
+    mcp:paramType "String" ;
+    mcp:paramRequired true ;
+    mcp:paramOrder 2 ;
+    mcp:paramDescription "Name of the sheet" .
+
+ggen:TableProfileRangeParam a mcp:ToolParam ;
+    mcp:paramName "range" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 3 ;
+    mcp:paramDescription "A1-style range (e.g., A1:C10)" .
+
+ggen:TableProfileRegionIdParam a mcp:ToolParam ;
+    mcp:paramName "region_id" ;
+    mcp:paramType "Option<String>" ;
+    mcp:paramRequired false ;
+    mcp:paramOrder 4 ;
+    mcp:paramDescription "Region identifier from sheet_overview" .

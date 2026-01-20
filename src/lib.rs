@@ -1,6 +1,8 @@
 pub mod analysis;
 pub mod caps;
 pub mod config;
+pub mod domain;
+pub mod generated;
 #[cfg(feature = "recalc")]
 pub mod diff;
 #[cfg(feature = "recalc")]

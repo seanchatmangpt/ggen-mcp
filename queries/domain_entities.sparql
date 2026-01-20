@@ -1,0 +1,303 @@
+# =============================================================================
+# Domain Entities and Value Objects Extraction
+# Extracts DDD patterns: aggregates, entities, value objects, invariants
+# =============================================================================
+# Pattern: Domain-Driven Design semantic extraction
+# Output feeds: domain model code generation templates
+
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX ggen-domain: <https://ggen-mcp.dev/domain#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract Aggregate Roots with properties and invariants
+SELECT ?aggregateName ?aggregateDescription ?propertyLabel ?propertyType
+       ?invariantLabel ?invariantCheck ?invariantMessage
+WHERE {
+  ?aggregate a ddd:AggregateRoot ;
+    rdfs:label ?aggregateName .
+
+  OPTIONAL { ?aggregate rdfs:comment ?aggregateDescription }
+
+  # Properties
+  OPTIONAL {
+    ?aggregate ddd:hasProperty ?prop .
+    ?prop rdfs:label ?propertyLabel .
+    OPTIONAL { ?prop ddd:type ?propertyType }
+  }
+
+  # Invariants
+  OPTIONAL {
+    ?aggregate ddd:hasInvariant ?inv .
+    ?inv rdfs:label ?invariantLabel .
+    OPTIONAL { ?inv ddd:check ?invariantCheck }
+    OPTIONAL { ?inv ddd:message ?invariantMessage }
+  }
+}
+ORDER BY ?aggregateName ?propertyLabel
+
+---
+
+# Query 2: Extract Value Objects with validation rules
+SELECT ?voName ?voDescription ?propertyLabel ?propertyType
+       ?invariantCheck ?invariantMessage ?pattern
+WHERE {
+  ?vo a ddd:ValueObject ;
+    rdfs:label ?voName .
+
+  OPTIONAL { ?vo rdfs:comment ?voDescription }
+
+  # Properties
+  OPTIONAL {
+    ?vo ddd:hasProperty ?prop .
+    ?prop rdfs:label ?propertyLabel .
+    OPTIONAL { ?prop ddd:type ?propertyType }
+  }
+
+  # Invariants with SHACL patterns
+  OPTIONAL {
+    ?vo ddd:hasInvariant ?inv .
+    OPTIONAL { ?inv ddd:check ?invariantCheck }
+    OPTIONAL { ?inv ddd:message ?invariantMessage }
+    OPTIONAL { ?inv sh:pattern ?pattern }
+  }
+}
+ORDER BY ?voName ?propertyLabel
+
+---
+
+# Query 3: CONSTRUCT - Build Entity configuration objects
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?entity a ggen:CompiledEntity ;
+    ggen:entityName ?name ;
+    ggen:entityDescription ?description ;
+    ggen:entityType ?type ;
+    ggen:propertyCount ?propCount ;
+    ggen:invariantCount ?invCount ;
+    rdfs:comment "Extracted domain entity" .
+}
+WHERE {
+  {
+    ?entity a ddd:AggregateRoot ;
+      rdfs:label ?name .
+    BIND("aggregate" AS ?type)
+  }
+  UNION
+  {
+    ?entity a ddd:ValueObject ;
+      rdfs:label ?name .
+    BIND("value_object" AS ?type)
+  }
+
+  OPTIONAL { ?entity rdfs:comment ?description }
+
+  # Count properties
+  {
+    SELECT ?entity (COUNT(?prop) AS ?propCount)
+    WHERE {
+      ?entity ddd:hasProperty ?prop .
+    }
+    GROUP BY ?entity
+  }
+
+  # Count invariants
+  {
+    SELECT ?entity (COUNT(?inv) AS ?invCount)
+    WHERE {
+      ?entity ddd:hasInvariant ?inv .
+    }
+    GROUP BY ?entity
+  }
+}
+
+---
+
+# Query 4: Extract Entity Classes from Enterprise Ontology
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?entityName ?propertyList ?approvalChain ?dataClass
+WHERE {
+  ?ontology a ggen:OntologyLayer .
+  ?ontology ggen:hasEntity ?entityDef .
+
+  ?entityDef a ggen:EntityClass ;
+    rdfs:label ?entityName .
+
+  OPTIONAL { ?entityDef ggen:properties ?propertyList }
+  OPTIONAL { ?entityDef ggen:approvalChain ?approvalChain }
+  OPTIONAL { ?entityDef ggen:dataClass ?dataClass }
+}
+ORDER BY ?entityName
+
+---
+
+# Query 5: Extract Bounded Contexts with their entities
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?contextName ?contextDescription ?ownedEntity ?publishedEvent
+WHERE {
+  ?context a ddd:BoundedContext ;
+    rdfs:label ?contextName .
+
+  OPTIONAL { ?context rdfs:comment ?contextDescription }
+
+  OPTIONAL {
+    ?context ddd:owns ?entityList .
+    ?entityList ?p ?ownedEntity .
+    FILTER(ISIRI(?ownedEntity))
+  }
+
+  OPTIONAL {
+    ?context ddd:publishesEvent ?event .
+    ?event rdfs:label ?publishedEvent .
+  }
+}
+ORDER BY ?contextName ?ownedEntity
+
+---
+
+# Query 6: Extract Repository interfaces
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?repoName ?aggregateRef ?methodName ?methodReturns ?methodParams
+WHERE {
+  ?repo a ddd:Repository ;
+    rdfs:label ?repoName .
+
+  OPTIONAL {
+    ?repo ddd:forAggregate ?aggregate .
+    ?aggregate rdfs:label ?aggregateRef .
+  }
+
+  OPTIONAL {
+    ?repo ddd:hasMethod ?method .
+    ?method rdfs:label ?methodName .
+    OPTIONAL { ?method ddd:returns ?methodReturns }
+    OPTIONAL { ?method ddd:param ?methodParams }
+  }
+}
+ORDER BY ?repoName ?methodName
+
+---
+
+# Query 7: Extract Domain Services
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?serviceName ?usesRepo ?methodName ?methodReturns
+WHERE {
+  ?service a ddd:Service ;
+    rdfs:label ?serviceName .
+
+  OPTIONAL {
+    ?service ddd:uses ?repo .
+    ?repo rdfs:label ?usesRepo .
+  }
+
+  OPTIONAL {
+    ?service ddd:hasMethod ?method .
+    ?method rdfs:label ?methodName .
+    OPTIONAL { ?method ddd:returns ?methodReturns }
+  }
+}
+ORDER BY ?serviceName ?methodName
+
+---
+
+# Query 8: Extract Command and Event definitions
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?itemName ?itemType ?itemDescription ?paramLabel ?emitsEvent
+WHERE {
+  {
+    ?item a ddd:Command ;
+      rdfs:label ?itemName .
+    BIND("command" AS ?itemType)
+
+    OPTIONAL { ?item rdfs:comment ?itemDescription }
+    OPTIONAL {
+      ?item ddd:hasParameter ?param .
+      ?param rdfs:label ?paramLabel .
+    }
+    OPTIONAL {
+      ?item ddd:emitsEvent ?event .
+      ?event rdfs:label ?emitsEvent .
+    }
+  }
+  UNION
+  {
+    ?item a ddd:DomainEvent ;
+      rdfs:label ?itemName .
+    BIND("event" AS ?itemType)
+
+    OPTIONAL { ?item rdfs:comment ?itemDescription }
+    OPTIONAL {
+      ?item ddd:hasProperty ?prop .
+      ?prop rdfs:label ?paramLabel .
+    }
+  }
+}
+ORDER BY ?itemType ?itemName
+
+---
+
+# Query 9: Extract Handler bindings (Command -> Handler -> Event)
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?handlerName ?handlesCommand ?emitsEvent
+WHERE {
+  ?handler a ddd:Handler ;
+    rdfs:label ?handlerName .
+
+  OPTIONAL {
+    ?handler ddd:handles ?cmd .
+    ?cmd rdfs:label ?handlesCommand .
+  }
+
+  OPTIONAL {
+    ?handler ddd:emits ?event .
+    ?event rdfs:label ?emitsEvent .
+  }
+}
+ORDER BY ?handlerName
+
+---
+
+# Query 10: Extract Policies and their validation targets
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?policyName ?policyDescription ?validatesTarget ?ensures ?verifies
+WHERE {
+  ?policy a ddd:Policy ;
+    rdfs:label ?policyName .
+
+  OPTIONAL { ?policy rdfs:comment ?policyDescription }
+
+  OPTIONAL {
+    ?policy ddd:validates ?target .
+    ?target rdfs:label ?validatesTarget .
+  }
+
+  OPTIONAL { ?policy ddd:ensures ?ensures }
+  OPTIONAL { ?policy ddd:verifies ?verifies }
+}
+ORDER BY ?policyName

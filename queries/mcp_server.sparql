@@ -1,0 +1,147 @@
+# =============================================================================
+# MCP Server Complete Extraction
+# Extracts complete MCP server configuration: tools, resources, prompts, guards
+# =============================================================================
+# Pattern: Comprehensive server extraction for MCP package generation
+# Output: Complete MCP server manifest for code generation
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: CONSTRUCT - Complete MCP Server manifest
+CONSTRUCT {
+  ?server a mcp:CompiledServer ;
+    mcp:serverName ?serverName ;
+    mcp:serverDescription ?description ;
+    mcp:serverVersion ?version ;
+    mcp:toolCount ?toolCount ;
+    mcp:resourceCount ?resourceCount ;
+    mcp:promptCount ?promptCount ;
+    mcp:instructions ?instructions ;
+    rdfs:comment "Complete MCP server configuration" .
+}
+WHERE {
+  ?server a mcp:Server ;
+    rdfs:label ?serverName .
+
+  OPTIONAL { ?server rdfs:comment ?description }
+  OPTIONAL { ?server mcp:version ?version }
+  OPTIONAL { ?server mcp:instructions ?instructions }
+
+  # Count tools
+  {
+    SELECT (COUNT(?tool) AS ?toolCount)
+    WHERE { ?tool a mcp:Tool . }
+  }
+
+  # Count resources
+  {
+    SELECT (COUNT(?resource) AS ?resourceCount)
+    WHERE { ?resource a mcp:Resource . }
+  }
+
+  # Count prompts
+  {
+    SELECT (COUNT(?prompt) AS ?promptCount)
+    WHERE { ?prompt a mcp:Prompt . }
+  }
+}
+
+---
+
+# Query 2: Extract all MCP components for server initialization
+SELECT ?componentType ?componentName ?componentDescription ?category
+WHERE {
+  {
+    ?component a mcp:Tool ;
+      rdfs:label ?componentName .
+    BIND("tool" AS ?componentType)
+    OPTIONAL { ?component rdfs:comment ?componentDescription }
+    OPTIONAL { ?component ggen:category ?category }
+  }
+  UNION
+  {
+    ?component a mcp:Resource ;
+      rdfs:label ?componentName .
+    BIND("resource" AS ?componentType)
+    OPTIONAL { ?component rdfs:comment ?componentDescription }
+    OPTIONAL { ?component ggen:category ?category }
+  }
+  UNION
+  {
+    ?component a mcp:Prompt ;
+      rdfs:label ?componentName .
+    BIND("prompt" AS ?componentType)
+    OPTIONAL { ?component rdfs:comment ?componentDescription }
+    OPTIONAL { ?component ggen:category ?category }
+  }
+}
+ORDER BY ?componentType ?componentName
+
+---
+
+# Query 3: Extract server capabilities and features
+SELECT ?serverName ?capability ?featureFlag ?defaultEnabled
+WHERE {
+  ?server a mcp:Server ;
+    rdfs:label ?serverName .
+
+  OPTIONAL {
+    ?server mcp:hasCapability ?cap .
+    ?cap rdfs:label ?capability .
+    OPTIONAL { ?cap ggen:featureFlag ?featureFlag }
+    OPTIONAL { ?cap ggen:defaultEnabled ?defaultEnabled }
+  }
+}
+ORDER BY ?serverName ?capability
+
+---
+
+# Query 4: Extract transport configuration
+SELECT ?serverName ?transportType ?transportConfig ?securityMode
+WHERE {
+  ?server a mcp:Server ;
+    rdfs:label ?serverName .
+
+  OPTIONAL {
+    ?server mcp:transport ?transport .
+    ?transport a ?transportType .
+    OPTIONAL { ?transport mcp:config ?transportConfig }
+    OPTIONAL { ?transport mcp:securityMode ?securityMode }
+  }
+}
+ORDER BY ?serverName
+
+---
+
+# Query 5: Server instructions by category
+SELECT ?category ?instructionText ?priority
+WHERE {
+  ?instruction a mcp:ServerInstruction ;
+    mcp:category ?category ;
+    mcp:instructionText ?instructionText .
+
+  OPTIONAL { ?instruction mcp:priority ?priority }
+}
+ORDER BY ?priority DESC ?category
+
+---
+
+# Query 6: Tool router configuration
+SELECT ?routerName ?toolName ?toolEnabled ?featureFlag ?timeout
+WHERE {
+  ?router a mcp:ToolRouter ;
+    rdfs:label ?routerName ;
+    mcp:includesTools ?tool .
+
+  ?tool rdfs:label ?toolName .
+
+  OPTIONAL { ?tool mcp:enabled ?toolEnabled }
+  OPTIONAL { ?tool ggen:requiresFeature ?featureFlag }
+  OPTIONAL { ?tool mcp:timeout ?timeout }
+}
+ORDER BY ?routerName ?toolName
