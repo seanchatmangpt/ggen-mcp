@@ -1,0 +1,321 @@
+##############################################################################
+# VALIDATION CONSTRAINT INFERENCE RULES
+# ============================================================================
+# Generate validation constraints from SHACL shapes and DDD invariants
+# These rules derive type-safe validation logic for the MCP server
+##############################################################################
+
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Rule 1: Extract Pattern Validators from SHACL
+# Create regex-based validators from sh:pattern constraints
+# ============================================================================
+CONSTRUCT {
+  ?validator a mcp:PatternValidator ;
+    rdfs:label ?validatorLabel ;
+    mcp:validatesProperty ?property ;
+    mcp:pattern ?pattern ;
+    mcp:errorMessage ?errorMsg ;
+    mcp:rustValidation ?rustCode .
+}
+WHERE {
+  ?shape sh:property [
+    sh:path ?property ;
+    sh:pattern ?pattern
+  ] .
+  ?property rdfs:label ?propLabel .
+
+  BIND(CONCAT(?propLabel, "PatternValidator") AS ?validatorLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?validatorLabel, " ", ""))) AS ?validator)
+  BIND(CONCAT(?propLabel, " must match pattern: ", ?pattern) AS ?errorMsg)
+  BIND(CONCAT("Regex::new(r\"", ?pattern, "\").unwrap().is_match(&self.", ?propLabel, ")") AS ?rustCode)
+}
+
+---
+
+# Rule 2: Extract Cardinality Validators
+# Create min/max count validators from SHACL
+# ============================================================================
+CONSTRUCT {
+  ?validator a mcp:CardinalityValidator ;
+    rdfs:label ?validatorLabel ;
+    mcp:validatesProperty ?property ;
+    mcp:minCount ?minCount ;
+    mcp:maxCount ?maxCount ;
+    mcp:errorMessage ?errorMsg ;
+    mcp:rustValidation ?rustCode .
+}
+WHERE {
+  ?shape sh:property ?propShape .
+  ?propShape sh:path ?property .
+  ?property rdfs:label ?propLabel .
+
+  OPTIONAL { ?propShape sh:minCount ?minCount }
+  OPTIONAL { ?propShape sh:maxCount ?maxCount }
+
+  FILTER(BOUND(?minCount) || BOUND(?maxCount))
+
+  BIND(CONCAT(?propLabel, "CardinalityValidator") AS ?validatorLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?validatorLabel, " ", ""))) AS ?validator)
+
+  # Generate error message
+  BIND(
+    IF(BOUND(?minCount) && BOUND(?maxCount),
+      CONCAT(?propLabel, " must have between ", STR(?minCount), " and ", STR(?maxCount), " values"),
+      IF(BOUND(?minCount),
+        CONCAT(?propLabel, " must have at least ", STR(?minCount), " value(s)"),
+        CONCAT(?propLabel, " must have at most ", STR(?maxCount), " value(s)")))
+    AS ?errorMsg
+  )
+
+  # Generate Rust validation
+  BIND(
+    IF(BOUND(?minCount) && BOUND(?maxCount),
+      CONCAT("self.", ?propLabel, ".len() >= ", STR(?minCount), " && self.", ?propLabel, ".len() <= ", STR(?maxCount)),
+      IF(BOUND(?minCount),
+        CONCAT("self.", ?propLabel, ".len() >= ", STR(?minCount)),
+        CONCAT("self.", ?propLabel, ".len() <= ", STR(?maxCount))))
+    AS ?rustCode
+  )
+}
+
+---
+
+# Rule 3: Extract Range Validators
+# Create min/max value validators for numeric types
+# ============================================================================
+CONSTRUCT {
+  ?validator a mcp:RangeValidator ;
+    rdfs:label ?validatorLabel ;
+    mcp:validatesProperty ?property ;
+    mcp:minInclusive ?minVal ;
+    mcp:maxInclusive ?maxVal ;
+    mcp:errorMessage ?errorMsg ;
+    mcp:rustValidation ?rustCode .
+}
+WHERE {
+  ?shape sh:property ?propShape .
+  ?propShape sh:path ?property .
+  ?property rdfs:label ?propLabel .
+
+  OPTIONAL { ?propShape sh:minInclusive ?minVal }
+  OPTIONAL { ?propShape sh:maxInclusive ?maxVal }
+
+  FILTER(BOUND(?minVal) || BOUND(?maxVal))
+
+  BIND(CONCAT(?propLabel, "RangeValidator") AS ?validatorLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?validatorLabel, " ", ""))) AS ?validator)
+
+  BIND(
+    IF(BOUND(?minVal) && BOUND(?maxVal),
+      CONCAT(?propLabel, " must be between ", STR(?minVal), " and ", STR(?maxVal)),
+      IF(BOUND(?minVal),
+        CONCAT(?propLabel, " must be at least ", STR(?minVal)),
+        CONCAT(?propLabel, " must be at most ", STR(?maxVal))))
+    AS ?errorMsg
+  )
+
+  BIND(
+    IF(BOUND(?minVal) && BOUND(?maxVal),
+      CONCAT("self.", ?propLabel, " >= ", STR(?minVal), " && self.", ?propLabel, " <= ", STR(?maxVal)),
+      IF(BOUND(?minVal),
+        CONCAT("self.", ?propLabel, " >= ", STR(?minVal)),
+        CONCAT("self.", ?propLabel, " <= ", STR(?maxVal))))
+    AS ?rustCode
+  )
+}
+
+---
+
+# Rule 4: Extract DDD Invariant Validators
+# Transform DDD invariants into validators
+# ============================================================================
+CONSTRUCT {
+  ?validator a mcp:InvariantValidator ;
+    rdfs:label ?invariantLabel ;
+    mcp:validatesAggregate ?aggregate ;
+    mcp:invariantCheck ?check ;
+    mcp:errorMessage ?errorMsg ;
+    mcp:rustValidation ?rustCode ;
+    mcp:validationPriority ?priority .
+}
+WHERE {
+  ?aggregate a ddd:AggregateRoot ;
+    ddd:hasInvariant ?invariant .
+
+  ?invariant rdfs:label ?invariantLabel .
+
+  OPTIONAL { ?invariant ddd:check ?check }
+  OPTIONAL { ?invariant ddd:message ?errorMsg }
+
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#Validator", ENCODE_FOR_URI(?invariantLabel))) AS ?validator)
+  BIND(COALESCE(?check, "true") AS ?rustCode)
+
+  # Assign priority (higher = more important)
+  BIND(
+    IF(CONTAINS(LCASE(?invariantLabel), "must"), 100,
+      IF(CONTAINS(LCASE(?invariantLabel), "required"), 90,
+        IF(CONTAINS(LCASE(?invariantLabel), "valid"), 80, 50)))
+    AS ?priority
+  )
+}
+
+---
+
+# Rule 5: Generate Composite Validators
+# Combine related validators into validation groups
+# ============================================================================
+CONSTRUCT {
+  ?composite a mcp:CompositeValidator ;
+    rdfs:label ?compositeLabel ;
+    mcp:validatesType ?targetType ;
+    mcp:validators ?validatorList ;
+    mcp:validatorCount ?count ;
+    mcp:failFast true .
+}
+WHERE {
+  ?targetType a ddd:AggregateRoot ;
+    rdfs:label ?typeLabel .
+
+  BIND(CONCAT(?typeLabel, "Validator") AS ?compositeLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", ?compositeLabel)) AS ?composite)
+
+  # Collect all validators for this type
+  {
+    SELECT ?targetType (GROUP_CONCAT(?validator; separator=", ") AS ?validatorList) (COUNT(?validator) AS ?count)
+    WHERE {
+      {
+        ?validator mcp:validatesAggregate ?targetType .
+      }
+      UNION
+      {
+        ?targetType ddd:hasProperty ?prop .
+        ?validator mcp:validatesProperty ?prop .
+      }
+    }
+    GROUP BY ?targetType
+  }
+}
+
+---
+
+# Rule 6: Generate Type-Level Constraints
+# Create type system constraints for compile-time validation
+# ============================================================================
+CONSTRUCT {
+  ?constraint a mcp:TypeConstraint ;
+    rdfs:label ?constraintLabel ;
+    mcp:constrainedType ?targetType ;
+    mcp:constraintKind ?kind ;
+    mcp:rustTrait ?trait ;
+    mcp:whereClause ?whereClause .
+}
+WHERE {
+  ?targetType a ddd:AggregateRoot ;
+    rdfs:label ?typeLabel .
+
+  {
+    # Non-empty constraint
+    ?targetType ddd:hasInvariant ?inv .
+    ?inv rdfs:label ?invLabel .
+    FILTER(CONTAINS(LCASE(?invLabel), "non-empty") || CONTAINS(LCASE(?invLabel), "must have"))
+
+    BIND(CONCAT(?typeLabel, "NonEmptyConstraint") AS ?constraintLabel)
+    BIND("non_empty" AS ?kind)
+    BIND("AsRef<[T]>" AS ?trait)
+    BIND("where Self: AsRef<[T]>, [T]: ToOwned" AS ?whereClause)
+  }
+  UNION
+  {
+    # Pattern constraint
+    ?targetType ddd:hasInvariant ?inv .
+    ?inv sh:pattern ?pattern .
+    ?inv rdfs:label ?invLabel .
+
+    BIND(CONCAT(?typeLabel, "PatternConstraint") AS ?constraintLabel)
+    BIND("pattern" AS ?kind)
+    BIND("AsRef<str>" AS ?trait)
+    BIND("where Self: AsRef<str>" AS ?whereClause)
+  }
+
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?constraintLabel, " ", ""))) AS ?constraint)
+}
+
+---
+
+# Rule 7: Generate Validation Error Types
+# Create strongly-typed validation errors
+# ============================================================================
+CONSTRUCT {
+  ?errorType a mcp:ValidationError ;
+    rdfs:label ?errorLabel ;
+    mcp:errorCode ?errorCode ;
+    mcp:errorCategory ?category ;
+    mcp:errorFields ?fields ;
+    mcp:derivesThisError true .
+}
+WHERE {
+  {
+    SELECT DISTINCT ?category
+    WHERE {
+      { ?v a mcp:PatternValidator . BIND("pattern" AS ?category) }
+      UNION
+      { ?v a mcp:CardinalityValidator . BIND("cardinality" AS ?category) }
+      UNION
+      { ?v a mcp:RangeValidator . BIND("range" AS ?category) }
+      UNION
+      { ?v a mcp:InvariantValidator . BIND("invariant" AS ?category) }
+    }
+  }
+
+  BIND(CONCAT("Validation", UCASE(SUBSTR(?category, 1, 1)), SUBSTR(?category, 2), "Error") AS ?errorLabel)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", ?errorLabel)) AS ?errorType)
+  BIND(CONCAT("E_VAL_", UCASE(?category)) AS ?errorCode)
+
+  BIND(
+    IF(?category = "pattern", "field_name: String, value: String, pattern: String",
+      IF(?category = "cardinality", "field_name: String, actual: usize, expected: String",
+        IF(?category = "range", "field_name: String, value: String, min: Option<String>, max: Option<String>",
+          "invariant_name: String, message: String")))
+    AS ?fields
+  )
+}
+
+---
+
+# Rule 8: Generate Validation Middleware
+# Create validation middleware for MCP tool handlers
+# ============================================================================
+CONSTRUCT {
+  ?middleware a mcp:ValidationMiddleware ;
+    rdfs:label ?label ;
+    mcp:validatesRequest true ;
+    mcp:appliesTo ?handler ;
+    mcp:validatorChain ?chain ;
+    mcp:earlyReturn true ;
+    mcp:logsValidationFailures true .
+}
+WHERE {
+  ?handler a mcp:GeneratedHandler ;
+    mcp:handlesCommand ?command .
+  ?command rdfs:label ?cmdLabel .
+
+  BIND(CONCAT(?cmdLabel, "ValidationMiddleware") AS ?label)
+  BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?label, " ", ""))) AS ?middleware)
+
+  # Build validator chain for this handler
+  {
+    SELECT ?handler (GROUP_CONCAT(?validator; separator=" -> ") AS ?chain)
+    WHERE {
+      ?handler mcp:handlesCommand ?cmd .
+      ?cmd ddd:hasParameter ?param .
+      ?validator mcp:validatesProperty ?param .
+    }
+    GROUP BY ?handler
+  }
+}

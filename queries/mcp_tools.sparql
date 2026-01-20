@@ -1,0 +1,129 @@
+# =============================================================================
+# MCP Tool Definitions Extraction
+# Extracts tool definitions with name, description, parameters, and handler info
+# =============================================================================
+# Pattern: SELECT query for extracting tool definitions from ontology
+# Output feeds: mcp-tools.tera template generation
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract MCP Tool definitions with parameters
+SELECT ?toolName ?toolDescription ?paramName ?paramType ?paramRequired ?paramDescription
+       ?handlerName ?handlerEmits ?inputSchema ?guardSet
+WHERE {
+  ?tool a mcp:Tool .
+  ?tool rdfs:label ?toolName .
+
+  OPTIONAL { ?tool rdfs:comment ?toolDescription }
+  OPTIONAL { ?tool mcp:inputSchema ?inputSchema }
+  OPTIONAL { ?tool ggen:guardSet ?guardSet }
+
+  # Tool parameters (optional - tool may have no params)
+  OPTIONAL {
+    ?tool mcp:hasParameter ?param .
+    ?param rdfs:label ?paramName .
+    ?param mcp:paramType ?paramType .
+    OPTIONAL { ?param mcp:required ?paramRequired }
+    OPTIONAL { ?param rdfs:comment ?paramDescription }
+  }
+
+  # Associated handler (optional)
+  OPTIONAL {
+    ?handler ddd:handles ?tool .
+    ?handler rdfs:label ?handlerName .
+    OPTIONAL { ?handler ddd:emits ?event . ?event rdfs:label ?handlerEmits }
+  }
+}
+ORDER BY ?toolName ?paramName
+
+---
+
+# Query 2: CONSTRUCT - Build MCP Tool configuration objects
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?tool a mcp:CompiledTool ;
+    mcp:toolName ?name ;
+    mcp:toolDescription ?description ;
+    mcp:hasInputSchema ?schemaJson ;
+    mcp:hasGuards ?guards ;
+    mcp:proposalOnly ?proposalOnly ;
+    rdfs:comment "Extracted MCP tool definition" .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?name .
+
+  OPTIONAL { ?tool rdfs:comment ?description }
+  OPTIONAL { ?tool mcp:inputSchema ?schemaJson }
+  OPTIONAL { ?tool ggen:guardSet ?guards }
+
+  # Determine if tool outputs proposals only (safety boundary)
+  BIND(
+    IF(EXISTS { ?tool ggen:outputsProposal true }, true, false)
+    AS ?proposalOnly
+  )
+}
+
+---
+
+# Query 3: Extract tools by category (read/write/analysis)
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?toolName ?category ?description ?featureFlag
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?toolName .
+
+  OPTIONAL { ?tool rdfs:comment ?description }
+  OPTIONAL { ?tool ggen:requiresFeature ?featureFlag }
+
+  # Categorize tools by capability
+  BIND(
+    IF(CONTAINS(LCASE(?toolName), "read") || CONTAINS(LCASE(?toolName), "list") ||
+       CONTAINS(LCASE(?toolName), "get") || CONTAINS(LCASE(?toolName), "find") ||
+       CONTAINS(LCASE(?toolName), "describe"), "read",
+      IF(CONTAINS(LCASE(?toolName), "edit") || CONTAINS(LCASE(?toolName), "create") ||
+         CONTAINS(LCASE(?toolName), "save") || CONTAINS(LCASE(?toolName), "fork") ||
+         CONTAINS(LCASE(?toolName), "transform"), "write",
+        IF(CONTAINS(LCASE(?toolName), "analyze") || CONTAINS(LCASE(?toolName), "profile") ||
+           CONTAINS(LCASE(?toolName), "trace") || CONTAINS(LCASE(?toolName), "scan"), "analysis",
+          "utility")))
+    AS ?category
+  )
+}
+ORDER BY ?category ?toolName
+
+---
+
+# Query 4: Extract tool input schema structure
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?toolName ?paramName ?paramType ?paramDefault ?paramEnum ?paramRequired ?paramDescription
+WHERE {
+  ?tool a mcp:Tool ;
+    rdfs:label ?toolName ;
+    mcp:hasParameter ?param .
+
+  ?param rdfs:label ?paramName ;
+         mcp:paramType ?paramType .
+
+  OPTIONAL { ?param mcp:default ?paramDefault }
+  OPTIONAL { ?param mcp:enum ?paramEnum }
+  OPTIONAL { ?param mcp:required ?paramRequired }
+  OPTIONAL { ?param rdfs:comment ?paramDescription }
+}
+ORDER BY ?toolName ?paramRequired DESC ?paramName

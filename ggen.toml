@@ -1,30 +1,527 @@
+# =============================================================================
+# ggen-mcp Configuration (ggen v6)
+# Production-ready ontology-driven code generation for MCP Server
+# =============================================================================
+
 [project]
 name = "ggen-mcp"
 version = "0.1.0"
+description = "Model Context Protocol server with ontology-driven code generation"
+authors = ["ggen-mcp contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/example/ggen-mcp"
 
+# =============================================================================
+# Ontology Configuration
+# =============================================================================
 [ontology]
-source = "ggen-mcp.ttl"
+# Primary ontology source - MCP domain model
+source = "ontology/mcp-domain.ttl"
+# Fallback to root ontology if mcp-domain.ttl doesn't exist yet
+# source = "ggen-mcp.ttl"
+base_uri = "https://ggen-mcp.dev/domain#"
+format = "turtle"
+# Additional ontology imports
+imports = [
+    "ggen-mcp.ttl",
+]
 
+# SPARQL prefixes for queries
+[ontology.prefixes]
+# MCP domain prefixes
+mcp = "https://ggen-mcp.dev/mcp#"
+ggen = "https://ggen-mcp.dev/domain#"
+# DDD patterns
+ddd = "https://ddd-patterns.dev/schema#"
+# Standard RDF vocabularies
+rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+xsd = "http://www.w3.org/2001/XMLSchema#"
+owl = "http://www.w3.org/2002/07/owl#"
+sh = "http://www.w3.org/ns/shacl#"
+# Schema.org for common concepts
+schema = "https://schema.org/"
+
+# =============================================================================
+# RDF Store Configuration
+# =============================================================================
+[rdf]
+base_uri = "https://ggen-mcp.dev/"
+default_format = "turtle"
+cache_queries = true
+store_path = ".ggen/rdf-store"
+
+[rdf.prefixes]
+mcp = "https://ggen-mcp.dev/mcp#"
+ggen = "https://ggen-mcp.dev/domain#"
+ddd = "https://ddd-patterns.dev/schema#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+owl = "http://www.w3.org/2002/07/owl#"
+xsd = "http://www.w3.org/2001/XMLSchema#"
+sh = "http://www.w3.org/ns/shacl#"
+
+# =============================================================================
+# SPARQL Configuration
+# =============================================================================
+[sparql]
+timeout = 30
+max_results = 5000
+cache_enabled = true
+cache_ttl = 3600
+
+# =============================================================================
+# Inference Rules (CONSTRUCT queries for enrichment)
+# =============================================================================
+
+# Inference Rule 1: Materialize MCP Tool metadata
+[[inference.rules]]
+name = "enrich-mcp-tools"
+description = "Materialize MCP tool metadata from ontology"
+construct = """
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?tool mcp:toolType "mcp_tool" ;
+        mcp:hasInputSchema ?inputSchema ;
+        mcp:hasOutputSchema ?outputSchema .
+}
+WHERE {
+  ?tool a mcp:Tool ;
+        rdfs:label ?label .
+  OPTIONAL { ?tool mcp:inputSchema ?inputSchema }
+  OPTIONAL { ?tool mcp:outputSchema ?outputSchema }
+}
+"""
+
+# Inference Rule 2: Materialize MCP Resource metadata
+[[inference.rules]]
+name = "enrich-mcp-resources"
+description = "Materialize MCP resource metadata from ontology"
+construct = """
+PREFIX mcp: <https://ggen-mcp.dev/mcp#>
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?resource mcp:resourceType "mcp_resource" ;
+            mcp:uriTemplate ?uri ;
+            mcp:mimeType ?mime .
+}
+WHERE {
+  ?resource a mcp:Resource ;
+            rdfs:label ?label .
+  OPTIONAL { ?resource mcp:uri ?uri }
+  OPTIONAL { ?resource mcp:mimeType ?mime }
+}
+"""
+
+# Inference Rule 3: Materialize DDD aggregate relationships
+[[inference.rules]]
+name = "enrich-ddd-aggregates"
+description = "Materialize DDD aggregate root relationships"
+construct = """
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX ggen: <https://ggen-mcp.dev/domain#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?aggregate ddd:aggregateType "domain_aggregate" ;
+             ddd:hasInvariantCount ?count .
+}
+WHERE {
+  ?aggregate a ddd:AggregateRoot ;
+             rdfs:label ?label .
+  {
+    SELECT ?aggregate (COUNT(?invariant) AS ?count)
+    WHERE {
+      ?aggregate ddd:hasInvariant ?invariant .
+    }
+    GROUP BY ?aggregate
+  }
+}
+"""
+
+# =============================================================================
+# Advanced Inference Rules (SPARQL CONSTRUCT files)
+# =============================================================================
+# These rules use separate .sparql files for complex inference patterns
+# following ggen patterns from the examples and documentation
+
+# Inference Rule 4: Derive Tool Categories from Tool Definitions
+# Classifies MCP tools as ReadOnly, Mutating, Fork, Analysis, or VBA
+[[inference.rules]]
+name = "tool-categories"
+description = "Derive tool categories from tool definitions (read-only, mutating, fork, analysis, VBA)"
+query_file = "queries/inference/tool_categories.sparql"
+enabled = true
+priority = 10
+
+# Inference Rule 5: Infer Handler Implementations from Tool Schemas
+# Generates handler traits, parameters, response types, and async behaviors
+[[inference.rules]]
+name = "handler-implementations"
+description = "Infer handler implementations from tool schemas and command definitions"
+query_file = "queries/inference/handler_implementations.sparql"
+enabled = true
+priority = 20
+depends_on = ["tool-categories"]
+
+# Inference Rule 6: Generate Validation Constraints
+# Creates validators from SHACL shapes and DDD invariants
+[[inference.rules]]
+name = "validation-constraints"
+description = "Generate validation constraints from SHACL shapes and DDD invariants"
+query_file = "queries/inference/validation_constraints.sparql"
+enabled = true
+priority = 30
+depends_on = ["handler-implementations"]
+
+# Inference Rule 7: Build MCP Component Relationships
+# Maps bounded contexts, event flows, service dependencies, and health checks
+[[inference.rules]]
+name = "mcp-relationships"
+description = "Build relationships between MCP components (contexts, events, services, health)"
+query_file = "queries/inference/mcp_relationships.sparql"
+enabled = true
+priority = 40
+depends_on = ["validation-constraints"]
+
+# =============================================================================
+# Inference Rule Execution Order
+# =============================================================================
+# Rules are executed in dependency order: tool-categories -> handler-implementations
+# -> validation-constraints -> mcp-relationships
+# This ensures materialized facts from earlier rules are available to later rules
+[inference]
+enabled = true
+materialize_results = true
+cache_intermediate = true
+fail_on_error = false
+log_statistics = true
+rule_order = [
+    "enrich-mcp-tools",
+    "enrich-mcp-resources",
+    "enrich-ddd-aggregates",
+    "tool-categories",
+    "handler-implementations",
+    "validation-constraints",
+    "mcp-relationships",
+]
+
+# =============================================================================
+# Generation Configuration
+# =============================================================================
 [generation]
 output_dir = "."
+require_audit_trail = true
+
+# Protected paths - never overwrite
+protected_paths = [
+    "src/domain/mod.rs",
+    "src/main.rs",
+]
+
+# Regeneratable paths - safe to overwrite
+regenerate_paths = [
+    "src/generated/**",
+    "generated/**",
+]
+
+# Generated file header
+generated_header = """
+// =============================================================================
+// AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
+// Generated by ggen from RDF ontology
+// Regenerate with: ggen sync
+// =============================================================================
+"""
+
+# =============================================================================
+# Generation Rules: MCP Tools
+# =============================================================================
+
+# Rule: MCP Tool Handler Methods
+# Generates the #[tool] annotated async handler methods for the server impl
+[[generation.rules]]
+name = "mcp-tools"
+description = "Generate MCP tool handler methods from ontology"
+query = { file = "queries/mcp_tools.rq" }
+template = { file = "templates/mcp_tools.rs.tera" }
+output_file = "src/generated/mcp_tools.rs"
+mode = "Overwrite"
+
+# Rule: MCP Tool Parameter Structs
+# Generates the *Params structs with serde derives for tool inputs
+[[generation.rules]]
+name = "mcp-tool-params"
+description = "Generate MCP tool parameter structs from ontology"
+query = { file = "queries/mcp_tool_params.rq" }
+template = { file = "templates/mcp_tool_params.rs.tera" }
+output_file = "src/generated/mcp_tool_params.rs"
+mode = "Overwrite"
+
+# =============================================================================
+# Generation Rules: MCP Resources
+# =============================================================================
+
+[[generation.rules]]
+name = "mcp-resources"
+description = "Generate MCP resource definitions from ontology"
+query = { file = "queries/mcp_resources.rq" }
+template = { file = "templates/mcp_resources.rs.tera" }
+output_file = "src/generated/mcp_resources.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "mcp-resource-providers"
+description = "Generate MCP resource provider implementations"
+query = { file = "queries/mcp_resource_providers.rq" }
+template = { file = "templates/mcp_resource_providers.rs.tera" }
+output_file = "src/generated/resource_providers.rs"
+mode = "Overwrite"
+
+# =============================================================================
+# Generation Rules: Domain Aggregates (DDD)
+# =============================================================================
 
 [[generation.rules]]
 name = "domain-aggregates"
+description = "Generate domain aggregate roots with invariants"
 query = { file = "queries/aggregates.rq" }
 template = { file = "templates/aggregate.rs.tera" }
 output_file = "src/domain/aggregates.rs"
 mode = "Overwrite"
 
 [[generation.rules]]
+name = "domain-value-objects"
+description = "Generate domain value objects with validation"
+query = { file = "queries/value_objects.rq" }
+template = { file = "templates/value_objects.rs.tera" }
+output_file = "src/domain/value_objects.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
 name = "domain-commands"
+description = "Generate domain commands"
 query = { file = "queries/commands.rq" }
 template = { file = "templates/command.rs.tera" }
 output_file = "src/domain/commands.rs"
 mode = "Overwrite"
 
 [[generation.rules]]
-name = "domain-value-objects"
-query = { file = "queries/value_objects.rq" }
-template = { file = "templates/value_objects.rs.tera" }
-output_file = "src/domain/value_objects.rs"
+name = "domain-events"
+description = "Generate domain events"
+query = { file = "queries/events.rq" }
+template = { file = "templates/events.rs.tera" }
+output_file = "src/domain/events.rs"
 mode = "Overwrite"
+
+# =============================================================================
+# Generation Rules: Services and Repositories
+# =============================================================================
+
+[[generation.rules]]
+name = "domain-repositories"
+description = "Generate repository traits"
+query = { file = "queries/repositories.rq" }
+template = { file = "templates/repositories.rs.tera" }
+output_file = "src/domain/repositories.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "domain-services"
+description = "Generate domain service traits"
+query = { file = "queries/services.rq" }
+template = { file = "templates/services.rs.tera" }
+output_file = "src/domain/services.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "domain-handlers"
+description = "Generate command handlers"
+query = { file = "queries/handlers.rq" }
+template = { file = "templates/handlers.rs.tera" }
+output_file = "src/domain/handlers.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "domain-policies"
+description = "Generate domain policies"
+query = { file = "queries/policies.rq" }
+template = { file = "templates/policies.rs.tera" }
+output_file = "src/domain/policies.rs"
+mode = "Overwrite"
+
+# =============================================================================
+# Generation Rules: Module Files
+# =============================================================================
+
+[[generation.rules]]
+name = "domain-mod"
+description = "Generate domain module file"
+query = { file = "queries/domain_mod.rq" }
+template = { file = "templates/domain_mod.rs.tera" }
+output_file = "src/generated/domain_mod.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "generated-mod"
+description = "Generate the generated module index"
+query = { file = "queries/generated_mod.rq" }
+template = { file = "templates/generated_mod.rs.tera" }
+output_file = "src/generated/mod.rs"
+mode = "Overwrite"
+
+# =============================================================================
+# Generation Rules: Tests
+# =============================================================================
+
+[[generation.rules]]
+name = "domain-tests"
+description = "Generate Chicago TDD test scaffolding"
+query = { file = "queries/tests.rq" }
+template = { file = "templates/tests.rs.tera" }
+output_file = "src/generated/tests.rs"
+mode = "Overwrite"
+
+# =============================================================================
+# Validation Configuration
+# =============================================================================
+[validation]
+validate_syntax = true
+no_unsafe = true
+require_doc_comments = true
+max_line_length = 120
+
+# SHACL validation for ontology (POKA-YOKE principle: validate before generate)
+# This ensures specification closure - all RDF data meets shape constraints
+[validation.shacl]
+enabled = true
+shapes_file = "ontology/shapes.ttl"
+fail_on_violation = true      # sh:Violation stops code generation
+fail_on_warning = false       # sh:Warning logs but continues
+fail_on_info = false          # sh:Info is purely informational
+report_format = "text"        # Options: text, json, turtle
+
+# Shape categories validated:
+# 1. MCP Tools: name, handler, schema requirements
+# 2. MCP Resources: proper URIs, MIME types
+# 3. DDD Entities: AggregateRoot, ValueObject, Command, Event constraints
+# 4. Parameter Schemas: well-formed input/output definitions
+# 5. Cross-entity validation: Handler coverage, test coverage
+
+# =============================================================================
+# Lifecycle Configuration
+# =============================================================================
+[lifecycle]
+enabled = true
+config_file = "Makefile.toml"
+cache_directory = ".ggen/cache"
+state_file = ".ggen/state.json"
+
+[lifecycle.phases]
+default = ["validate", "generate", "format", "test"]
+development = ["validate", "generate", "format"]
+production = ["validate", "generate", "format", "test", "audit"]
+
+[lifecycle.phases.pre_generate]
+scripts = [
+    "scripts/validate-ontology.sh",
+]
+
+[lifecycle.phases.post_generate]
+scripts = [
+    "cargo fmt --all",
+]
+
+# =============================================================================
+# Security Configuration
+# =============================================================================
+[security]
+allowed_domains = [
+    "ggen-mcp.dev",
+    "ddd-patterns.dev",
+    "schema.org",
+    "w3.org",
+]
+max_file_size = 10485760  # 10MB
+validate_ssl = true
+path_traversal_protection = true
+shell_injection_protection = true
+template_sandboxing = true
+
+# =============================================================================
+# Performance Configuration
+# =============================================================================
+[performance]
+parallel_execution = true
+max_workers = 8
+cache_templates = true
+incremental_build = true
+memory_limit_mb = 512
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+[logging]
+level = "info"
+format = "pretty"
+output = "stderr"
+
+# =============================================================================
+# Template Configuration
+# =============================================================================
+[templates]
+directory = "templates"
+output_directory = "generated"
+backup_enabled = true
+idempotent = true
+
+[templates.rust]
+style = "core-team"
+error_handling = "thiserror"
+logging = "tracing"
+async_runtime = "tokio"
+
+# =============================================================================
+# Environment Overrides
+# =============================================================================
+
+[env.development]
+"logging.level" = "debug"
+"performance.max_workers" = 4
+"sparql.cache_ttl" = 300
+
+[env.ci]
+"logging.level" = "warn"
+"logging.format" = "json"
+"performance.max_workers" = 2
+
+[env.production]
+"logging.level" = "warn"
+"logging.format" = "json"
+"performance.max_workers" = 16
+"sparql.cache_ttl" = 86400
+"generation.require_audit_trail" = true
+
+# =============================================================================
+# Poka-Yoke (Error Prevention)
+# =============================================================================
+[generation.poka_yoke]
+warning_headers = true
+gitignore_generated = false
+gitattributes_generated = true
+validate_imports = true
+
+# =============================================================================
+# Features
+# =============================================================================
+[features]
+sparql_queries = true
+inference_rules = true
+lifecycle_management = true
+template_validation = true
+audit_trails = true
+deterministic_outputs = true

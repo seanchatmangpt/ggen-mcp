@@ -1,0 +1,129 @@
+# =============================================================================
+# MCP Receipt Chain Extraction
+# Extracts receipt schema, proof fields, and audit trail configuration
+# =============================================================================
+# Pattern: Deterministic proof envelopes for proposal verification
+# Critical for: Cryptographic provenance and audit compliance
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract Receipt schema definition
+SELECT ?receiptType ?fieldName ?fieldType ?fieldDescription ?hashAlgorithm ?format
+WHERE {
+  ?receipt a chatman:ReceiptChain .
+
+  BIND("ReceiptChain" AS ?receiptType)
+
+  ?receipt ggen:hasField ?field .
+  ?field ggen:name ?fieldName .
+  ?field ggen:type ?fieldType .
+
+  OPTIONAL { ?field rdfs:comment ?fieldDescription }
+  OPTIONAL { ?field ggen:hashAlgorithm ?hashAlgorithm }
+  OPTIONAL { ?field ggen:format ?format }
+}
+ORDER BY ?fieldName
+
+---
+
+# Query 2: CONSTRUCT - Build Receipt configuration
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?receipt a chatman:CompiledReceipt ;
+    chatman:receiptName ?name ;
+    chatman:fieldCount ?fieldCount ;
+    chatman:hasInputHash true ;
+    chatman:hasProposalHash true ;
+    chatman:hasSignature true ;
+    rdfs:comment "Deterministic proof envelope schema" .
+}
+WHERE {
+  ?receipt a chatman:ReceiptChain ;
+    rdfs:label ?name .
+
+  {
+    SELECT ?receipt (COUNT(?field) AS ?fieldCount)
+    WHERE {
+      ?receipt ggen:hasField ?field .
+    }
+    GROUP BY ?receipt
+  }
+}
+
+---
+
+# Query 3: Extract receipt capabilities and what they enable
+SELECT ?capability ?capabilityDescription
+WHERE {
+  ?receipt a chatman:ReceiptChain ;
+    ggen:enables ?enableNode .
+
+  ?enableNode rdfs:comment ?capability .
+
+  BIND(?capability AS ?capabilityDescription)
+}
+ORDER BY ?capability
+
+---
+
+# Query 4: Extract hash chain fields
+SELECT ?fieldName ?hashAlgorithm ?description ?inputSource
+WHERE {
+  ?receipt a chatman:ReceiptChain ;
+    ggen:hasField ?field .
+
+  ?field ggen:name ?fieldName .
+
+  # Filter for hash fields
+  FILTER(
+    CONTAINS(LCASE(?fieldName), "hash") ||
+    CONTAINS(LCASE(?fieldName), "proof") ||
+    CONTAINS(LCASE(?fieldName), "signature")
+  )
+
+  OPTIONAL { ?field ggen:hashAlgorithm ?hashAlgorithm }
+  OPTIONAL { ?field rdfs:comment ?description }
+  OPTIONAL { ?field ggen:inputSource ?inputSource }
+}
+ORDER BY ?fieldName
+
+---
+
+# Query 5: Extract Proposal structure (output of tools)
+SELECT ?proposalField ?fieldType ?fieldDescription
+WHERE {
+  ?proposal a ggen:DataStructure ;
+    rdfs:label "Proposal" ;
+    ggen:hasField ?field .
+
+  ?field ggen:name ?proposalField .
+  ?field ggen:type ?fieldType .
+
+  OPTIONAL { ?field ggen:description ?fieldDescription }
+}
+ORDER BY ?proposalField
+
+---
+
+# Query 6: Extract Provider Plan structure
+SELECT ?planField ?fieldType ?fieldDescription ?enumValues
+WHERE {
+  ?plan a ggen:DataStructure ;
+    rdfs:label "Provider-Native Plan Graph" ;
+    ggen:hasField ?field .
+
+  ?field ggen:name ?planField .
+  ?field ggen:type ?fieldType .
+
+  OPTIONAL { ?field ggen:description ?fieldDescription }
+  OPTIONAL { ?field ggen:enum ?enumValues }
+}
+ORDER BY ?planField

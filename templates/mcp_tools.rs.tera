@@ -1,0 +1,118 @@
+{# =============================================================================
+   MCP TOOLS TEMPLATE - Generates tool router impl block
+   Uses sparql_results array with ?-prefixed keys from mcp_tools.rq
+   ============================================================================= #}
+//! MCP Tool Handlers
+//! Generated from ggen-mcp.ttl - DO NOT EDIT MANUALLY
+//!
+//! This module contains the generated tool handler implementations for the
+//! MCP (Model Context Protocol) server. Each tool is defined in the ontology
+//! and automatically generates:
+//! - The #[tool(...)] attribute macro with name and description
+//! - The async handler function
+//! - Error handling with MCP error conversion
+//! - Timeout wrapper for tool execution
+
+use crate::model::*;
+use crate::state::AppState;
+use crate::tools;
+use anyhow::Result;
+use rmcp::{
+    ErrorData as McpError, Json,
+    handler::server::wrapper::Parameters,
+    tool,
+};
+use std::sync::Arc;
+
+// Helper function to convert errors to MCP errors
+fn to_mcp_error(error: anyhow::Error) -> McpError {
+    McpError::internal_error(error.to_string(), None)
+}
+
+{#- Group tools by name to avoid duplicates -#}
+{%- set tools_seen = [] -%}
+{%- set current_tool = "" -%}
+
+{%- for row in sparql_results -%}
+{%- set tool_name = row["?toolName"] | default(value="") -%}
+{%- set tool_desc = row["?toolDescription"] | default(value="") -%}
+{%- set response_type = row["?responseType"] | default(value="Json<serde_json::Value>") -%}
+{%- set is_enabled = row["?isEnabled"] | default(value="true") -%}
+{%- set requires_feature = row["?requiresFeature"] | default(value="") -%}
+
+{#- Only emit tool once (first occurrence) -#}
+{%- if tool_name != "" and tool_name != current_tool -%}
+{%- set_global current_tool = tool_name -%}
+{%- set_global tools_seen = tools_seen | concat(with=tool_name) -%}
+
+{#- Convert tool_name to PascalCase for struct name -#}
+{%- set parts = tool_name | split(pat="_") -%}
+{%- set pascal_name = "" -%}
+{%- for part in parts -%}
+{%- set_global pascal_name = pascal_name ~ part | capitalize -%}
+{%- endfor -%}
+
+{% if requires_feature != "" %}
+#[cfg(feature = "{{ requires_feature }}")]
+{% endif %}
+/// Handler for the `{{ tool_name }}` tool
+///
+/// {{ tool_desc }}
+#[tool(
+    name = "{{ tool_name }}",
+    description = "{{ tool_desc }}"
+)]
+pub async fn {{ tool_name }}(
+    server: &SpreadsheetServer,
+    Parameters(params): Parameters<tools::{{ pascal_name }}Params>,
+) -> Result<Json<{{ response_type }}>, McpError> {
+    server
+        .ensure_tool_enabled("{{ tool_name }}")
+        .map_err(to_mcp_error)?;
+    server
+        .run_tool_with_timeout(
+            "{{ tool_name }}",
+            tools::{{ tool_name }}(server.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+}
+
+{%- endif -%}
+{%- endfor %}
+
+// =============================================================================
+// Tool Router Registration
+// =============================================================================
+
+/// Macro to register all generated tools with the tool router
+///
+/// Usage in SpreadsheetServer:
+/// ```rust,ignore
+/// #[tool_router]
+/// impl SpreadsheetServer {
+///     // ... include generated tools ...
+/// }
+/// ```
+///
+/// Tools defined in this file (from ontology):
+{%- for tool_name in tools_seen %}
+/// - {{ tool_name }}
+{%- endfor %}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tool_count() {
+        // Verify expected number of tools generated
+        let tools: Vec<&str> = vec![
+            {%- for tool_name in tools_seen %}
+            "{{ tool_name }}",
+            {%- endfor %}
+        ];
+        assert_eq!(tools.len(), {{ tools_seen | length }}, "Expected {{ tools_seen | length }} tools from ontology");
+    }
+}

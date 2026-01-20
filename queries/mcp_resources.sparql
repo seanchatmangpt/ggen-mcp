@@ -1,0 +1,131 @@
+# =============================================================================
+# MCP Resource Definitions Extraction
+# Extracts resource definitions with URI patterns, MIME types, and metadata
+# =============================================================================
+# Pattern: Resources represent data that can be read by the MCP client
+# Output feeds: mcp-resources.tera template generation
+
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX chatman: <https://chatmangpt.io/ontology/>
+PREFIX ddd: <https://ddd-patterns.dev/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+# Query 1: Extract MCP Resource definitions
+SELECT ?resourceName ?resourceDescription ?uriTemplate ?mimeType
+       ?entityRef ?idShape ?properties
+WHERE {
+  ?resource a mcp:Resource .
+  ?resource rdfs:label ?resourceName .
+
+  OPTIONAL { ?resource rdfs:comment ?resourceDescription }
+  OPTIONAL { ?resource mcp:uriTemplate ?uriTemplate }
+  OPTIONAL { ?resource mcp:mimeType ?mimeType }
+
+  # Link to domain entity (for entity-backed resources)
+  OPTIONAL {
+    ?resource ggen:backedBy ?entity .
+    ?entity rdfs:label ?entityRef .
+    OPTIONAL { ?entity ggen:idShape ?idShape }
+    OPTIONAL { ?entity ggen:properties ?properties }
+  }
+}
+ORDER BY ?resourceName
+
+---
+
+# Query 2: CONSTRUCT - Build MCP Resource configuration objects
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+  ?resource a mcp:CompiledResource ;
+    mcp:resourceName ?name ;
+    mcp:resourceDescription ?description ;
+    mcp:uriTemplate ?uri ;
+    mcp:mimeType ?mime ;
+    mcp:entityBinding ?entityName ;
+    rdfs:comment "Extracted MCP resource definition" .
+}
+WHERE {
+  ?resource a mcp:Resource ;
+    rdfs:label ?name .
+
+  OPTIONAL { ?resource rdfs:comment ?description }
+  OPTIONAL { ?resource mcp:uriTemplate ?uri }
+  OPTIONAL { ?resource mcp:mimeType ?mime }
+  OPTIONAL {
+    ?resource ggen:backedBy ?entity .
+    ?entity rdfs:label ?entityName .
+  }
+}
+
+---
+
+# Query 3: Extract resources with their related constraints
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?resourceName ?constraintLabel ?constraintPattern ?constraintMessage
+WHERE {
+  ?resource a mcp:Resource ;
+    rdfs:label ?resourceName .
+
+  ?resource ggen:hasConstraint ?constraint .
+  ?constraint rdfs:label ?constraintLabel .
+
+  OPTIONAL { ?constraint sh:pattern ?constraintPattern }
+  OPTIONAL { ?constraint sh:message ?constraintMessage }
+}
+ORDER BY ?resourceName ?constraintLabel
+
+---
+
+# Query 4: Extract resource templates for URI generation
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?resourceName ?uriTemplate ?pathParam ?pathParamType ?pathParamDescription
+WHERE {
+  ?resource a mcp:Resource ;
+    rdfs:label ?resourceName ;
+    mcp:uriTemplate ?uriTemplate .
+
+  OPTIONAL {
+    ?resource mcp:hasPathParam ?param .
+    ?param rdfs:label ?pathParam .
+    ?param mcp:paramType ?pathParamType .
+    OPTIONAL { ?param rdfs:comment ?pathParamDescription }
+  }
+}
+ORDER BY ?resourceName ?pathParam
+
+---
+
+# Query 5: Resource subscription capability (for real-time updates)
+PREFIX mcp: <https://modelcontextprotocol.io/>
+PREFIX ggen: <https://ggen.io/ontology/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?resourceName ?subscribable ?subscriptionEvent ?notificationShape
+WHERE {
+  ?resource a mcp:Resource ;
+    rdfs:label ?resourceName .
+
+  BIND(
+    IF(EXISTS { ?resource mcp:subscribable true }, true, false)
+    AS ?subscribable
+  )
+
+  OPTIONAL {
+    ?resource mcp:hasSubscription ?subscription .
+    ?subscription mcp:emitsEvent ?subscriptionEvent .
+    OPTIONAL { ?subscription mcp:notificationShape ?notificationShape }
+  }
+}
+ORDER BY ?subscribable DESC ?resourceName
