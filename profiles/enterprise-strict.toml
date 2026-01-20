@@ -1,0 +1,45 @@
+name = "enterprise-strict"
+description = "Production profile with strict thresholds and comprehensive checks"
+
+required_checks = [
+    "G0_WORKSPACE",
+    "G8_INTENT",
+    "WHAT_TOOL_REGISTRY",
+    "BUILD_FMT",
+    "BUILD_CLIPPY",
+    "BUILD_CHECK",
+    "TEST_UNIT",
+    "TEST_INTEGRATION",
+    "GGEN_DRY_RUN",
+    "GGEN_RENDER",
+    "G8_SECRETS",
+    "H1_ARTIFACTS",
+]
+
+optional_checks = [
+    "TEST_PROPERTY",
+    "H2_CHANGELOG",
+    "H5_REPRODUCIBILITY",
+]
+
+parallelism = "auto"
+
+[category_weights]
+BuildCorrectness = 0.25
+TestTruth = 0.25
+GgenPipeline = 0.20
+ToolRegistry = 0.15
+SafetyInvariants = 0.10
+IntentAlignment = 0.05
+
+[timeouts_ms]
+build = 600000     # 10 minutes
+tests = 1800000    # 30 minutes
+ggen = 600000      # 10 minutes
+default = 120000   # 2 minutes
+
+[thresholds]
+min_readiness_score = 90.0
+max_warnings = 5
+require_all_tests_pass = true
+fail_on_clippy_warnings = true
