@@ -3,6 +3,7 @@
 //! This test suite validates the poka-yoke (error-proofing) mechanisms
 //! in the template rendering system, including tests for malicious templates.
 
+use chicago_tdd_tools::prelude::*;
 use spreadsheet_mcp::template::rendering_safety::{
     ErrorRecovery, OutputValidator, RenderConfig, RenderContext, RenderGuard, RenderingError,
     SafeRenderer, ValidationSeverity,
@@ -13,24 +14,27 @@ use std::sync::Arc;
 // Basic Rendering Tests
 // ============================================================================
 
-#[test]
-fn test_basic_template_rendering() {
+test!(test_basic_template_rendering, {
+    // Arrange
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::new(config).unwrap();
-
-    renderer.add_template("basic", "Hello {{ name }}!").unwrap();
+    let renderer = SafeRenderer::new(config)?;
+    renderer.add_template("basic", "Hello {{ name }}!")?;
 
     let mut context = RenderContext::new();
-    context.insert("name", &"World").unwrap();
+    context.insert("name", &"World")?;
 
-    let output = renderer.render_safe("basic", &context).unwrap();
+    // Act
+    let output = renderer.render_safe("basic", &context)?;
+
+    // Assert
     assert_eq!(output, "Hello World!");
-}
+    Ok(())
+});
 
-#[test]
-fn test_template_with_loop() {
+test!(test_template_with_loop, {
+    // Arrange
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 {% for item in items -%}
@@ -38,21 +42,25 @@ fn test_template_with_loop() {
 {% endfor -%}
 "#;
 
-    renderer.add_template("loop", template).unwrap();
+    renderer.add_template("loop", template)?;
 
     let mut context = RenderContext::new();
-    context.insert("items", &vec!["a", "b", "c"]).unwrap();
+    context.insert("items", &vec!["a", "b", "c"])?;
 
-    let output = renderer.render_safe("loop", &context).unwrap();
+    // Act
+    let output = renderer.render_safe("loop", &context)?;
+
+    // Assert
     assert!(output.contains("- a"));
     assert!(output.contains("- b"));
     assert!(output.contains("- c"));
-}
+    Ok(())
+});
 
-#[test]
-fn test_template_with_conditionals() {
+test!(test_template_with_conditionals, {
+    // Arrange
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 {% if enabled -%}
@@ -62,102 +70,97 @@ Feature is disabled
 {% endif -%}
 "#;
 
-    renderer.add_template("conditional", template).unwrap();
+    renderer.add_template("conditional", template)?;
 
     let mut context = RenderContext::new();
-    context.insert("enabled", &true).unwrap();
 
-    let output = renderer.render_safe("conditional", &context).unwrap();
+    // Act & Assert - enabled case
+    context.insert("enabled", &true)?;
+    let output = renderer.render_safe("conditional", &context)?;
     assert!(output.contains("Feature is enabled"));
 
-    context.insert("enabled", &false).unwrap();
-    let output = renderer.render_safe("conditional", &context).unwrap();
+    // Act & Assert - disabled case
+    context.insert("enabled", &false)?;
+    let output = renderer.render_safe("conditional", &context)?;
     assert!(output.contains("Feature is disabled"));
-}
+
+    Ok(())
+});
 
 // ============================================================================
 // Context Scoping Tests
 // ============================================================================
 
-#[test]
-fn test_context_scoping() {
+test!(test_context_scoping, {
+    // Arrange
     let mut root = RenderContext::new();
-    root.insert("root_var", &"root_value").unwrap();
+    root.insert("root_var", &"root_value")?;
 
     let root_arc = Arc::new(root);
     let mut child = RenderContext::child(root_arc.clone());
-    child.insert("child_var", &"child_value").unwrap();
+    child.insert("child_var", &"child_value")?;
 
-    // Child can access root variables
+    // Act & Assert - child can access root variables
     assert_eq!(
-        child.get("root_var").unwrap().as_str().unwrap(),
+        child.get("root_var")
+            .ok_or("root_var not found")?
+            .as_str()
+            .ok_or("root_var not a string")?,
         "root_value"
     );
     assert_eq!(
-        child.get("child_var").unwrap().as_str().unwrap(),
+        child.get("child_var")
+            .ok_or("child_var not found")?
+            .as_str()
+            .ok_or("child_var not a string")?,
         "child_value"
     );
 
-    // Root cannot access child variables
+    // Assert - root cannot access child variables
     assert!(root_arc.get("child_var").is_none());
-}
+    Ok(())
+});
 
-#[test]
-fn test_context_recursion_depth() {
+test!(test_context_recursion_depth, {
+    // Arrange
     let config = RenderConfig::default().with_max_recursion_depth(5);
     let mut context = RenderContext::new();
 
-    assert!(
-        context
-            .check_recursion_depth(config.max_recursion_depth)
-            .is_ok()
-    );
+    // Act & Assert - initial depth is ok
+    assert_ok!(context.check_recursion_depth(config.max_recursion_depth));
 
-    // Simulate deep nesting
+    // Act - simulate deep nesting
     let mut current = Arc::new(context);
     for _ in 0..10 {
         current = Arc::new(RenderContext::child(current));
     }
 
-    // Should exceed limit
-    assert!(current.check_recursion_depth(5).is_err());
-}
+    // Assert - should exceed limit
+    assert_err!(current.check_recursion_depth(5));
+    Ok(())
+});
 
-#[test]
-fn test_context_macro_counting() {
+test!(test_context_macro_counting, {
+    // Arrange
     let config = RenderConfig::default().with_max_macro_expansions(3);
     let mut context = RenderContext::new();
 
-    assert!(
-        context
-            .increment_macro_count(config.max_macro_expansions)
-            .is_ok()
-    );
-    assert!(
-        context
-            .increment_macro_count(config.max_macro_expansions)
-            .is_ok()
-    );
-    assert!(
-        context
-            .increment_macro_count(config.max_macro_expansions)
-            .is_ok()
-    );
+    // Act & Assert - first three increments succeed
+    assert_ok!(context.increment_macro_count(config.max_macro_expansions));
+    assert_ok!(context.increment_macro_count(config.max_macro_expansions));
+    assert_ok!(context.increment_macro_count(config.max_macro_expansions));
 
-    // Fourth increment should fail
-    assert!(
-        context
-            .increment_macro_count(config.max_macro_expansions)
-            .is_err()
-    );
-}
+    // Assert - fourth increment should fail
+    assert_err!(context.increment_macro_count(config.max_macro_expansions));
+    Ok(())
+});
 
 // ============================================================================
 // Output Validation Tests
 // ============================================================================
 
-#[test]
-fn test_validator_balanced_delimiters() {
+test!(test_validator_balanced_delimiters, {
+    // Arrange
     let validator = OutputValidator::new(true, false);
 
     let valid_code = r#"
@@ -167,16 +170,20 @@ fn main() {
 }
 "#;
 
-    let errors = validator.validate(valid_code).unwrap();
+    // Act
+    let errors = validator.validate(valid_code)?;
+
+    // Assert
     assert!(
         errors.is_empty(),
         "Valid code should have no errors: {:?}",
         errors
     );
-}
+    Ok(())
+});
 
-#[test]
-fn test_validator_unbalanced_braces() {
+test!(test_validator_unbalanced_braces, {
+    // Arrange
     let validator = OutputValidator::new(true, false);
 
     let invalid_code = r#"
@@ -185,23 +192,30 @@ fn main() {
 }
 "#;
 
-    let errors = validator.validate(invalid_code).unwrap();
+    // Act
+    let errors = validator.validate(invalid_code)?;
+
+    // Assert
     assert!(!errors.is_empty(), "Should detect unbalanced delimiters");
     assert!(errors.iter().any(|e| e.message.contains("brackets")));
-}
+    Ok(())
+});
 
-#[test]
-fn test_validator_unbalanced_parentheses() {
+test!(test_validator_unbalanced_parentheses, {
+    // Arrange
     let validator = OutputValidator::new(true, false);
-
     let invalid_code = "fn main( { println!(\"test\"; }";
 
-    let errors = validator.validate(invalid_code).unwrap();
-    assert!(!errors.is_empty(), "Should detect unbalanced parentheses");
-}
+    // Act
+    let errors = validator.validate(invalid_code)?;
 
-#[test]
-fn test_validator_security_unsafe_code() {
+    // Assert
+    assert!(!errors.is_empty(), "Should detect unbalanced parentheses");
+    Ok(())
+});
+
+test!(test_validator_security_unsafe_code, {
+    // Arrange
     let validator = OutputValidator::new(false, true);
 
     let unsafe_code = r#"
@@ -210,17 +224,21 @@ unsafe {
 }
 "#;
 
-    let errors = validator.validate(unsafe_code).unwrap();
+    // Act
+    let errors = validator.validate(unsafe_code)?;
+
+    // Assert
     assert!(!errors.is_empty(), "Should detect unsafe code");
     assert!(
         errors
             .iter()
             .any(|e| e.message.to_lowercase().contains("unsafe"))
     );
-}
+    Ok(())
+});
 
-#[test]
-fn test_validator_security_command_execution() {
+test!(test_validator_security_command_execution, {
+    // Arrange
     let validator = OutputValidator::new(false, true);
 
     let dangerous_code = r#"
@@ -231,17 +249,21 @@ fn run_command() {
 }
 "#;
 
-    let errors = validator.validate(dangerous_code).unwrap();
+    // Act
+    let errors = validator.validate(dangerous_code)?;
+
+    // Assert
     assert!(!errors.is_empty(), "Should detect command execution");
     assert!(
         errors
             .iter()
             .any(|e| e.message.to_lowercase().contains("command"))
     );
-}
+    Ok(())
+});
 
-#[test]
-fn test_validator_security_filesystem_ops() {
+test!(test_validator_security_filesystem_ops, {
+    // Arrange
     let validator = OutputValidator::new(false, true);
 
     let fs_code = r#"
@@ -252,12 +274,16 @@ fn delete_file() {
 }
 "#;
 
-    let errors = validator.validate(fs_code).unwrap();
-    assert!(!errors.is_empty(), "Should detect filesystem operations");
-}
+    // Act
+    let errors = validator.validate(fs_code)?;
 
-#[test]
-fn test_validator_invalid_identifiers() {
+    // Assert
+    assert!(!errors.is_empty(), "Should detect filesystem operations");
+    Ok(())
+});
+
+test!(test_validator_invalid_identifiers, {
+    // Arrange
     let validator = OutputValidator::new(true, false);
 
     let code_with_invalid_ids = r#"
@@ -266,39 +292,43 @@ fn 123invalid() {
 }
 "#;
 
-    let errors = validator.validate(code_with_invalid_ids).unwrap();
-    // Note: This might be a warning rather than an error
+    // Act
+    let errors = validator.validate(code_with_invalid_ids)?;
+
+    // Assert - this might be a warning rather than an error
     assert!(errors.iter().any(|e| matches!(
         e.severity,
         ValidationSeverity::Warning | ValidationSeverity::Error
     )));
-}
+    Ok(())
+});
 
 // ============================================================================
 // Malicious Template Tests
 // ============================================================================
 
-#[test]
-fn test_malicious_infinite_loop() {
+test!(test_malicious_infinite_loop, {
+    // Arrange
     let config = RenderConfig::default().with_timeout_ms(1000);
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     // Template with very large loop
     let malicious = "{% for i in range(start=0, end=999999999) %}{{ i }}{% endfor %}";
-
-    renderer.add_template("infinite", malicious).unwrap();
+    renderer.add_template("infinite", malicious)?;
 
     let context = RenderContext::new();
 
-    // Should complete without hanging (in real impl with timeout)
-    // For now, just test that it doesn't panic
+    // Act - should complete without hanging (in real impl with timeout)
     let _ = renderer.render_safe("infinite", &context);
-}
 
-#[test]
-fn test_malicious_deep_nesting() {
+    // Assert - if we get here, it didn't hang indefinitely
+    Ok(())
+});
+
+test!(test_malicious_deep_nesting, {
+    // Arrange
     let config = RenderConfig::default().with_max_recursion_depth(5);
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     // Create deeply nested template structure
     let mut template = String::new();
@@ -309,18 +339,21 @@ fn test_malicious_deep_nesting() {
         ));
     }
 
-    renderer.add_template("deep", &template).unwrap();
+    renderer.add_template("deep", &template)?;
 
     let context = RenderContext::new();
+
+    // Act - should handle deep nesting gracefully
     let _ = renderer.render_safe("deep", &context);
-    // Should handle deep nesting gracefully
-}
 
-#[test]
-fn test_malicious_large_output() {
+    // Assert - if we get here, it handled deep nesting without panic
+    Ok(())
+});
+
+test!(test_malicious_large_output, {
+    // Arrange
     let config = RenderConfig::default().with_max_output_size(1024); // 1KB limit
-
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     // Template that generates large output
     let template = r#"
@@ -329,24 +362,31 @@ This is a very long line that will be repeated many times to exceed the output s
 {% endfor -%}
 "#;
 
-    renderer.add_template("large", template).unwrap();
+    renderer.add_template("large", template)?;
 
     let context = RenderContext::new();
+
+    // Act
     let result = renderer.render_safe("large", &context);
 
-    // Should fail with OutputSizeExceeded error
-    if let Err(e) = result {
-        assert!(matches!(e, RenderingError::OutputSizeExceeded { .. }));
+    // Assert - should fail with OutputSizeExceeded error
+    match result {
+        Err(RenderingError::OutputSizeExceeded { .. }) => {
+            // Expected error
+            Ok(())
+        }
+        Err(e) => Err(format!("Expected OutputSizeExceeded error, got: {:?}", e).into()),
+        Ok(_) => Err("Expected error but got Ok".into()),
     }
-}
+});
 
-#[test]
-fn test_malicious_code_injection() {
+test!(test_malicious_code_injection, {
+    // Arrange
     let config = RenderConfig::default()
         .with_syntax_validation(true)
         .with_security_checks(true);
 
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     // Template that tries to inject unsafe code
     let template = r#"
@@ -364,30 +404,33 @@ impl {{ name }} {
 }
 "#;
 
-    renderer.add_template("injection", template).unwrap();
+    renderer.add_template("injection", template)?;
 
     let mut context = RenderContext::new();
-    context.insert("name", &"Exploit").unwrap();
+    context.insert("name", &"Exploit")?;
 
+    // Act
     let result = renderer.render_safe("injection", &context);
 
-    // Should succeed but validation should warn about unsafe
+    // Assert - should succeed but validation should warn about unsafe
     match result {
         Ok(output) => {
             let validator = OutputValidator::new(false, true);
-            let errors = validator.validate(&output).unwrap();
+            let errors = validator.validate(&output)?;
             assert!(!errors.is_empty(), "Should detect unsafe code");
+            Ok(())
         }
         Err(_) => {
             // Also acceptable if rendering fails
+            Ok(())
         }
     }
-}
+});
 
-#[test]
-fn test_malicious_sql_injection_pattern() {
+test!(test_malicious_sql_injection_pattern, {
+    // Arrange
     let config = RenderConfig::default().with_security_checks(true);
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 fn query_user(id: &str) -> String {
@@ -395,26 +438,29 @@ fn query_user(id: &str) -> String {
 }
 "#;
 
-    renderer.add_template("sql", template).unwrap();
+    renderer.add_template("sql", template)?;
 
     let context = RenderContext::new();
-    let output = renderer.render_safe("sql", &context).unwrap();
+
+    // Act
+    let output = renderer.render_safe("sql", &context)?;
 
     let validator = OutputValidator::new(false, true);
-    let errors = validator.validate(&output).unwrap();
+    let errors = validator.validate(&output)?;
 
-    // Should detect potential SQL injection
+    // Assert - should detect potential SQL injection
     assert!(
         errors
             .iter()
             .any(|e| e.message.to_lowercase().contains("sql"))
     );
-}
+    Ok(())
+});
 
-#[test]
-fn test_malicious_path_traversal() {
+test!(test_malicious_path_traversal, {
+    // Arrange
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 use std::fs;
@@ -424,38 +470,46 @@ fn read_file(path: &str) -> String {
 }
 "#;
 
-    renderer.add_template("traversal", template).unwrap();
+    renderer.add_template("traversal", template)?;
 
     let context = RenderContext::new();
-    let output = renderer.render_safe("traversal", &context).unwrap();
+
+    // Act
+    let output = renderer.render_safe("traversal", &context)?;
 
     let validator = OutputValidator::new(false, true);
-    let errors = validator.validate(&output).unwrap();
+    let errors = validator.validate(&output)?;
 
-    // Should detect filesystem operations
+    // Assert - should detect filesystem operations
     assert!(!errors.is_empty());
-}
+    Ok(())
+});
 
 // ============================================================================
 // Error Recovery Tests
 // ============================================================================
 
-#[test]
-fn test_error_recovery_basic() {
+test!(test_error_recovery_basic, {
+    // Arrange
     let mut recovery = ErrorRecovery::new(false);
 
+    // Assert - initially no errors
     assert!(!recovery.has_errors());
 
+    // Act
     recovery.record_error(RenderingError::Timeout { timeout_ms: 5000 });
 
+    // Assert - now has errors
     assert!(recovery.has_errors());
     assert_eq!(recovery.errors().len(), 1);
-}
+    Ok(())
+});
 
-#[test]
-fn test_error_recovery_suggestions() {
+test!(test_error_recovery_suggestions, {
+    // Arrange
     let mut recovery = ErrorRecovery::new(false);
 
+    // Act
     recovery.record_error(RenderingError::Timeout { timeout_ms: 5000 });
     recovery.record_error(RenderingError::RecursionDepthExceeded {
         depth: 15,
@@ -463,124 +517,149 @@ fn test_error_recovery_suggestions() {
     });
 
     let suggestions = recovery.suggest_fixes();
+
+    // Assert
     assert!(!suggestions.is_empty());
     assert!(suggestions.iter().any(|s| s.contains("timed out")));
     assert!(suggestions.iter().any(|s| s.contains("Recursion")));
-}
+    Ok(())
+});
 
-#[test]
-fn test_error_recovery_report() {
+test!(test_error_recovery_report, {
+    // Arrange
     let mut recovery = ErrorRecovery::new(false);
 
+    // Act
     recovery.record_error(RenderingError::Timeout { timeout_ms: 5000 });
     recovery.set_partial_output("partial output here".to_string());
 
     let report = recovery.error_report();
+
+    // Assert
     assert!(report.contains("Rendering Errors: 1"));
     assert!(report.contains("Partial Output Available"));
-}
+    Ok(())
+});
 
-#[test]
-fn test_error_recovery_with_partial_output() {
+test!(test_error_recovery_with_partial_output, {
+    // Arrange
     let recovery = ErrorRecovery::new(true); // allow_partial = true
 
+    // Assert - initially no partial output
     assert!(recovery.partial_output().is_none());
 
+    // Arrange
     let mut recovery = ErrorRecovery::new(true);
+
+    // Act
     recovery.set_partial_output("partial content".to_string());
 
+    // Assert
     assert_eq!(recovery.partial_output(), Some("partial content"));
-}
+    Ok(())
+});
 
 // ============================================================================
 // Render Guard Tests
 // ============================================================================
 
-#[test]
-fn test_render_guard_cleanup() {
+test!(test_render_guard_cleanup, {
+    // Arrange
     let temp_dir = std::env::temp_dir();
     let temp_file = temp_dir.join("test_guard_cleanup.txt");
 
     // Create temp file
-    std::fs::write(&temp_file, "test content").unwrap();
+    std::fs::write(&temp_file, "test content")?;
     assert!(temp_file.exists());
 
+    // Act - guard drops here without commit
     {
         let mut guard = RenderGuard::new();
         guard.register_temp_file(temp_file.clone());
-        // Guard drops here without commit
     }
 
-    // File should be cleaned up
+    // Assert - file should be cleaned up
     assert!(!temp_file.exists(), "Temp file should be cleaned up");
-}
+    Ok(())
+});
 
-#[test]
-fn test_render_guard_commit_preserves_files() {
+test!(test_render_guard_commit_preserves_files, {
+    // Arrange
     let temp_dir = std::env::temp_dir();
     let temp_file = temp_dir.join("test_guard_commit.txt");
 
     // Create temp file
-    std::fs::write(&temp_file, "test content").unwrap();
+    std::fs::write(&temp_file, "test content")?;
     assert!(temp_file.exists());
 
+    // Act - guard commits before dropping
     {
         let mut guard = RenderGuard::new();
         guard.register_temp_file(temp_file.clone());
-        let _metrics = guard.commit(); // Commit the guard
+        let _metrics = guard.commit();
     }
 
-    // File should still exist
+    // Assert - file should still exist
     assert!(temp_file.exists(), "Committed file should be preserved");
 
     // Cleanup
     std::fs::remove_file(&temp_file).ok();
-}
+    Ok(())
+});
 
-#[test]
-fn test_render_guard_metrics() {
+test!(test_render_guard_metrics, {
+    // Arrange
     use std::thread;
     use std::time::Duration;
 
     let mut guard = RenderGuard::new();
 
+    // Act
     thread::sleep(Duration::from_millis(10));
-
     let metrics = guard.commit();
 
+    // Assert
     assert!(metrics.duration.as_millis() >= 10);
-}
+    Ok(())
+});
 
 // ============================================================================
 // Configuration Tests
 // ============================================================================
 
-#[test]
-fn test_config_validation() {
+test!(test_config_validation, {
+    // Arrange & Act - valid config
     let valid_config = RenderConfig::default();
-    assert!(valid_config.validate().is_ok());
 
+    // Assert
+    assert_ok!(valid_config.validate());
+
+    // Arrange & Act - invalid timeout
     let invalid_timeout = RenderConfig {
         timeout_ms: 0,
         ..Default::default()
     };
-    assert!(invalid_timeout.validate().is_err());
+    assert_err!(invalid_timeout.validate());
 
+    // Arrange & Act - invalid recursion
     let invalid_recursion = RenderConfig {
         max_recursion_depth: 0,
         ..Default::default()
     };
-    assert!(invalid_recursion.validate().is_err());
+    assert_err!(invalid_recursion.validate());
 
+    // Arrange & Act - invalid size
     let invalid_size = RenderConfig {
         max_output_size: 0,
         ..Default::default()
     };
-    assert!(invalid_size.validate().is_err());
-}
+    assert_err!(invalid_size.validate());
 
-#[test]
-fn test_config_builder() {
+    Ok(())
+});
+
+test!(test_config_builder, {
+    // Arrange & Act
     let config = RenderConfig::builder()
         .timeout_ms(10_000)
         .max_recursion_depth(20)
@@ -591,6 +670,7 @@ fn test_config_builder() {
         .collect_metrics(true)
         .build();
 
+    // Assert
     assert_eq!(config.timeout_ms, 10_000);
     assert_eq!(config.max_recursion_depth, 20);
     assert_eq!(config.max_output_size, 50 * 1024 * 1024);
@@ -598,51 +678,56 @@ fn test_config_builder() {
     assert!(config.security_checks);
     assert!(config.allow_partial_rendering);
     assert!(config.collect_metrics);
-}
+    Ok(())
+});
 
-#[test]
-fn test_config_chaining() {
+test!(test_config_chaining, {
+    // Arrange & Act
     let config = RenderConfig::default()
         .with_timeout_ms(8000)
         .with_max_recursion_depth(15)
         .with_syntax_validation(false)
         .with_security_checks(false);
 
+    // Assert
     assert_eq!(config.timeout_ms, 8000);
     assert_eq!(config.max_recursion_depth, 15);
     assert!(!config.validate_syntax);
     assert!(!config.security_checks);
-}
+    Ok(())
+});
 
-#[test]
-fn test_config_limits_enforced() {
+test!(test_config_limits_enforced, {
+    // Arrange
     use spreadsheet_mcp::template::rendering_safety::{
         MAX_OUTPUT_SIZE, MAX_RECURSION_DEPTH, MAX_TIMEOUT_MS,
     };
 
+    // Act
     let config = RenderConfig::default()
         .with_timeout_ms(MAX_TIMEOUT_MS + 1000)
         .with_max_recursion_depth(MAX_RECURSION_DEPTH + 10)
         .with_max_output_size(MAX_OUTPUT_SIZE + 1000);
 
-    // Limits should be clamped to maximum values
+    // Assert - limits should be clamped to maximum values
     assert!(config.timeout_ms <= MAX_TIMEOUT_MS);
     assert!(config.max_recursion_depth <= MAX_RECURSION_DEPTH);
     // Note: max_output_size might not be clamped in with_ methods
-}
+    Ok(())
+});
 
 // ============================================================================
 // Integration Tests
 // ============================================================================
 
-#[test]
-fn test_full_render_pipeline() {
+test!(test_full_render_pipeline, {
+    // Arrange
     let config = RenderConfig::default()
         .with_timeout_ms(5000)
         .with_syntax_validation(true)
         .with_security_checks(true);
 
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 //! Generated {{ module_name }} module
@@ -665,7 +750,7 @@ impl {{ struct_name }} {
 }
 "#;
 
-    renderer.add_template("struct_gen", template).unwrap();
+    renderer.add_template("struct_gen", template)?;
 
     #[derive(serde::Serialize)]
     struct Field {
@@ -685,21 +770,22 @@ impl {{ struct_name }} {
     ];
 
     let mut context = RenderContext::new();
-    context.insert("module_name", &"test_module").unwrap();
-    context.insert("struct_name", &"TestStruct").unwrap();
-    context.insert("fields", &fields).unwrap();
+    context.insert("module_name", &"test_module")?;
+    context.insert("struct_name", &"TestStruct")?;
+    context.insert("fields", &fields)?;
 
-    let output = renderer.render_safe("struct_gen", &context).unwrap();
+    // Act
+    let output = renderer.render_safe("struct_gen", &context)?;
 
-    // Verify output
+    // Assert - verify output
     assert!(output.contains("pub struct TestStruct"));
     assert!(output.contains("pub id: String"));
     assert!(output.contains("pub value: i32"));
     assert!(output.contains("impl TestStruct"));
 
-    // Validate output
+    // Assert - validate output
     let validator = OutputValidator::new(true, true);
-    let errors = validator.validate(&output).unwrap();
+    let errors = validator.validate(&output)?;
 
     // Should have no critical errors
     let critical_errors: Vec<_> = errors
@@ -712,15 +798,16 @@ impl {{ struct_name }} {
         "Should have no critical errors: {:?}",
         critical_errors
     );
-}
+    Ok(())
+});
 
-#[test]
-fn test_complex_ddd_template() {
+test!(test_complex_ddd_template, {
+    // Arrange
     let config = RenderConfig::default()
         .with_syntax_validation(true)
         .with_security_checks(true);
 
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let aggregate_template = r#"
 //! {{ name }} Aggregate Root
@@ -759,9 +846,7 @@ impl {{ name }}Aggregate {
 }
 "#;
 
-    renderer
-        .add_template("aggregate", aggregate_template)
-        .unwrap();
+    renderer.add_template("aggregate", aggregate_template)?;
 
     #[derive(serde::Serialize)]
     struct Field {
@@ -781,12 +866,13 @@ impl {{ name }}Aggregate {
     ];
 
     let mut context = RenderContext::new();
-    context.insert("name", &"Order").unwrap();
-    context.insert("fields", &fields).unwrap();
+    context.insert("name", &"Order")?;
+    context.insert("fields", &fields)?;
 
-    let output = renderer.render_safe("aggregate", &context).unwrap();
+    // Act
+    let output = renderer.render_safe("aggregate", &context)?;
 
-    // Validate structure
+    // Assert - validate structure
     assert!(output.contains("pub struct OrderAggregate"));
     assert!(output.contains("title: String"));
     assert!(output.contains("status: Status"));
@@ -794,23 +880,24 @@ impl {{ name }}Aggregate {
     assert!(output.contains("pub fn title(&self)"));
     assert!(output.contains("pub fn status(&self)"));
 
-    // Check syntax
+    // Assert - check syntax
     let validator = OutputValidator::new(true, false);
-    let errors = validator.validate(&output).unwrap();
+    let errors = validator.validate(&output)?;
     assert!(
         !OutputValidator::has_critical_errors(&errors),
         "Generated aggregate should be valid"
     );
-}
+    Ok(())
+});
 
 // ============================================================================
 // Performance Tests
 // ============================================================================
 
-#[test]
-fn test_render_performance_baseline() {
+test!(test_render_performance_baseline, {
+    // Arrange
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::new(config).unwrap();
+    let renderer = SafeRenderer::new(config)?;
 
     let template = r#"
 {% for i in range(start=0, end=100) -%}
@@ -818,19 +905,21 @@ Item {{ i }}: {{ value }}
 {% endfor -%}
 "#;
 
-    renderer.add_template("perf", template).unwrap();
+    renderer.add_template("perf", template)?;
 
     let mut context = RenderContext::new();
-    context.insert("value", &"test").unwrap();
+    context.insert("value", &"test")?;
 
+    // Act
     let start = std::time::Instant::now();
-    let _output = renderer.render_safe("perf", &context).unwrap();
+    let _output = renderer.render_safe("perf", &context)?;
     let duration = start.elapsed();
 
-    // Should complete in reasonable time (< 100ms for this simple template)
+    // Assert - should complete in reasonable time (< 100ms for this simple template)
     assert!(
         duration.as_millis() < 100,
         "Rendering took too long: {:?}",
         duration
     );
-}
+    Ok(())
+});

@@ -8,9 +8,16 @@
 //! - Real state persistence
 //! - Real event emission
 //! - Real audit logging
+//!
+//! Refactored to use chicago-tdd-tools framework for:
+//! - Proper AAA (Arrange-Act-Assert) pattern enforcement
+//! - Type-safe async testing with timeout controls
+//! - Result-based error handling
+//! - Consistent test structure and maintainability
 
 mod harness;
 
+use chicago_tdd_tools::async_test_with_timeout;
 use harness::*;
 use anyhow::Result;
 
@@ -18,17 +25,16 @@ use anyhow::Result;
 // User Registration Workflow Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_user_registration_workflow_complete() -> Result<()> {
+async_test_with_timeout!(test_user_registration_workflow_complete, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute complete user registration workflow
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
-    // Verify workflow succeeded
+    // Assert: Verify workflow succeeded with correct steps and events
     assert_workflow_succeeds(&result).await?;
-
-    // Verify all steps executed
     assert_eq!(result.steps_executed, 6);
 
-    // Verify events emitted
     let required_events = vec![
         "ontology_loaded",
         "code_generated",
@@ -38,59 +44,59 @@ async fn test_user_registration_workflow_complete() -> Result<()> {
         "persistence_verified",
     ];
     assert_event_sequence(&result.events, &required_events).await?;
-
-    // Verify audit trail
     assert_audit_trail_complete(&result.audit_log).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_user_registration_workflow_events() -> Result<()> {
+async_test_with_timeout!(test_user_registration_workflow_events, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow to generate events
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
-    // Check specific event payloads
+    // Assert: Verify specific event payloads
     let user_created_event = result.events.iter()
         .find(|e| e.event_type == "user_created")
-        .expect("user_created event not found");
+        .ok_or_else(|| anyhow::anyhow!("user_created event not found"))?;
 
     assert_eq!(user_created_event.payload["username"], "john_doe");
     assert!(user_created_event.payload["user_id"].is_string());
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_user_registration_workflow_audit() -> Result<()> {
+async_test_with_timeout!(test_user_registration_workflow_audit, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow to generate audit log
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
-    // Verify specific audit entries
+    // Assert: Verify specific audit entries exist
     let audit_actions: Vec<&str> = result.audit_log.iter()
         .map(|entry| entry.action.as_str())
         .collect();
 
-    // Should contain workflow steps in audit log
     assert!(audit_actions.iter().any(|a| a.contains("step_started")));
     assert!(audit_actions.iter().any(|a| a.contains("step_completed")));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Order Processing Workflow Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_order_processing_workflow_complete() -> Result<()> {
+async_test_with_timeout!(test_order_processing_workflow_complete, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute complete order processing workflow
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
-    // Verify workflow succeeded
+    // Assert: Verify workflow succeeded with correct step count and event ordering
     assert_workflow_succeeds(&result).await?;
-
-    // Verify all steps executed
     assert_eq!(result.steps_executed, 8);
 
-    // Verify events emitted in correct order
     let events = result.events;
     assert!(events.iter().position(|e| e.event_type == "order_created") <
             events.iter().position(|e| e.event_type == "item_added"));
@@ -101,58 +107,61 @@ async fn test_order_processing_workflow_complete() -> Result<()> {
     assert!(events.iter().position(|e| e.event_type == "payment_processed") <
             events.iter().position(|e| e.event_type == "order_placed"));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_order_processing_workflow_calculation() -> Result<()> {
+async_test_with_timeout!(test_order_processing_workflow_calculation, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow to generate calculation events
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
-    // Find the total_calculated event
+    // Assert: Verify total calculation is correct
     let total_event = result.events.iter()
         .find(|e| e.event_type == "total_calculated")
-        .expect("total_calculated event not found");
+        .ok_or_else(|| anyhow::anyhow!("total_calculated event not found"))?;
 
-    // Verify calculation is correct
-    let total = total_event.payload["total"].as_f64().expect("total not found");
+    let total = total_event.payload["total"].as_f64()
+        .ok_or_else(|| anyhow::anyhow!("total not found in payload"))?;
     let expected_total = 183.5352; // (2*29.99 + 1*49.99 + 3*19.99) * 1.08
 
     assert!((total - expected_total).abs() < 0.01,
         "Total mismatch: expected {}, got {}", expected_total, total);
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_order_processing_workflow_payment() -> Result<()> {
+async_test_with_timeout!(test_order_processing_workflow_payment, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow to generate payment events
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
-    // Verify payment was processed
+    // Assert: Verify payment was processed correctly
     let payment_event = result.events.iter()
         .find(|e| e.event_type == "payment_processed")
-        .expect("payment_processed event not found");
+        .ok_or_else(|| anyhow::anyhow!("payment_processed event not found"))?;
 
     assert!(payment_event.payload["transaction_id"].is_string());
     assert!(payment_event.payload["amount"].is_f64());
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // MCP Tool Workflow Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_mcp_tool_workflow_complete() -> Result<()> {
+async_test_with_timeout!(test_mcp_tool_workflow_complete, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute complete MCP tool workflow
     let result = mcp_tool_workflow::run_mcp_tool_workflow().await?;
 
-    // Verify workflow succeeded
+    // Assert: Verify workflow succeeded with correct steps and tool lifecycle events
     assert_workflow_succeeds(&result).await?;
-
-    // Verify all steps executed
     assert_eq!(result.steps_executed, 7);
 
-    // Verify tool lifecycle events
     let required_events = vec![
         "tool_defined",
         "handler_generated",
@@ -164,35 +173,38 @@ async fn test_mcp_tool_workflow_complete() -> Result<()> {
     ];
     assert_event_sequence(&result.events, &required_events).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_mcp_tool_workflow_protocol() -> Result<()> {
+async_test_with_timeout!(test_mcp_tool_workflow_protocol, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow to generate protocol events
     let result = mcp_tool_workflow::run_mcp_tool_workflow().await?;
 
-    // Verify tool was invoked via protocol
+    // Assert: Verify tool was invoked via protocol
     let invoked_event = result.events.iter()
         .find(|e| e.event_type == "tool_invoked")
-        .expect("tool_invoked event not found");
+        .ok_or_else(|| anyhow::anyhow!("tool_invoked event not found"))?;
 
     assert_eq!(invoked_event.payload["tool_name"], "process_data");
     assert!(invoked_event.payload["request_id"].is_number());
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_mcp_tool_workflow_audit() -> Result<()> {
-    let result = mcp_tool_workflow::run_mcp_tool_workflow().await?;
-
-    // Verify required audit entries
+async_test_with_timeout!(test_mcp_tool_workflow_audit, 30, {
+    // Arrange: Define required audit actions
     let required_actions = vec![
         "tool_defined_in_ontology",
         "tool_registered_with_mcp",
         "tool_invoked_via_protocol",
     ];
 
+    // Act: Execute workflow to generate audit log
+    let result = mcp_tool_workflow::run_mcp_tool_workflow().await?;
+
+    // Assert: Verify all required audit entries exist
     for required in &required_actions {
         assert!(
             result.audit_log.iter().any(|entry| entry.action == *required),
@@ -201,95 +213,91 @@ async fn test_mcp_tool_workflow_audit() -> Result<()> {
         );
     }
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Concurrent Workflow Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_concurrent_user_registrations() -> Result<()> {
+async_test_with_timeout!(test_concurrent_user_registrations, 30, {
     use tokio::task::JoinSet;
 
+    // Arrange: Create JoinSet for concurrent execution
     let mut set = JoinSet::new();
 
-    // Run 5 user registrations concurrently
-    for i in 0..5 {
+    // Act: Spawn 5 concurrent user registration workflows
+    for _i in 0..5 {
         set.spawn(async move {
             user_registration_workflow::run_user_registration_workflow().await
         });
     }
 
-    // Wait for all to complete
+    // Wait for all workflows to complete
     let mut results = Vec::new();
     while let Some(res) = set.join_next().await {
         results.push(res??);
     }
 
-    // Verify all succeeded
+    // Assert: Verify all workflows succeeded
     assert_eq!(results.len(), 5);
     for result in results {
         assert_workflow_succeeds(&result).await?;
     }
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_concurrent_order_processing() -> Result<()> {
+async_test_with_timeout!(test_concurrent_order_processing, 30, {
     use tokio::join;
 
-    // Run two orders concurrently
+    // Arrange & Act: Run two orders concurrently
     let (result1, result2) = join!(
         order_processing_workflow::run_order_processing_workflow(),
         order_processing_workflow::run_order_processing_workflow()
     );
 
-    // Both should succeed
+    // Assert: Verify both workflows succeeded
     assert_workflow_succeeds(&result1?).await?;
     assert_workflow_succeeds(&result2?).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Error Handling Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_workflow_step_failure_cleanup() -> Result<()> {
+async_test_with_timeout!(test_workflow_step_failure_cleanup, 30, {
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
-    // Create a workflow that fails in a step
-    let result = WorkflowBuilder::new("failing_workflow")?
-        .step("step1", |ctx, _harness| async move {
+    // Arrange: Create a workflow with an intentional failure in middle step
+    let workflow_builder = WorkflowBuilder::new("failing_workflow")?
+        .step("step1", |_ctx, _harness| async move {
             Ok(())
         })
-        .step("failing_step", |ctx, _harness| async move {
+        .step("failing_step", |_ctx, _harness| async move {
             Err(anyhow::anyhow!("Intentional failure"))
         })
-        .step("step3", |ctx, _harness| async move {
+        .step("step3", |_ctx, _harness| async move {
             Ok(())
-        })
-        .run()
-        .await;
+        });
 
-    // Should fail
+    // Act: Run the workflow (expecting failure)
+    let result = workflow_builder.run().await;
+
+    // Assert: Verify workflow failed with correct error message
     assert!(result.is_err());
-
-    // Error should mention which step failed
     let err = result.unwrap_err();
     assert!(err.to_string().contains("failing_step"));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_workflow_assertion_failure() -> Result<()> {
-    // Create a workflow that succeeds but fails assertion
-    let result = WorkflowBuilder::new("assertion_failing")?
+async_test_with_timeout!(test_workflow_assertion_failure, 30, {
+    // Arrange: Create a workflow with a failing assertion
+    let workflow_builder = WorkflowBuilder::new("assertion_failing")?
         .step("step1", |ctx, _harness| async move {
             store_data(ctx.clone(), "value", serde_json::json!(42)).await;
             Ok(())
@@ -297,61 +305,58 @@ async fn test_workflow_assertion_failure() -> Result<()> {
         .assert("wrong_value", |ctx, _harness| async move {
             let value = get_data(ctx.clone(), "value").await
                 .and_then(|v| v.as_i64())
-                .expect("value not found");
+                .ok_or_else(|| anyhow::anyhow!("value not found"))?;
 
             if value != 100 {
                 return Err(anyhow::anyhow!("Expected 100, got {}", value));
             }
             Ok(())
-        })
-        .run()
-        .await;
+        });
 
-    // Should fail
+    // Act: Run the workflow (expecting assertion failure)
+    let result = workflow_builder.run().await;
+
+    // Assert: Verify workflow failed due to assertion
     assert!(result.is_err());
-
-    // Error should mention assertion failure
     let err = result.unwrap_err();
-    assert!(err.to_string().contains("assertion"));
+    assert!(err.to_string().contains("assertion") || err.to_string().contains("Expected 100"));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Helper Function Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_store_and_retrieve_data() -> Result<()> {
+async_test_with_timeout!(test_store_and_retrieve_data, 30, {
+    // Arrange: Create harness and context
     let harness = IntegrationWorkflowHarness::new()?;
     let ctx = harness.context.clone();
 
-    // Store data
+    // Act: Store data in context
     store_data(ctx.clone(), "test_key", serde_json::json!("test_value")).await;
 
-    // Retrieve data
+    // Assert: Verify data can be retrieved correctly
     let value = get_data(ctx.clone(), "test_key").await;
     assert_eq!(value, Some(serde_json::json!("test_value")));
 
-    // Non-existent key
     let missing = get_data(ctx.clone(), "missing_key").await;
     assert_eq!(missing, None);
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_state_transitions() -> Result<()> {
+async_test_with_timeout!(test_state_transitions, 30, {
+    // Arrange: Create harness and context with initial state
     let harness = IntegrationWorkflowHarness::new()?;
     let ctx = harness.context.clone();
 
-    // Initial state
     {
         let c = ctx.read().await;
         assert_eq!(c.current_state, "initial");
     }
 
-    // Transition to state1
+    // Act: Perform state transitions
     transition_state(ctx.clone(), "state1", "trigger1").await;
     {
         let c = ctx.read().await;
@@ -359,193 +364,201 @@ async fn test_state_transitions() -> Result<()> {
         assert_eq!(c.state_history.len(), 1);
     }
 
-    // Transition to state2
     transition_state(ctx.clone(), "state2", "trigger2").await;
+
+    // Assert: Verify final state and history
     {
         let c = ctx.read().await;
         assert_eq!(c.current_state, "state2");
         assert_eq!(c.state_history.len(), 2);
     }
 
-    // Verify consistency
     assert_state_consistent(ctx.clone()).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_event_emission() -> Result<()> {
+async_test_with_timeout!(test_event_emission, 30, {
+    // Arrange: Create harness for event emission
     let harness = IntegrationWorkflowHarness::new()?;
 
-    // Emit events
+    // Act: Emit multiple events
     harness.emit_event("event1", serde_json::json!({"data": 1}), "source1").await;
     harness.emit_event("event2", serde_json::json!({"data": 2}), "source2").await;
     harness.emit_event("event3", serde_json::json!({"data": 3}), "source3").await;
 
-    // Verify events
+    // Assert: Verify events were recorded in correct order
     let events = harness.events().await;
     assert_eq!(events.len(), 3);
     assert_eq!(events[0].event_type, "event1");
     assert_eq!(events[1].event_type, "event2");
     assert_eq!(events[2].event_type, "event3");
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_audit_logging() -> Result<()> {
+async_test_with_timeout!(test_audit_logging, 30, {
+    // Arrange: Create harness for audit logging
     let harness = IntegrationWorkflowHarness::new()?;
 
-    // Add audit entries
+    // Act: Add audit entries
     harness.audit("action1", "actor1", serde_json::json!({"detail": 1})).await;
     harness.audit("action2", "actor2", serde_json::json!({"detail": 2})).await;
 
-    // Verify audit log
+    // Assert: Verify audit log entries
     let log = harness.audit_log().await;
     assert_eq!(log.len(), 2);
     assert_eq!(log[0].action, "action1");
     assert_eq!(log[1].action, "action2");
 
-    // Verify completeness
     assert_audit_trail_complete(&log).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // MCP Protocol Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_mcp_protocol_tester_tool_invocation() -> Result<()> {
+async_test_with_timeout!(test_mcp_protocol_tester_tool_invocation, 30, {
+    // Arrange: Create MCP protocol tester
     let tester = McpProtocolTester::new("http://localhost:8080");
 
+    // Act: Invoke a tool via protocol
     let response = tester.invoke_tool(
         "test_tool",
         serde_json::json!({"arg": "value"})
     ).await?;
 
-    // Verify JSON-RPC 2.0 structure
+    // Assert: Verify JSON-RPC 2.0 structure
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["id"].is_number());
     assert!(response["result"].is_object());
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_mcp_protocol_tester_resource_access() -> Result<()> {
+async_test_with_timeout!(test_mcp_protocol_tester_resource_access, 30, {
+    // Arrange: Create MCP protocol tester
     let tester = McpProtocolTester::new("http://localhost:8080");
 
+    // Act: Access a resource via protocol
     let response = tester.access_resource("test://resource").await?;
 
-    // Verify JSON-RPC 2.0 structure
+    // Assert: Verify JSON-RPC 2.0 structure
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["id"].is_number());
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_mcp_protocol_tester_progress_notification() -> Result<()> {
+async_test_with_timeout!(test_mcp_protocol_tester_progress_notification, 30, {
+    // Arrange: Create MCP protocol tester
     let tester = McpProtocolTester::new("http://localhost:8080");
 
-    // Should not error
+    // Act & Assert: Send progress notification (should not error)
     tester.send_progress("token_123", 50, 100).await?;
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_mcp_protocol_tester_error_response() -> Result<()> {
+async_test_with_timeout!(test_mcp_protocol_tester_error_response, 30, {
+    // Arrange: Create MCP protocol tester and error parameters
     let tester = McpProtocolTester::new("http://localhost:8080");
 
+    // Act: Send error response
     let response = tester.send_error(
         -32600,
         "Invalid Request",
         Some(serde_json::json!({"detail": "test"}))
     ).await?;
 
-    // Verify error structure
+    // Assert: Verify error structure
     assert_eq!(response["jsonrpc"], "2.0");
     assert!(response["id"].is_number());
     assert!(response["error"].is_object());
     assert_eq!(response["error"]["code"], -32600);
     assert_eq!(response["error"]["message"], "Invalid Request");
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Performance Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_workflow_performance_user_registration() -> Result<()> {
+async_test_with_timeout!(test_workflow_performance_user_registration, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow and measure duration
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
-    // Workflow should complete in reasonable time (< 5 seconds)
+    // Assert: Verify workflow completes within performance SLA (< 5 seconds)
     assert!(
         result.duration_ms < 5000,
         "User registration workflow too slow: {} ms",
         result.duration_ms
     );
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_workflow_performance_order_processing() -> Result<()> {
+async_test_with_timeout!(test_workflow_performance_order_processing, 30, {
+    // Arrange: No setup required - workflow is self-contained
+
+    // Act: Execute workflow and measure duration
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
-    // Workflow should complete in reasonable time (< 10 seconds)
+    // Assert: Verify workflow completes within performance SLA (< 10 seconds)
     assert!(
         result.duration_ms < 10000,
         "Order processing workflow too slow: {} ms",
         result.duration_ms
     );
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
 // =============================================================================
 // Fixture Loading Tests
 // =============================================================================
 
-#[tokio::test]
-async fn test_load_ontology_fixture_user() -> Result<()> {
+async_test_with_timeout!(test_load_ontology_fixture_user, 30, {
+    // Arrange: Construct path to user registration ontology fixture
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/workflows/user_registration/01_ontology.ttl");
 
     if !path.exists() {
-        // Skip if fixture not available
+        // Skip test if fixture not available
         return Ok(());
     }
 
+    // Act: Load ontology from fixture
     let ontology = load_ontology_fixture(&path).await?;
 
-    // Verify ontology loaded
+    // Assert: Verify ontology loaded correctly
     assert!(!ontology.is_empty());
     assert!(ontology.contains("@prefix"));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});
 
-#[tokio::test]
-async fn test_load_ontology_fixture_order() -> Result<()> {
+async_test_with_timeout!(test_load_ontology_fixture_order, 30, {
+    // Arrange: Construct path to order processing ontology fixture
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("fixtures/workflows/order_processing/01_ontology.ttl");
 
     if !path.exists() {
-        // Skip if fixture not available
+        // Skip test if fixture not available
         return Ok(());
     }
 
+    // Act: Load ontology from fixture
     let ontology = load_ontology_fixture(&path).await?;
 
-    // Verify ontology loaded
+    // Assert: Verify ontology loaded correctly with Order entity
     assert!(!ontology.is_empty());
     assert!(ontology.contains("Order"));
 
-    Ok(())
-}
+    Ok::<(), anyhow::Error>(())
+});

@@ -1,3 +1,6 @@
 [submodule "ggen"]
 	path = ggen
 	url = https://github.com/seanchatmangpt/ggen.git
+[submodule "chicago-tdd-tools"]
+	path = chicago-tdd-tools
+	url = https://github.com/seanchatmangpt/chicago-tdd-tools.git
