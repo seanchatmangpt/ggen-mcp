@@ -1,0 +1,57 @@
+//! Domain Aggregates
+//! Generated from ggen-mcp.ttl - DO NOT EDIT
+//! Regenerate with: ggen sync
+
+use std::path::PathBuf;
+use std::time::Instant;
+use regex::Regex;
+
+{% for row in sparql_results -%}
+{%- set label = row["?label"] | default(value="Unknown") -%}
+{%- set comment = row["?comment"] | default(value="") -%}
+{%- set struct_name = label | replace(from=" ", to="") -%}
+
+/// {{ label }}{% if comment %} - {{ comment }}{% endif %}
+#[derive(Clone, Debug)]
+pub struct {{ struct_name }} {
+{%- if struct_name == "Ontology" %}
+    pub id: String,
+    pub path: PathBuf,
+    pub graph: Vec<u8>,
+{%- elif struct_name == "Receipt" %}
+    pub receipt_id: String,
+    pub ontology_hash: String,
+    pub template_hash: String,
+    pub artifact_hash: String,
+    pub timestamp: Instant,
+{%- else %}
+    pub id: String,
+{%- endif %}
+}
+
+impl {{ struct_name }} {
+    pub fn validate(&self) -> Result<(), String> {
+{%- if struct_name == "Ontology" %}
+        if self.graph.is_empty() {
+            return Err("RDF graph cannot be empty".to_string());
+        }
+        let pattern = Regex::new(r"^ont-[a-z0-9]{10}$").unwrap();
+        if !pattern.is_match(&self.id) {
+            return Err("ID must match pattern: ont-[a-z0-9]{10}".to_string());
+        }
+{%- elif struct_name == "Receipt" %}
+        if self.ontology_hash.is_empty() {
+            return Err("Ontology hash required".to_string());
+        }
+        if self.template_hash.is_empty() {
+            return Err("Template hash required".to_string());
+        }
+        if self.artifact_hash.is_empty() {
+            return Err("Artifact hash required".to_string());
+        }
+{%- endif %}
+        Ok(())
+    }
+}
+
+{% endfor %}

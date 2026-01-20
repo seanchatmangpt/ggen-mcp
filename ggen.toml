@@ -1,0 +1,24 @@
+[project]
+name = "ggen-mcp"
+version = "0.1.0"
+description = "DDD ontology-driven MCP server with code generation"
+
+[ontology]
+source = "ggen-mcp.ttl"
+
+[generation]
+output_dir = "generated"
+
+[[generation.rules]]
+name = "domain-aggregates"
+query = { file = "queries/aggregates.rq" }
+template = { file = "templates/aggregate.rs.tera" }
+output_file = "aggregates.rs"
+mode = "Overwrite"
+
+[[generation.rules]]
+name = "domain-commands"
+query = { file = "queries/commands.rq" }
+template = { file = "templates/command.rs.tera" }
+output_file = "commands.rs"
+mode = "Overwrite"

@@ -1,0 +1,17 @@
+[project]
+name = "ggen-mcp"
+version = "0.1.0"
+
+[[rules]]
+name = "domain-aggregates"
+query = "meta/queries/aggregates.rq"
+template = "meta/templates/aggregate.rs.tera"
+output = "meta/generated/{{class_name | snake_case}}.rs"
+ontology = "meta/ontology"
+
+[[rules]]
+name = "domain-commands"  
+query = "meta/queries/commands.rq"
+template = "meta/templates/command.rs.tera"
+output = "meta/generated/{{command_name | snake_case}}.rs"
+ontology = "meta/ontology"

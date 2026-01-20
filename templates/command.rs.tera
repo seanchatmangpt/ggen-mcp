@@ -1,0 +1,29 @@
+//! Domain Commands
+//! Generated from ggen-mcp.ttl - DO NOT EDIT
+
+use std::path::PathBuf;
+
+{% for row in sparql_results -%}
+{%- set label = row["?label"] | default(value="Unknown") -%}
+{%- set comment = row["?comment"] | default(value="") -%}
+
+/// {{ label }}{% if comment %} - {{ comment }}{% endif %}
+#[derive(Clone, Debug)]
+pub struct {{ label | replace(from=" ", to="") }}Command {
+{%- if label == "Load Ontology" %}
+    pub path: PathBuf,
+{%- elif label == "Generate Code" %}
+    pub ontology_id: String,
+    pub template_path: PathBuf,
+{%- else %}
+    pub params: String,
+{%- endif %}
+}
+
+impl {{ label | replace(from=" ", to="") }}Command {
+    pub fn execute(&self) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+{% endfor %}

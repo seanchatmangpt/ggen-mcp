@@ -1,0 +1,96 @@
+@prefix ggen: <https://ggen-mcp.dev/domain#> .
+@prefix ddd: <https://ddd-patterns.dev/schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Property Definitions
+ggen:id a ddd:Property ;
+    rdfs:label "id" ;
+    ddd:type "String" .
+
+ggen:path a ddd:Property ;
+    rdfs:label "path" ;
+    ddd:type "PathBuf" .
+
+ggen:graph a ddd:Property ;
+    rdfs:label "graph" ;
+    ddd:type "Graph" .
+
+ggen:receiptId a ddd:Property ;
+    rdfs:label "receipt_id" ;
+    ddd:type "String" .
+
+ggen:ontologyHash a ddd:Property ;
+    rdfs:label "ontology_hash" ;
+    ddd:type "String" .
+
+ggen:templateHash a ddd:Property ;
+    rdfs:label "template_hash" ;
+    ddd:type "String" .
+
+ggen:artifactHash a ddd:Property ;
+    rdfs:label "artifact_hash" ;
+    ddd:type "String" .
+
+ggen:timestamp a ddd:Property ;
+    rdfs:label "timestamp" ;
+    ddd:type "Instant" .
+
+# Ontology Aggregate
+ggen:Ontology a ddd:AggregateRoot ;
+    rdfs:label "Ontology" ;
+    rdfs:comment "RDF ontology loaded into memory" ;
+    ddd:hasProperty ggen:id ;
+    ddd:hasProperty ggen:path ;
+    ddd:hasProperty ggen:graph ;
+    ddd:hasInvariant [
+        rdfs:label "Graph must be non-empty" ;
+        ddd:check "self.graph.len() > 0" ;
+        ddd:message "RDF graph cannot be empty"
+    ] ;
+    ddd:hasInvariant [
+        rdfs:label "ID must match pattern" ;
+        sh:path ggen:id ;
+        sh:pattern "^ont-[a-z0-9]{10}$" ;
+        ddd:check "Regex::new(r\"^ont-[a-z0-9]{10}$\").unwrap().is_match(&self.id)" ;
+        ddd:message "ID must match pattern: ont-[a-z0-9]{10}"
+    ] .
+
+# Receipt Aggregate
+ggen:Receipt a ddd:AggregateRoot ;
+    rdfs:label "Receipt" ;
+    rdfs:comment "Provenance receipt for generated code" ;
+    ddd:hasProperty ggen:receiptId ;
+    ddd:hasProperty ggen:ontologyHash ;
+    ddd:hasProperty ggen:templateHash ;
+    ddd:hasProperty ggen:artifactHash ;
+    ddd:hasProperty ggen:timestamp ;
+    ddd:hasInvariant [
+        rdfs:label "All hashes must be present" ;
+        ddd:check "!self.ontology_hash.is_empty() && !self.template_hash.is_empty() && !self.artifact_hash.is_empty()" ;
+        ddd:message "All hashes (ontology, template, artifact) are required"
+    ] .
+
+# Commands
+ggen:LoadOntologyCommand a ddd:Command ;
+    rdfs:label "Load Ontology" ;
+    rdfs:comment "Load an RDF ontology from file" ;
+    ddd:hasParameter ggen:path .
+
+ggen:GenerateCodeCommand a ddd:Command ;
+    rdfs:label "Generate Code" ;
+    rdfs:comment "Generate code from ontology using templates" ;
+    ddd:hasParameter ggen:id ;
+    ddd:hasParameter ggen:path .
+
+# Events
+ggen:OntologyLoaded a ddd:DomainEvent ;
+    rdfs:label "Ontology Loaded" ;
+    ddd:hasProperty ggen:id ;
+    ddd:hasProperty ggen:timestamp .
+
+ggen:CodeGenerated a ddd:DomainEvent ;
+    rdfs:label "Code Generated" ;
+    ddd:hasProperty ggen:receiptId ;
+    ddd:hasProperty ggen:path .

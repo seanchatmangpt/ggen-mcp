@@ -42,6 +42,11 @@ tokio-util = { version = "0.7", features = ["rt"] }
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
 base64 = { version = "0.22", optional = true }
 
+# ggen-mcp: ontology and code generation
+oxigraph = "0.4"
+tera = "1"
+sha2 = "0.10"
+
 async-trait = { version = "0.1", optional = true }
 uuid = { version = "1.10", features = ["v4"], optional = true }
 zip = "0.6"
