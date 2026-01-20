@@ -3088,6 +3088,7 @@ dependencies = [
  "sha2",
  "smallvec",
  "strum",
+ "syn",
  "tempfile",
  "tera",
  "testcontainers",

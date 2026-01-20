@@ -1,6 +1,7 @@
 pub mod analysis;
 pub mod audit;
 pub mod caps;
+pub mod codegen;
 pub mod config;
 pub mod domain;
 pub mod generated;
@@ -10,12 +11,15 @@ pub mod diff;
 pub mod fork;
 pub mod formula;
 pub mod model;
+pub mod ontology;
 #[cfg(feature = "recalc")]
 pub mod recalc;
 pub mod recovery;
 pub mod server;
+pub mod sparql;
 pub mod state;
 pub mod styles;
+pub mod template;
 pub mod tools;
 pub mod utils;
 pub mod validation;
