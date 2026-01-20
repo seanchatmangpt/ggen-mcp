@@ -1,13 +1,16 @@
-/// Integration tests for Prometheus metrics
+/// Integration tests for Prometheus metrics using chicago-tdd-tools framework
+use chicago_tdd_tools::prelude::*;
 use spreadsheet_mcp::metrics::{METRICS, MetricsCollector, RequestMetrics, classify_error};
 use std::time::Duration;
 
-#[test]
-fn test_metrics_collector_initialization() {
+test!(test_metrics_collector_initialization, {
+    // Arrange: Create a new metrics collector
     let collector = MetricsCollector::new();
+
+    // Act: Encode metrics to Prometheus format
     let output = collector.encode();
 
-    // Verify all metric types are registered
+    // Assert: Verify all metric types are registered
     assert!(output.contains("TYPE mcp_requests_total counter"));
     assert!(output.contains("TYPE mcp_request_duration_seconds histogram"));
     assert!(output.contains("TYPE mcp_active_requests gauge"));
@@ -19,313 +22,379 @@ fn test_metrics_collector_initialization() {
     assert!(output.contains("TYPE mcp_libreoffice_processes_active gauge"));
     assert!(output.contains("TYPE mcp_recalc_duration_seconds histogram"));
     assert!(output.contains("TYPE mcp_errors_total counter"));
-}
+});
 
-#[test]
-fn test_request_success_metrics() {
+test!(test_request_success_metrics, {
+    // Arrange: Create collector and define test parameters
     let collector = MetricsCollector::new();
     let duration = Duration::from_millis(150);
 
+    // Act: Record successful requests
     collector.record_request_success("list_workbooks", duration);
     collector.record_request_success("read_table", duration);
-
     let output = collector.encode();
 
-    // Verify success counter incremented
+    // Assert: Verify success counter incremented
     assert!(output.contains("mcp_requests_total"));
     assert!(output.contains("list_workbooks"));
     assert!(output.contains("read_table"));
     assert!(output.contains("success"));
 
-    // Verify histogram recorded duration
+    // Assert: Verify histogram recorded duration
     assert!(output.contains("mcp_request_duration_seconds"));
-}
+});
 
-#[test]
-fn test_request_error_metrics() {
+test!(test_request_error_metrics, {
+    // Arrange: Create collector and define test duration
     let collector = MetricsCollector::new();
     let duration = Duration::from_millis(50);
 
+    // Act: Record error requests
     collector.record_request_error("list_workbooks", duration, "not_found");
     collector.record_request_error("read_table", duration, "timeout");
-
     let output = collector.encode();
 
-    // Verify error counter incremented
+    // Assert: Verify error counter incremented
     assert!(output.contains("mcp_requests_total"));
     assert!(output.contains("error"));
     assert!(output.contains("mcp_errors_total"));
     assert!(output.contains("not_found"));
     assert!(output.contains("timeout"));
-}
+});
 
-#[test]
-fn test_request_timeout_metrics() {
+test!(test_request_timeout_metrics, {
+    // Arrange: Create collector and define long duration
     let collector = MetricsCollector::new();
     let duration = Duration::from_secs(30);
 
+    // Act: Record timeout
     collector.record_request_timeout("long_operation", duration);
-
     let output = collector.encode();
 
+    // Assert: Verify timeout is recorded
     assert!(output.contains("timeout"));
     assert!(output.contains("long_operation"));
-}
+});
 
-#[test]
-fn test_cache_hit_miss_metrics() {
+test!(test_cache_hit_miss_metrics, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
-    // Record cache operations
+    // Act: Record cache operations
     collector.record_cache_hit();
     collector.record_cache_hit();
     collector.record_cache_hit();
     collector.record_cache_miss();
-
     let output = collector.encode();
 
-    // Check cache hit counter
+    // Assert: Check cache hit counter
     assert!(output.contains("mcp_cache_hits_total 3"));
 
-    // Check cache miss counter
+    // Assert: Check cache miss counter
     assert!(output.contains("mcp_cache_misses_total 1"));
-}
+});
 
-#[test]
-fn test_cache_stats_update() {
+test!(test_cache_stats_update, {
+    // Arrange: Create collector and define cache stats
     let collector = MetricsCollector::new();
+    let workbook_count = 10;
+    let cache_size_bytes = 10_485_760; // 10MB
 
-    collector.update_cache_stats(10, 10_485_760); // 10 workbooks, 10MB
-
+    // Act: Update cache stats
+    collector.update_cache_stats(workbook_count, cache_size_bytes);
     let output = collector.encode();
 
+    // Assert: Verify cache stats are recorded
     assert!(output.contains("mcp_workbooks_total 10"));
     assert!(output.contains("mcp_cache_size_bytes 10485760"));
-}
+});
 
-#[test]
-fn test_fork_count_metrics() {
+test!(test_fork_count_metrics, {
+    // Arrange: Create collector and define fork count
     let collector = MetricsCollector::new();
+    let fork_count = 5;
 
-    collector.update_fork_count(5);
-
+    // Act: Update fork count
+    collector.update_fork_count(fork_count);
     let output = collector.encode();
 
+    // Assert: Verify fork count is recorded
     assert!(output.contains("mcp_forks_total 5"));
-}
+});
 
-#[test]
-fn test_recalc_duration_metrics() {
+test!(test_recalc_duration_metrics, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Record recalculation durations
     collector.record_recalc_duration(Duration::from_secs(3));
     collector.record_recalc_duration(Duration::from_secs(5));
-
     let output = collector.encode();
 
+    // Assert: Verify recalc duration histogram is recorded
     assert!(output.contains("mcp_recalc_duration_seconds"));
-    // Should have histogram buckets
+    // Assert: Should have histogram buckets
     assert!(output.contains("bucket"));
-}
+});
 
-#[test]
-fn test_libreoffice_process_count() {
+test!(test_libreoffice_process_count, {
+    // Arrange: Create collector and define process count
     let collector = MetricsCollector::new();
+    let process_count = 2;
 
-    collector.update_libreoffice_processes(2);
-
+    // Act: Update LibreOffice process count
+    collector.update_libreoffice_processes(process_count);
     let output = collector.encode();
 
+    // Assert: Verify process count is recorded
     assert!(output.contains("mcp_libreoffice_processes_active 2"));
-}
+});
 
-#[test]
-fn test_request_metrics_guard_success() {
+test!(test_request_metrics_guard_success, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Create and complete a successful request metrics guard
     {
         let metrics = RequestMetrics::new("test_tool");
         std::thread::sleep(Duration::from_millis(10));
         metrics.success();
     }
-
     let output = collector.encode();
 
+    // Assert: Verify success metrics recorded
     assert!(output.contains("test_tool"));
     assert!(output.contains("success"));
-}
+});
 
-#[test]
-fn test_request_metrics_guard_error() {
+test!(test_request_metrics_guard_error, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Create and complete an error request metrics guard
     {
         let metrics = RequestMetrics::new("test_tool_error");
         metrics.error("validation_error");
     }
-
     let output = collector.encode();
 
+    // Assert: Verify error metrics recorded
     assert!(output.contains("test_tool_error"));
     assert!(output.contains("error"));
     assert!(output.contains("validation_error"));
-}
+});
 
-#[test]
-fn test_request_metrics_guard_timeout() {
+test!(test_request_metrics_guard_timeout, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Create and complete a timeout request metrics guard
     {
         let metrics = RequestMetrics::new("test_tool_timeout");
         metrics.timeout();
     }
-
     let output = collector.encode();
 
+    // Assert: Verify timeout metrics recorded
     assert!(output.contains("test_tool_timeout"));
     assert!(output.contains("timeout"));
-}
+});
 
-#[test]
-fn test_request_metrics_guard_drop_without_completion() {
+test!(test_request_metrics_guard_drop_without_completion, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Create guard and drop without calling success/error/timeout
     {
         let _metrics = RequestMetrics::new("test_tool_drop");
         // Guard dropped without calling success/error/timeout
         // Should record as unknown error
     }
-
     let output = collector.encode();
 
+    // Assert: Verify unknown error recorded
     assert!(output.contains("test_tool_drop"));
     assert!(output.contains("unknown"));
-}
+});
 
-#[test]
-fn test_classify_error_not_found() {
+test!(test_classify_error_not_found, {
     use anyhow::anyhow;
 
+    // Arrange: Create a "not found" error
     let error = anyhow!("workbook not found");
-    assert_eq!(classify_error(&error), "not_found");
-}
 
-#[test]
-fn test_classify_error_timeout() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "not_found");
+});
+
+test!(test_classify_error_timeout, {
     use anyhow::anyhow;
 
+    // Arrange: Create timeout errors with different messages
     let error = anyhow!("operation timed out");
-    assert_eq!(classify_error(&error), "timeout");
-
     let error2 = anyhow!("request timeout exceeded");
-    assert_eq!(classify_error(&error2), "timeout");
-}
 
-#[test]
-fn test_classify_error_permission() {
+    // Act: Classify the errors
+    let classification1 = classify_error(&error);
+    let classification2 = classify_error(&error2);
+
+    // Assert: Verify both are classified as timeout
+    assert_eq!(classification1, "timeout");
+    assert_eq!(classification2, "timeout");
+});
+
+test!(test_classify_error_permission, {
     use anyhow::anyhow;
 
+    // Arrange: Create a permission denied error
     let error = anyhow!("permission denied");
-    assert_eq!(classify_error(&error), "permission_denied");
-}
 
-#[test]
-fn test_classify_error_invalid_input() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "permission_denied");
+});
+
+test!(test_classify_error_invalid_input, {
     use anyhow::anyhow;
 
+    // Arrange: Create an invalid input error
     let error = anyhow!("invalid cell reference");
-    assert_eq!(classify_error(&error), "invalid_input");
-}
 
-#[test]
-fn test_classify_error_parse() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "invalid_input");
+});
+
+test!(test_classify_error_parse, {
     use anyhow::anyhow;
 
+    // Arrange: Create a parse error
     let error = anyhow!("parsing formula failed");
-    assert_eq!(classify_error(&error), "parse_error");
-}
 
-#[test]
-fn test_classify_error_io() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "parse_error");
+});
+
+test!(test_classify_error_io, {
     use anyhow::anyhow;
 
+    // Arrange: Create an I/O error
     let error = anyhow!("io error reading file");
-    assert_eq!(classify_error(&error), "io_error");
-}
 
-#[test]
-fn test_classify_error_capacity() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "io_error");
+});
+
+test!(test_classify_error_capacity, {
     use anyhow::anyhow;
 
+    // Arrange: Create capacity errors with different messages
     let error = anyhow!("capacity exceeded");
-    assert_eq!(classify_error(&error), "capacity_exceeded");
-
     let error2 = anyhow!("limit reached");
-    assert_eq!(classify_error(&error2), "capacity_exceeded");
-}
 
-#[test]
-fn test_classify_error_fork() {
+    // Act: Classify the errors
+    let classification1 = classify_error(&error);
+    let classification2 = classify_error(&error2);
+
+    // Assert: Verify both are classified as capacity_exceeded
+    assert_eq!(classification1, "capacity_exceeded");
+    assert_eq!(classification2, "capacity_exceeded");
+});
+
+test!(test_classify_error_fork, {
     use anyhow::anyhow;
 
+    // Arrange: Create a fork error
     let error = anyhow!("fork creation failed");
-    assert_eq!(classify_error(&error), "fork_error");
-}
 
-#[test]
-fn test_classify_error_recalc() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "fork_error");
+});
+
+test!(test_classify_error_recalc, {
     use anyhow::anyhow;
 
+    // Arrange: Create a recalc error
     let error = anyhow!("recalc failed");
-    assert_eq!(classify_error(&error), "recalc_error");
-}
 
-#[test]
-fn test_classify_error_cache() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "recalc_error");
+});
+
+test!(test_classify_error_cache, {
     use anyhow::anyhow;
 
+    // Arrange: Create a cache error
     let error = anyhow!("cache error");
-    assert_eq!(classify_error(&error), "cache_error");
-}
 
-#[test]
-fn test_classify_error_unknown() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify correct classification
+    assert_eq!(classification, "cache_error");
+});
+
+test!(test_classify_error_unknown, {
     use anyhow::anyhow;
 
+    // Arrange: Create an error with an unrecognized message
     let error = anyhow!("some weird error");
-    assert_eq!(classify_error(&error), "unknown");
-}
 
-#[test]
-fn test_multiple_tools_metrics() {
+    // Act: Classify the error
+    let classification = classify_error(&error);
+
+    // Assert: Verify it's classified as unknown
+    assert_eq!(classification, "unknown");
+});
+
+test!(test_multiple_tools_metrics, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
-    // Simulate multiple tool calls
+    // Act: Simulate multiple tool calls with mixed success/error
     collector.record_request_success("list_workbooks", Duration::from_millis(50));
     collector.record_request_success("read_table", Duration::from_millis(100));
     collector.record_request_success("list_workbooks", Duration::from_millis(45));
     collector.record_request_error("read_table", Duration::from_millis(30), "timeout");
-
     let output = collector.encode();
 
-    // Both tools should be present
+    // Assert: Both tools should be present
     assert!(output.contains("list_workbooks"));
     assert!(output.contains("read_table"));
 
-    // Multiple metrics for same tool should be aggregated
+    // Note: Multiple metrics for same tool should be aggregated
     // list_workbooks should have 2 successful requests
     // read_table should have 1 success and 1 error
-}
+});
 
-#[test]
-fn test_concurrent_metrics_updates() {
+test!(test_concurrent_metrics_updates, {
     use std::sync::Arc;
     use std::thread;
 
+    // Arrange: Create shared collector and thread handles
     let collector = Arc::new(MetricsCollector::new());
     let mut handles = vec![];
 
-    // Spawn multiple threads updating metrics concurrently
+    // Act: Spawn multiple threads updating metrics concurrently
     for i in 0..10 {
         let collector = collector.clone();
         let handle = thread::spawn(move || {
@@ -338,126 +407,127 @@ fn test_concurrent_metrics_updates() {
 
     // Wait for all threads to complete
     for handle in handles {
-        handle.join().unwrap();
+        if let Err(e) = handle.join() {
+            panic!("Thread panicked: {:?}", e);
+        }
     }
-
     let output = collector.encode();
 
-    // Verify all tools are present
+    // Assert: Verify all tools are present
     assert!(output.contains("tool_0"));
     assert!(output.contains("tool_1"));
     assert!(output.contains("tool_2"));
 
-    // Verify cache hits (should be 10)
+    // Assert: Verify cache hits (should be 10)
     assert!(output.contains("mcp_cache_hits_total 10"));
-}
+});
 
-#[test]
-fn test_metrics_encode_format() {
+test!(test_metrics_encode_format, {
+    // Arrange: Create collector and record a request
     let collector = MetricsCollector::new();
 
+    // Act: Record a request and encode
     collector.record_request_success("test", Duration::from_millis(100));
-
     let output = collector.encode();
 
-    // Verify Prometheus text format
+    // Assert: Verify Prometheus text format
     assert!(output.contains("# HELP"));
     assert!(output.contains("# TYPE"));
 
-    // Should have metric names and values
+    // Assert: Should have metric names and values
     assert!(output.contains("mcp_"));
-}
+});
 
-#[test]
-fn test_global_metrics_instance() {
-    // Test that METRICS singleton works
+test!(test_global_metrics_instance, {
+    // Arrange: Use the global METRICS singleton
+
+    // Act: Record cache operations
     METRICS.record_cache_hit();
     METRICS.record_cache_miss();
-
     let output = METRICS.encode();
 
-    // Should contain the recorded metrics
+    // Assert: Should contain the recorded metrics
     // Note: This test shares state with other tests using METRICS,
     // so we just verify the structure is correct
     assert!(output.contains("mcp_cache_hits_total"));
     assert!(output.contains("mcp_cache_misses_total"));
-}
+});
 
-#[test]
-fn test_histogram_buckets() {
+test!(test_histogram_buckets, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
-    // Record various durations to test histogram buckets
+    // Act: Record various durations to test histogram buckets
     collector.record_request_success("fast", Duration::from_millis(5));
     collector.record_request_success("medium", Duration::from_millis(100));
     collector.record_request_success("slow", Duration::from_secs(2));
-
     let output = collector.encode();
 
-    // Verify histogram has buckets
+    // Assert: Verify histogram has buckets
     assert!(output.contains("mcp_request_duration_seconds_bucket"));
     assert!(output.contains("le="));
     assert!(output.contains("mcp_request_duration_seconds_sum"));
     assert!(output.contains("mcp_request_duration_seconds_count"));
-}
+});
 
-#[test]
-fn test_active_requests_gauge() {
+test!(test_active_requests_gauge, {
+    // Arrange: Create collector
+
     let collector = MetricsCollector::new();
 
-    // Create multiple active request guards
+    // Act: Create multiple active request guards
     let _guard1 = RequestMetrics::new("tool_a");
     let _guard2 = RequestMetrics::new("tool_b");
     let _guard3 = RequestMetrics::new("tool_a");
-
     let output = collector.encode();
 
-    // Active requests should be tracked
+    // Assert: Active requests should be tracked
     assert!(output.contains("mcp_active_requests"));
 
-    // When guards are dropped, active requests should decrease
-}
+    // Note: When guards are dropped, active requests should decrease
+});
 
-#[test]
-fn test_error_types_tracking() {
+test!(test_error_types_tracking, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
-    // Record various error types
+    // Act: Record various error types
     collector.record_request_error("tool", Duration::from_millis(10), "not_found");
     collector.record_request_error("tool", Duration::from_millis(20), "timeout");
     collector.record_request_error("tool", Duration::from_millis(15), "invalid_input");
     collector.record_request_error("tool", Duration::from_millis(5), "not_found");
-
     let output = collector.encode();
 
-    // All error types should be tracked separately
+    // Assert: All error types should be tracked separately
     assert!(output.contains("not_found"));
     assert!(output.contains("timeout"));
     assert!(output.contains("invalid_input"));
 
-    // not_found should have count of 2
-}
+    // Note: not_found should have count of 2
+});
 
-#[test]
-fn test_metrics_labels() {
+test!(test_metrics_labels, {
+    // Arrange: Create collector
     let collector = MetricsCollector::new();
 
+    // Act: Record a successful request
     collector.record_request_success("list_workbooks", Duration::from_millis(50));
-
     let output = collector.encode();
 
-    // Verify labels are present and correctly formatted
+    // Assert: Verify labels are present and correctly formatted
     assert!(output.contains("tool=\"list_workbooks\""));
     assert!(output.contains("status=\"success\""));
-}
+});
 
-#[test]
-fn test_zero_metrics_initial_state() {
+test!(test_zero_metrics_initial_state, {
+    // Arrange: Create a new collector
     let collector = MetricsCollector::new();
+
+    // Act: Encode without recording any metrics
     let output = collector.encode();
 
-    // New collector should have metrics registered but with zero/empty values
+    // Assert: New collector should have metrics registered but with zero/empty values
     // Just verify structure exists
     assert!(output.contains("mcp_requests_total"));
     assert!(output.contains("mcp_cache_hits_total"));
-}
+});

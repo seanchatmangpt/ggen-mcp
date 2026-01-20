@@ -83,6 +83,7 @@ http-body-util = "0.1"
 toml = "0.8"
 num_cpus = "1.16"
 similar = "2.6"
+chicago-tdd-tools = { path = "chicago-tdd-tools", features = ["testing-extras"] }
 
 [[bench]]
 name = "mcp_performance_benchmarks"

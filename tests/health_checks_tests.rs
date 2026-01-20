@@ -3,67 +3,85 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use chicago_tdd_tools::prelude::*;
 use http_body_util::BodyExt;
 use serde_json::Value;
 use spreadsheet_mcp::{ServerConfig, TransportKind};
-use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-#[tokio::test]
-async fn liveness_endpoint_returns_healthy() {
-    let (router, _workspace) = setup_test_server().await;
+async_test_with_timeout!(liveness_endpoint_returns_healthy, 30, {
+    // Arrange: Setup test server with health endpoints
+    let (router, _workspace) = setup_test_server().await?;
 
+    // Act: Send request to liveness endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/health")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    // Assert: Verify response status and structure
+    assert_eq!(status, StatusCode::OK, "Expected OK status");
+    assert_eq!(json["status"], "healthy", "Expected healthy status");
+    assert!(json["timestamp"].is_number(), "Expected timestamp to be a number");
+    assert!(json["version"].is_string(), "Expected version to be a string");
 
-    assert_eq!(json["status"], "healthy");
-    assert!(json["timestamp"].is_number());
-    assert!(json["version"].is_string());
-}
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
 
-#[tokio::test]
-async fn readiness_endpoint_returns_ready_when_healthy() {
-    let (router, _workspace) = setup_test_server().await;
+async_test_with_timeout!(readiness_endpoint_returns_ready_when_healthy, 30, {
+    // Arrange: Setup test server with health endpoints
+    let (router, _workspace) = setup_test_server().await?;
 
+    // Act: Send request to readiness endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/ready")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    // Assert: Verify readiness response
+    assert_eq!(status, StatusCode::OK, "Expected OK status");
+    assert_eq!(json["ready"], true, "Expected ready to be true");
+    assert_eq!(json["status"], "healthy", "Expected healthy status");
+    assert!(json["timestamp"].is_number(), "Expected timestamp to be a number");
+    assert_eq!(json["not_ready"], Value::Array(vec![]), "Expected empty not_ready array");
 
-    assert_eq!(json["ready"], true);
-    assert_eq!(json["status"], "healthy");
-    assert!(json["timestamp"].is_number());
-    assert_eq!(json["not_ready"], Value::Array(vec![]));
-}
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
 
-#[tokio::test]
-async fn readiness_endpoint_returns_not_ready_with_invalid_workspace() {
-    let workspace = tempfile::tempdir().unwrap();
+async_test_with_timeout!(readiness_endpoint_returns_not_ready_with_invalid_workspace, 30, {
+    // Arrange: Create test server with workspace that will be deleted
+    let workspace = tempfile::tempdir()
+        .map_err(|e| format!("Failed to create temp dir: {}", e))?;
     let workspace_path = workspace.path().to_path_buf();
 
     // Create config with valid workspace first
@@ -74,7 +92,8 @@ async fn readiness_endpoint_returns_not_ready_with_invalid_workspace() {
         single_workbook: None,
         enabled_tools: None,
         transport: TransportKind::Http,
-        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        http_bind_address: "127.0.0.1:8079".parse()
+            .map_err(|e| format!("Failed to parse address: {}", e))?,
         recalc_enabled: false,
         vba_enabled: false,
         max_concurrent_recalcs: 2,
@@ -101,79 +120,101 @@ async fn readiness_endpoint_returns_not_ready_with_invalid_workspace() {
     // Delete the workspace directory to make it unhealthy
     drop(workspace);
 
+    // Act: Send request to readiness endpoint with deleted workspace
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/ready")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let status = response.status();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
-
-    assert_eq!(json["ready"], false);
-    assert_eq!(json["status"], "unhealthy");
+    // Assert: Verify unhealthy response
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "Expected SERVICE_UNAVAILABLE status");
+    assert_eq!(json["ready"], false, "Expected ready to be false");
+    assert_eq!(json["status"], "unhealthy", "Expected unhealthy status");
+    let not_ready = json["not_ready"].as_array()
+        .ok_or("Expected not_ready to be an array")?;
     assert!(
-        json["not_ready"]
-            .as_array()
-            .unwrap()
-            .contains(&Value::String("workspace".to_string()))
+        not_ready.contains(&Value::String("workspace".to_string())),
+        "Expected not_ready to contain 'workspace'"
     );
-}
 
-#[tokio::test]
-async fn components_endpoint_returns_detailed_health() {
-    let (router, _workspace) = setup_test_server().await;
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
 
+async_test_with_timeout!(components_endpoint_returns_detailed_health, 30, {
+    // Arrange: Setup test server with health endpoints
+    let (router, _workspace) = setup_test_server().await?;
+
+    // Act: Send request to components endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/health/components")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    // Assert: Verify component health details
+    assert_eq!(status, StatusCode::OK, "Expected OK status");
+    assert_eq!(json["status"], "healthy", "Expected healthy status");
+    assert!(json["timestamp"].is_number(), "Expected timestamp to be a number");
+    assert!(json["components"].is_object(), "Expected components to be an object");
 
-    assert_eq!(json["status"], "healthy");
-    assert!(json["timestamp"].is_number());
-    assert!(json["components"].is_object());
-
-    let components = json["components"].as_object().unwrap();
+    let components = json["components"].as_object()
+        .ok_or("Expected components to be an object")?;
 
     // Verify workspace component
-    assert!(components.contains_key("workspace"));
+    assert!(components.contains_key("workspace"), "Expected workspace component");
     let workspace = &components["workspace"];
-    assert_eq!(workspace["status"], "healthy");
-    assert_eq!(workspace["component"], "workspace");
-    assert!(workspace["details"]["readable"].as_bool().unwrap());
+    assert_eq!(workspace["status"], "healthy", "Expected workspace to be healthy");
+    assert_eq!(workspace["component"], "workspace", "Expected component name to be workspace");
+    let readable = workspace["details"]["readable"].as_bool()
+        .ok_or("Expected readable to be a boolean")?;
+    assert!(readable, "Expected workspace to be readable");
 
     // Verify cache component
-    assert!(components.contains_key("cache"));
+    assert!(components.contains_key("cache"), "Expected cache component");
     let cache = &components["cache"];
-    assert_eq!(cache["component"], "cache");
-    assert!(cache["details"]["size"].is_number());
-    assert!(cache["details"]["capacity"].is_number());
+    assert_eq!(cache["component"], "cache", "Expected component name to be cache");
+    assert!(cache["details"]["size"].is_number(), "Expected cache size to be a number");
+    assert!(cache["details"]["capacity"].is_number(), "Expected cache capacity to be a number");
 
     // Verify workbook_index component
-    assert!(components.contains_key("workbook_index"));
+    assert!(components.contains_key("workbook_index"), "Expected workbook_index component");
     let index = &components["workbook_index"];
-    assert_eq!(index["component"], "workbook_index");
-}
+    assert_eq!(index["component"], "workbook_index", "Expected component name to be workbook_index");
 
-#[tokio::test]
-async fn components_endpoint_shows_degraded_cache() {
-    let workspace = tempfile::tempdir().unwrap();
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
+
+async_test_with_timeout!(components_endpoint_shows_degraded_cache, 30, {
+    // Arrange: Create test server with small cache capacity
+    let workspace = tempfile::tempdir()
+        .map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
     // Create a config with cache capacity of 1 and fill it completely
     let config = ServerConfig {
@@ -183,7 +224,8 @@ async fn components_endpoint_shows_degraded_cache() {
         single_workbook: None,
         enabled_tools: None,
         transport: TransportKind::Http,
-        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        http_bind_address: "127.0.0.1:8079".parse()
+            .map_err(|e| format!("Failed to parse address: {}", e))?,
         recalc_enabled: false,
         vba_enabled: false,
         max_concurrent_recalcs: 2,
@@ -202,10 +244,8 @@ async fn components_endpoint_shows_degraded_cache() {
 
     // Create a test workbook file to load
     let test_file = workspace.path().join("test.xlsx");
-    fs::write(&test_file, b"dummy xlsx data").unwrap();
-
-    // Load a workbook to fill the cache (this would need a real workbook)
-    // For now we'll just verify the cache component exists
+    fs::write(&test_file, b"dummy xlsx data")
+        .map_err(|e| format!("Failed to write test file: {}", e))?;
 
     let router = Router::new()
         .route(
@@ -214,29 +254,41 @@ async fn components_endpoint_shows_degraded_cache() {
         )
         .with_state(health_checker);
 
+    // Act: Send request to components endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/health/components")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let components = json["components"].as_object().unwrap();
-    assert!(components.contains_key("cache"));
+    // Assert: Verify cache capacity is set correctly
+    let components = json["components"].as_object()
+        .ok_or("Expected components to be an object")?;
+    assert!(components.contains_key("cache"), "Expected cache component");
 
     let cache = &components["cache"];
-    assert!(cache["details"]["capacity"].as_u64().unwrap() == 1);
-}
+    let capacity = cache["details"]["capacity"].as_u64()
+        .ok_or("Expected capacity to be a number")?;
+    assert_eq!(capacity, 1, "Expected cache capacity to be 1");
 
-#[tokio::test]
-async fn health_endpoints_handle_concurrent_requests() {
-    let (router, _workspace) = setup_test_server().await;
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
+
+async_test_with_timeout!(health_endpoints_handle_concurrent_requests, 30, {
+    // Arrange: Setup test server and create multiple concurrent request handlers
+    let (router, _workspace) = setup_test_server().await?;
 
     // Clone router for each request since oneshot consumes it
     let config = ServerConfig {
@@ -246,7 +298,8 @@ async fn health_endpoints_handle_concurrent_requests() {
         single_workbook: None,
         enabled_tools: None,
         transport: TransportKind::Http,
-        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        http_bind_address: "127.0.0.1:8079".parse()
+            .map_err(|e| format!("Failed to parse address: {}", e))?,
         recalc_enabled: false,
         vba_enabled: false,
         max_concurrent_recalcs: 2,
@@ -263,7 +316,7 @@ async fn health_endpoints_handle_concurrent_requests() {
         state,
     ));
 
-    // Create multiple concurrent requests
+    // Act: Create multiple concurrent requests
     let mut handles = vec![];
     for _ in 0..10 {
         let checker = health_checker.clone();
@@ -280,25 +333,29 @@ async fn health_endpoints_handle_concurrent_requests() {
                     Request::builder()
                         .uri("/health")
                         .body(Body::empty())
-                        .unwrap(),
+                        .map_err(|e| format!("Failed to build request: {}", e))?,
                 )
                 .await
-                .unwrap()
+                .map_err(|e| format!("Request failed: {}", e))
         });
         handles.push(handle);
     }
 
-    // Wait for all requests to complete
+    // Assert: Wait for all requests to complete successfully
     for handle in handles {
-        let response = handle.await.unwrap();
-        assert_eq!(response.status(), StatusCode::OK);
+        let response = handle.await
+            .map_err(|e| format!("Task failed: {}", e))??;
+        assert_eq!(response.status(), StatusCode::OK, "Expected OK status from concurrent request");
     }
-}
 
-#[tokio::test]
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
+
 #[cfg(feature = "recalc")]
-async fn components_endpoint_checks_libreoffice_when_enabled() {
-    let workspace = tempfile::tempdir().unwrap();
+async_test_with_timeout!(components_endpoint_checks_libreoffice_when_enabled, 30, {
+    // Arrange: Create test server with recalc enabled
+    let workspace = tempfile::tempdir()
+        .map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
     let config = ServerConfig {
         workspace_root: workspace.path().to_path_buf(),
@@ -307,7 +364,8 @@ async fn components_endpoint_checks_libreoffice_when_enabled() {
         single_workbook: None,
         enabled_tools: None,
         transport: TransportKind::Http,
-        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        http_bind_address: "127.0.0.1:8079".parse()
+            .map_err(|e| format!("Failed to parse address: {}", e))?,
         recalc_enabled: true, // Enable recalc to check LibreOffice
         vba_enabled: false,
         max_concurrent_recalcs: 2,
@@ -331,80 +389,108 @@ async fn components_endpoint_checks_libreoffice_when_enabled() {
         )
         .with_state(health_checker);
 
+    // Act: Send request to components endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/health/components")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let components = json["components"].as_object().unwrap();
+    // Assert: Verify LibreOffice and fork_registry components are present
+    let components = json["components"].as_object()
+        .ok_or("Expected components to be an object")?;
 
     // Should have LibreOffice component when recalc is enabled
-    assert!(components.contains_key("libreoffice"));
+    assert!(components.contains_key("libreoffice"), "Expected libreoffice component");
     let libreoffice = &components["libreoffice"];
-    assert_eq!(libreoffice["component"], "libreoffice");
+    assert_eq!(libreoffice["component"], "libreoffice", "Expected component name to be libreoffice");
 
     // Should have fork_registry component
-    assert!(components.contains_key("fork_registry"));
+    assert!(components.contains_key("fork_registry"), "Expected fork_registry component");
     let fork_registry = &components["fork_registry"];
-    assert_eq!(fork_registry["component"], "fork_registry");
-}
+    assert_eq!(fork_registry["component"], "fork_registry", "Expected component name to be fork_registry");
 
-#[tokio::test]
-async fn health_status_combines_correctly() {
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
+
+test!(health_status_combines_correctly, {
     use spreadsheet_mcp::health::HealthStatus;
 
-    // Test all combinations
+    // Arrange: Create all possible health status values
     let healthy = HealthStatus::Healthy;
     let degraded = HealthStatus::Degraded;
     let unhealthy = HealthStatus::Unhealthy;
 
-    assert_eq!(healthy.combine(healthy), HealthStatus::Healthy);
-    assert_eq!(healthy.combine(degraded), HealthStatus::Degraded);
-    assert_eq!(healthy.combine(unhealthy), HealthStatus::Unhealthy);
-    assert_eq!(degraded.combine(healthy), HealthStatus::Degraded);
-    assert_eq!(degraded.combine(degraded), HealthStatus::Degraded);
-    assert_eq!(degraded.combine(unhealthy), HealthStatus::Unhealthy);
-    assert_eq!(unhealthy.combine(healthy), HealthStatus::Unhealthy);
-    assert_eq!(unhealthy.combine(degraded), HealthStatus::Unhealthy);
-    assert_eq!(unhealthy.combine(unhealthy), HealthStatus::Unhealthy);
-}
+    // Act & Assert: Test all combinations of health status merging
+    // Healthy combinations
+    assert_eq!(healthy.combine(healthy), HealthStatus::Healthy, "Healthy + Healthy = Healthy");
+    assert_eq!(healthy.combine(degraded), HealthStatus::Degraded, "Healthy + Degraded = Degraded");
+    assert_eq!(healthy.combine(unhealthy), HealthStatus::Unhealthy, "Healthy + Unhealthy = Unhealthy");
 
-#[tokio::test]
-async fn component_health_includes_timestamps() {
-    let (router, _workspace) = setup_test_server().await;
+    // Degraded combinations
+    assert_eq!(degraded.combine(healthy), HealthStatus::Degraded, "Degraded + Healthy = Degraded");
+    assert_eq!(degraded.combine(degraded), HealthStatus::Degraded, "Degraded + Degraded = Degraded");
+    assert_eq!(degraded.combine(unhealthy), HealthStatus::Unhealthy, "Degraded + Unhealthy = Unhealthy");
 
+    // Unhealthy combinations
+    assert_eq!(unhealthy.combine(healthy), HealthStatus::Unhealthy, "Unhealthy + Healthy = Unhealthy");
+    assert_eq!(unhealthy.combine(degraded), HealthStatus::Unhealthy, "Unhealthy + Degraded = Unhealthy");
+    assert_eq!(unhealthy.combine(unhealthy), HealthStatus::Unhealthy, "Unhealthy + Unhealthy = Unhealthy");
+});
+
+async_test_with_timeout!(component_health_includes_timestamps, 30, {
+    // Arrange: Setup test server with health endpoints
+    let (router, _workspace) = setup_test_server().await?;
+
+    // Act: Send request to components endpoint
     let response = router
         .oneshot(
             Request::builder()
                 .uri("/health/components")
                 .body(Body::empty())
-                .unwrap(),
+                .map_err(|e| format!("Failed to build request: {}", e))?,
         )
         .await
-        .unwrap();
+        .map_err(|e| format!("Request failed: {}", e))?;
 
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    let body = response.into_body()
+        .collect()
+        .await
+        .map_err(|e| format!("Failed to collect body: {}", e))?
+        .to_bytes();
+    let json: Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let components = json["components"].as_object().unwrap();
+    // Assert: Verify all components have valid timestamps
+    let components = json["components"].as_object()
+        .ok_or("Expected components to be an object")?;
+
     for (_name, component) in components {
-        assert!(component["timestamp"].is_number());
-        let timestamp = component["timestamp"].as_i64().unwrap();
-        assert!(timestamp > 0, "Timestamp should be positive");
+        assert!(component["timestamp"].is_number(), "Expected timestamp to be a number");
+        let timestamp = component["timestamp"].as_i64()
+            .ok_or("Expected timestamp to be an i64")?;
+        assert!(timestamp > 0, "Timestamp should be positive, got {}", timestamp);
     }
-}
+
+    Ok::<(), Box<dyn std::error::Error>>(())
+});
 
 // Helper function to setup a test server with health endpoints
-async fn setup_test_server() -> (Router, tempfile::TempDir) {
-    let workspace = tempfile::tempdir().unwrap();
+async fn setup_test_server() -> Result<(Router, tempfile::TempDir), Box<dyn std::error::Error>> {
+    let workspace = tempfile::tempdir()
+        .map_err(|e| format!("Failed to create temp dir: {}", e))?;
 
     let config = ServerConfig {
         workspace_root: workspace.path().to_path_buf(),
@@ -413,7 +499,8 @@ async fn setup_test_server() -> (Router, tempfile::TempDir) {
         single_workbook: None,
         enabled_tools: None,
         transport: TransportKind::Http,
-        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        http_bind_address: "127.0.0.1:8079".parse()
+            .map_err(|e| format!("Failed to parse address: {}", e))?,
         recalc_enabled: false,
         vba_enabled: false,
         max_concurrent_recalcs: 2,
@@ -445,5 +532,5 @@ async fn setup_test_server() -> (Router, tempfile::TempDir) {
         )
         .with_state(health_checker);
 
-    (router, workspace)
+    Ok((router, workspace))
 }
