@@ -53,7 +53,7 @@
   },
   "optimization": {
     "parallel_subagents": 10,
-    "reasoning": "10 concurrent subagents optimal for Claude Code Web. Research: Web environment has distributed compute, no local core constraints. Multi-agent orchestration studies show 10+ agents achieve 88.8% token reduction via parallel execution. Claude Code Web architecture supports unlimited parallelization."
+    "reasoning": "10 concurrent subagents for explore-exploit pattern. Amdahl's Law NOT applicable—agents explore solution space in parallel (multiple hypotheses, approaches, research domains simultaneously), not parallelizing sequential work. Exploit phase synthesizes best findings. Research: Multi-agent orchestration studies show 88.8% token reduction via parallel exploration. Claude Code Web distributed compute enables unlimited agent spawning. Explore-exploit maximizes solution quality through diversity, not just throughput."
   },
   "hooks": {
     "pre_commit": {
