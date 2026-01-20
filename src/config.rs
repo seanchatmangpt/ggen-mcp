@@ -14,6 +14,10 @@ const DEFAULT_HTTP_BIND: &str = "127.0.0.1:8079";
 const DEFAULT_TOOL_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_MAX_RESPONSE_BYTES: u64 = 1_000_000;
 const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS: u64 = 45;
+const DEFAULT_ONTOLOGY_CACHE_SIZE: usize = 10;
+const DEFAULT_ONTOLOGY_CACHE_TTL_SECS: u64 = 3600; // 1 hour
+const DEFAULT_QUERY_CACHE_SIZE: usize = 1000;
+const DEFAULT_QUERY_CACHE_TTL_SECS: u64 = 300; // 5 minutes
 
 const MAX_CACHE_CAPACITY: usize = 1000;
 const MIN_CACHE_CAPACITY: usize = 1;
@@ -59,6 +63,10 @@ pub struct ServerConfig {
     pub max_response_bytes: Option<u64>,
     pub allow_overwrite: bool,
     pub graceful_shutdown_timeout_secs: u64,
+    pub ontology_cache_size: usize,
+    pub ontology_cache_ttl_secs: u64,
+    pub query_cache_size: usize,
+    pub query_cache_ttl_secs: u64,
 }
 
 impl ServerConfig {
@@ -79,6 +87,10 @@ impl ServerConfig {
             max_response_bytes: cli_max_response_bytes,
             allow_overwrite: cli_allow_overwrite,
             graceful_shutdown_timeout_secs: cli_graceful_shutdown_timeout_secs,
+            ontology_cache_size: cli_ontology_cache_size,
+            ontology_cache_ttl_secs: cli_ontology_cache_ttl_secs,
+            query_cache_size: cli_query_cache_size,
+            query_cache_ttl_secs: cli_query_cache_ttl_secs,
         } = args;
 
         let file_config = if let Some(path) = config.as_ref() {
@@ -102,6 +114,10 @@ impl ServerConfig {
             max_response_bytes: file_max_response_bytes,
             allow_overwrite: file_allow_overwrite,
             graceful_shutdown_timeout_secs: file_graceful_shutdown_timeout_secs,
+            ontology_cache_size: file_ontology_cache_size,
+            ontology_cache_ttl_secs: file_ontology_cache_ttl_secs,
+            query_cache_size: file_query_cache_size,
+            query_cache_ttl_secs: file_query_cache_ttl_secs,
         } = file_config;
 
         let single_workbook = cli_single_workbook.or(file_single_workbook);
@@ -231,6 +247,26 @@ impl ServerConfig {
             .or(file_graceful_shutdown_timeout_secs)
             .unwrap_or(DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS);
 
+        let ontology_cache_size = cli_ontology_cache_size
+            .or(file_ontology_cache_size)
+            .unwrap_or(DEFAULT_ONTOLOGY_CACHE_SIZE)
+            .max(1);
+
+        let ontology_cache_ttl_secs = cli_ontology_cache_ttl_secs
+            .or(file_ontology_cache_ttl_secs)
+            .unwrap_or(DEFAULT_ONTOLOGY_CACHE_TTL_SECS)
+            .max(1);
+
+        let query_cache_size = cli_query_cache_size
+            .or(file_query_cache_size)
+            .unwrap_or(DEFAULT_QUERY_CACHE_SIZE)
+            .max(1);
+
+        let query_cache_ttl_secs = cli_query_cache_ttl_secs
+            .or(file_query_cache_ttl_secs)
+            .unwrap_or(DEFAULT_QUERY_CACHE_TTL_SECS)
+            .max(1);
+
         Ok(Self {
             workspace_root,
             cache_capacity,
@@ -246,6 +282,10 @@ impl ServerConfig {
             max_response_bytes,
             allow_overwrite,
             graceful_shutdown_timeout_secs,
+            ontology_cache_size,
+            ontology_cache_ttl_secs,
+            query_cache_size,
+            query_cache_ttl_secs,
         })
     }
 
@@ -590,6 +630,42 @@ pub struct CliArgs {
         value_parser = clap::value_parser!(u64)
     )]
     pub graceful_shutdown_timeout_secs: Option<u64>,
+
+    #[arg(
+        long,
+        env = "ONTOLOGY_CACHE_SIZE",
+        value_name = "N",
+        help = "Maximum number of ontologies to cache (default: 10)",
+        value_parser = clap::value_parser!(usize)
+    )]
+    pub ontology_cache_size: Option<usize>,
+
+    #[arg(
+        long,
+        env = "ONTOLOGY_CACHE_TTL",
+        value_name = "SECS",
+        help = "Ontology cache TTL in seconds (default: 3600)",
+        value_parser = clap::value_parser!(u64)
+    )]
+    pub ontology_cache_ttl_secs: Option<u64>,
+
+    #[arg(
+        long,
+        env = "QUERY_CACHE_SIZE",
+        value_name = "N",
+        help = "Maximum number of SPARQL query results to cache (default: 1000)",
+        value_parser = clap::value_parser!(usize)
+    )]
+    pub query_cache_size: Option<usize>,
+
+    #[arg(
+        long,
+        env = "QUERY_CACHE_TTL",
+        value_name = "SECS",
+        help = "Query cache TTL in seconds (default: 300)",
+        value_parser = clap::value_parser!(u64)
+    )]
+    pub query_cache_ttl_secs: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -608,6 +684,10 @@ struct PartialConfig {
     max_response_bytes: Option<u64>,
     allow_overwrite: Option<bool>,
     graceful_shutdown_timeout_secs: Option<u64>,
+    ontology_cache_size: Option<usize>,
+    ontology_cache_ttl_secs: Option<u64>,
+    query_cache_size: Option<usize>,
+    query_cache_ttl_secs: Option<u64>,
 }
 
 fn load_config_file(path: &Path) -> Result<PartialConfig> {

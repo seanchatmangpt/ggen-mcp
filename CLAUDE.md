@@ -313,6 +313,55 @@ cargo make test-traceability # Verify ontology→code
 cargo make test-determinism  # Code generation consistency
 ```
 
+### Ontology Generation (MCP Tools)
+```bash
+# Validate RDF ontology (SHACL conformance)
+validate_ontology {
+  ontology_path: "ontology/mcp-domain.ttl",
+  strict_mode: true,
+  resolve_imports: true
+}
+
+# Generate entity from Zod/JSON schema
+generate_from_schema {
+  schema_type: "zod",
+  schema_content: "z.object({ id: z.string().uuid(), name: z.string() })",
+  entity_name: "Product",
+  features: ["serde", "validation", "builder"]
+}
+
+# Generate API from OpenAPI 3.x spec
+generate_from_openapi {
+  openapi_spec: "openapi/api.yaml",
+  generation_target: "full",
+  framework: "rmcp",
+  validation_strategy: "strict"
+}
+
+# Preview changes before generation (dry-run, no file writes)
+preview_generation {
+  generation_config: {
+    tool: "generate_from_schema",
+    arguments: { schema_content: "...", entity_name: "User" }
+  },
+  show_diffs: true
+}
+
+# Full ontology sync (13-step pipeline: validate → extract → generate → audit)
+sync_ontology {
+  ontology_path: "ontology/",
+  audit_trail: true,
+  validation_level: "strict",
+  parallel_generation: true
+}
+
+# Documentation
+# See: docs/MCP_TOOL_USAGE.md for complete tool reference
+# See: docs/WORKFLOW_EXAMPLES.md for 5 real-world workflows
+# See: docs/VALIDATION_GUIDE.md for 4-layer validation guide
+# Run: cargo run --example ontology_generation_example
+```
+
 ### Testing (cargo make)
 ```bash
 cargo make test              # Unit + generated tests

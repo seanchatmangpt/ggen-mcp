@@ -1,6 +1,7 @@
 pub mod parameter_validation;
 pub mod rendering_safety;
 pub mod schemas;
+pub mod multi_format_validator;
 
 // Re-export parameter validation components
 pub use parameter_validation::{
@@ -23,3 +24,8 @@ pub use rendering_safety::{
 
 // Re-export schemas
 pub use schemas::TEMPLATE_SCHEMAS;
+
+// Re-export multi-format validators
+pub use multi_format_validator::{
+    TypeScriptValidator, YamlValidator, JsonValidator, OpenApiValidator,
+};

@@ -1,6 +1,10 @@
 pub mod filters;
 #[cfg(feature = "recalc")]
 pub mod fork;
+pub mod ontology_generation;
+pub mod ontology_sparql;
+pub mod sparql_safety;
+pub mod template_safety;
 pub mod vba;
 
 use crate::analysis::{formula::FormulaGraph, stats};

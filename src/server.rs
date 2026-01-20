@@ -172,6 +172,9 @@ impl SpreadsheetServer {
             router.merge(Self::vba_tool_router());
         }
 
+        // Ontology generation tools (always available)
+        router.merge(Self::ontology_tool_router());
+
         Self {
             state,
             tool_router: router,
@@ -665,6 +668,70 @@ impl SpreadsheetServer {
     }
 }
 
+// =============================================================================
+// Ontology Generation Tools
+// =============================================================================
+
+#[tool_router(router = ontology_tool_router)]
+impl SpreadsheetServer {
+    #[tool(
+        name = "render_template",
+        description = "Render a Tera template with context data for code generation"
+    )]
+    pub async fn render_template(
+        &self,
+        Parameters(params): Parameters<tools::ontology_generation::RenderTemplateParams>,
+    ) -> Result<Json<tools::ontology_generation::RenderTemplateResponse>, McpError> {
+        self.ensure_tool_enabled("render_template")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "render_template",
+            tools::ontology_generation::render_template(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "write_generated_artifact",
+        description = "Write generated code to file with validation and audit trail"
+    )]
+    pub async fn write_generated_artifact(
+        &self,
+        Parameters(params): Parameters<tools::ontology_generation::WriteGeneratedArtifactParams>,
+    ) -> Result<Json<tools::ontology_generation::WriteGeneratedArtifactResponse>, McpError> {
+        self.ensure_tool_enabled("write_generated_artifact")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "write_generated_artifact",
+            tools::ontology_generation::write_generated_artifact(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "validate_generated_code",
+        description = "Validate generated code with multi-language support and golden file comparison"
+    )]
+    pub async fn validate_generated_code(
+        &self,
+        Parameters(params): Parameters<tools::ontology_generation::ValidateGeneratedCodeParams>,
+    ) -> Result<Json<tools::ontology_generation::ValidateGeneratedCodeResponse>, McpError> {
+        self.ensure_tool_enabled("validate_generated_code")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "validate_generated_code",
+            tools::ontology_generation::validate_generated_code(params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+}
+
 #[cfg(feature = "recalc")]
 #[tool_router(router = fork_tool_router)]
 impl SpreadsheetServer {
@@ -1088,6 +1155,25 @@ run recalculate and review get_changeset after applying."
         .await;
 
         result.map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "validate_generated_code",
+        description = "Validate generated code with multi-language syntax checking and optional golden file comparison. \
+Supports: Rust, TypeScript, YAML, JSON. Returns detailed errors, warnings, and suggestions."
+    )]
+    pub async fn validate_generated_code(
+        &self,
+        Parameters(params): Parameters<tools::ontology_generation::ValidateGeneratedCodeParams>,
+    ) -> Result<Json<tools::ontology_generation::ValidateGeneratedCodeResponse>, McpError> {
+        // No tool enablement check - validation is always available
+        self.run_tool_with_timeout(
+            "validate_generated_code",
+            tools::ontology_generation::validate_generated_code(params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
     }
 }
 

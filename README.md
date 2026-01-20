@@ -198,6 +198,104 @@ The agent now knows column types, cardinality, and value distributions—without
 
 Spreadsheets often contain multiple logical tables, parameter blocks, and output areas on a single sheet. The server detects these automatically:
 
+## Ontology Generation (ggen Integration)
+
+**NEW**: This MCP server now includes ontology-driven code generation capabilities powered by [ggen](https://github.com/seanchatmangpt/ggen). Generate type-safe Rust code from RDF ontologies, Zod schemas, or OpenAPI specifications.
+
+### Quick Start
+
+```bash
+# Validate RDF ontology
+validate_ontology { ontology_path: "ontology/domain.ttl", strict_mode: true }
+
+# Generate entity from Zod schema
+generate_from_schema {
+  schema_type: "zod",
+  schema_content: "z.object({ id: z.string().uuid(), name: z.string() })",
+  entity_name: "Product",
+  features: ["serde", "validation", "builder"]
+}
+
+# Generate API from OpenAPI spec
+generate_from_openapi {
+  openapi_spec: "openapi/api.yaml",
+  generation_target: "full",
+  framework: "rmcp"
+}
+
+# Full ontology sync (13-step pipeline)
+sync_ontology {
+  ontology_path: "ontology/",
+  audit_trail: true,
+  validation_level: "strict"
+}
+```
+
+### Available Tools
+
+| Tool | Purpose | Docs |
+|------|---------|------|
+| `validate_ontology` | SHACL validation, dependency check | [Tool Docs](docs/MCP_TOOL_USAGE.md#tool-1-validate_ontology) |
+| `generate_from_schema` | Zod/JSON → Entity generation | [Tool Docs](docs/MCP_TOOL_USAGE.md#tool-2-generate_from_schema) |
+| `generate_from_openapi` | OpenAPI → API implementation | [Tool Docs](docs/MCP_TOOL_USAGE.md#tool-3-generate_from_openapi) |
+| `preview_generation` | Dry-run preview (no writes) | [Tool Docs](docs/MCP_TOOL_USAGE.md#tool-4-preview_generation) |
+| `sync_ontology` | Full pipeline (13 steps) | [Tool Docs](docs/MCP_TOOL_USAGE.md#tool-5-sync_ontology) |
+
+### Documentation
+
+- **[MCP Tool Usage Guide](docs/MCP_TOOL_USAGE.md)** - Complete tool reference with schemas and error codes
+- **[Workflow Examples](docs/WORKFLOW_EXAMPLES.md)** - 5 real-world workflows with code samples
+- **[Validation Guide](docs/VALIDATION_GUIDE.md)** - 4-layer validation, golden file testing
+
+### Example Workflow
+
+```rust
+// 1. Define schema
+let schema = r#"z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  age: z.number().int().min(18)
+})"#;
+
+// 2. Preview generation
+preview_generation {
+  generation_config: {
+    tool: "generate_from_schema",
+    arguments: { schema_content: schema, entity_name: "User" }
+  },
+  show_diffs: true
+}
+
+// 3. Generate code
+generate_from_schema {
+  schema_type: "zod",
+  schema_content: schema,
+  entity_name: "User",
+  features: ["serde", "validation", "builder"]
+}
+
+// 4. Use generated code
+use crate::generated::user::{User, UserBuilder};
+let user = UserBuilder::new()
+    .id(Uuid::new_v4())
+    .email("alice@example.com")
+    .age(25)
+    .build()?;
+```
+
+Run the [complete example](examples/ontology_generation_example.rs):
+```bash
+cargo run --example ontology_generation_example
+```
+
+### Key Features
+
+- **4-Layer Validation**: Input guards → SHACL → Quality gates → Runtime safety
+- **Deterministic**: Same input → same output always (SHA-256 verified)
+- **Audit Trails**: Cryptographic receipts for production deployments
+- **Preview Mode**: Safe dry-run before applying changes
+- **Golden File Testing**: Snapshot testing for regression detection
+
 1. **Gutter detection** — Scans for empty rows/columns that separate content blocks
 2. **Recursive splitting** — Subdivides large areas along detected gutters
 3. **Border trimming** — Removes sparse edges to tighten bounds

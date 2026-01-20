@@ -1,0 +1,60 @@
+openapi: 3.0.0
+info:
+  title: Test API
+  description: Auto-generated from test-api.ttl
+  version: 1.0.0
+
+paths:
+{% for cmd in test_commands | unique(attribute="commandName") %}
+  /{{ cmd.commandName | lower }}:
+    post:
+      summary: {{ cmd.description }}
+      operationId: {{ cmd.commandName | lower }}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                {%- for param in test_commands | filter(attribute="commandName", value=cmd.commandName) %}
+                {%- if param.paramName %}
+                {{ param.paramName }}:
+                  type: {{ param.paramType | lower }}
+                {%- endif %}
+                {%- endfor %}
+              required:
+                {%- for param in test_commands | filter(attribute="commandName", value=cmd.commandName) %}
+                {%- if param.paramName and param.required == "true" %}
+                - {{ param.paramName }}
+                {%- endif %}
+                {%- endfor %}
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Bad Request
+
+{% endfor %}
+
+components:
+  schemas:
+{% for entity in test_entities | unique(attribute="entityName") %}
+    {{ entity.entityName }}:
+      type: object
+      description: {{ entity.description }}
+      properties:
+        {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+        {%- if prop.propertyName %}
+        {{ prop.propertyName }}:
+          type: {{ prop.propertyType | lower }}
+        {%- endif %}
+        {%- endfor %}
+      required:
+        {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+        {%- if prop.propertyName and prop.required == "true" %}
+        - {{ prop.propertyName }}
+        {%- endif %}
+        {%- endfor %}
+
+{% endfor %}

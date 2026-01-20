@@ -2,11 +2,13 @@ use crate::config::ServerConfig;
 #[cfg(feature = "recalc")]
 use crate::fork::{ForkConfig, ForkRegistry};
 use crate::model::{WorkbookId, WorkbookListResponse};
+use crate::ontology::{CacheStats as OntologyCacheStats, OntologyCache, QueryCache};
 #[cfg(feature = "recalc")]
 use crate::recalc::{
     GlobalRecalcLock, GlobalScreenshotLock, LibreOfficeBackend, RecalcBackend, RecalcConfig,
     create_executor,
 };
+use crate::sparql::cache::{CacheConfig as QueryCacheConfig, QueryResultCache};
 use crate::tools::filters::WorkbookFilter;
 use crate::utils::{hash_path_metadata, make_short_workbook_id};
 use crate::workbook::{WorkbookContext, build_workbook_list};
@@ -39,6 +41,12 @@ pub struct AppState {
     cache_hits: AtomicU64,
     /// Cache miss counter for statistics
     cache_misses: AtomicU64,
+    /// Ontology cache for RDF stores
+    ontology_cache: Arc<OntologyCache>,
+    /// SPARQL query result cache (simple)
+    query_cache_simple: Arc<QueryCache>,
+    /// SPARQL query result cache (advanced with TTL)
+    query_cache_advanced: Arc<QueryResultCache>,
     #[cfg(feature = "recalc")]
     fork_registry: Option<Arc<ForkRegistry>>,
     #[cfg(feature = "recalc")]
@@ -76,6 +84,21 @@ impl Default for CacheWarmingConfig {
 impl AppState {
     pub fn new(config: Arc<ServerConfig>) -> Self {
         let capacity = NonZeroUsize::new(config.cache_capacity.max(1)).unwrap();
+
+        // Initialize ontology cache
+        let ontology_cache = Arc::new(OntologyCache::new(config.ontology_cache_size));
+
+        // Initialize simple query result cache
+        let query_cache_simple = Arc::new(QueryCache::new(config.query_cache_size));
+
+        // Initialize advanced query result cache with TTL
+        let query_cache_config = QueryCacheConfig {
+            max_entries: config.query_cache_size,
+            default_ttl: config.query_cache_ttl_secs as i64,
+            auto_evict: true,
+            max_memory_bytes: 100 * 1024 * 1024, // 100 MB
+        };
+        let query_cache_advanced = Arc::new(QueryResultCache::new(query_cache_config));
 
         #[cfg(feature = "recalc")]
         let (fork_registry, recalc_backend, recalc_semaphore, screenshot_semaphore) =
@@ -120,6 +143,9 @@ impl AppState {
             cache_ops: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
+            ontology_cache,
+            query_cache_simple,
+            query_cache_advanced,
             #[cfg(feature = "recalc")]
             fork_registry,
             #[cfg(feature = "recalc")]
@@ -155,6 +181,21 @@ impl AppState {
         self.screenshot_semaphore.as_ref()
     }
 
+    /// Get ontology cache
+    pub fn ontology_cache(&self) -> &Arc<OntologyCache> {
+        &self.ontology_cache
+    }
+
+    /// Get simple query result cache
+    pub fn query_cache_simple(&self) -> &Arc<QueryCache> {
+        &self.query_cache_simple
+    }
+
+    /// Get advanced query result cache (with TTL)
+    pub fn query_cache_advanced(&self) -> &Arc<QueryResultCache> {
+        &self.query_cache_advanced
+    }
+
     /// Get cache statistics
     pub fn cache_stats(&self) -> CacheStats {
         CacheStats {
@@ -163,6 +204,21 @@ impl AppState {
             misses: self.cache_misses.load(Ordering::Relaxed),
             size: self.cache.read().len(),
             capacity: self.cache.read().cap().get(),
+        }
+    }
+
+    /// Get comprehensive cache statistics (workbook, ontology, and query caches)
+    pub fn all_cache_stats(&self) -> AllCacheStats {
+        let workbook_stats = self.cache_stats();
+        let ontology_stats = self.ontology_cache.stats();
+        let query_stats_simple = self.query_cache_simple.stats();
+        let query_stats_advanced = self.query_cache_advanced.stats();
+
+        AllCacheStats {
+            workbook: workbook_stats,
+            ontology: ontology_stats,
+            query_simple: query_stats_simple,
+            query_advanced: query_stats_advanced,
         }
     }
 
@@ -574,6 +630,15 @@ impl CacheStats {
             self.hits as f64 / self.operations as f64
         }
     }
+}
+
+/// Comprehensive cache statistics for all cache types
+#[derive(Debug, Clone)]
+pub struct AllCacheStats {
+    pub workbook: CacheStats,
+    pub ontology: OntologyCacheStats,
+    pub query_simple: OntologyCacheStats,
+    pub query_advanced: crate::sparql::cache::CacheStats,
 }
 
 /// Result of cache warming operation
