@@ -5,6 +5,7 @@ pub mod codegen;
 pub mod config;
 #[cfg(feature = "recalc")]
 pub mod diff;
+pub mod dod;
 pub mod domain;
 pub mod entitlement;
 pub mod error;

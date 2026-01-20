@@ -1,0 +1,38 @@
+name = "ggen-mcp-default"
+description = "Default development profile with lenient thresholds"
+
+required_checks = [
+    "G0_WORKSPACE",
+    "BUILD_FMT",
+    "BUILD_CHECK",
+    "TEST_UNIT",
+    "GGEN_DRY_RUN",
+]
+
+optional_checks = [
+    "BUILD_CLIPPY",
+    "TEST_INTEGRATION",
+    "WHY_INTENT",
+]
+
+parallelism = "auto"
+
+[category_weights]
+BuildCorrectness = 0.25
+TestTruth = 0.25
+GgenPipeline = 0.20
+ToolRegistry = 0.15
+SafetyInvariants = 0.10
+IntentAlignment = 0.05
+
+[timeouts_ms]
+build = 600000    # 10 minutes
+tests = 900000    # 15 minutes
+ggen = 300000     # 5 minutes
+default = 60000   # 1 minute
+
+[thresholds]
+min_readiness_score = 70.0
+max_warnings = 20
+require_all_tests_pass = false
+fail_on_clippy_warnings = false
