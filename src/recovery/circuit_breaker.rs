@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{debug, warn, error};
+use tracing::{debug, error, warn};
 
 /// Circuit breaker state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

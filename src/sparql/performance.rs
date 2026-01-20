@@ -219,10 +219,7 @@ impl QueryAnalyzer {
     }
 
     fn count_keyword(&self, query: &str, keyword: &str) -> usize {
-        query
-            .to_uppercase()
-            .matches(keyword)
-            .count()
+        query.to_uppercase().matches(keyword).count()
     }
 
     fn count_subqueries(&self, query: &str) -> usize {
@@ -284,7 +281,7 @@ impl QueryAnalyzer {
         predicates.len()
     }
 
-    fn extract_middle_term(&self, line: &str) -> Option<&str> {
+    fn extract_middle_term<'a>(&self, line: &'a str) -> Option<&'a str> {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 3 {
             Some(parts[1])
@@ -318,7 +315,8 @@ impl QueryAnalyzer {
         // Detect disconnected graph patterns that could cause cartesian products
         let upper = query.to_uppercase();
         if upper.contains("OPTIONAL") && !upper.contains("FILTER") {
-            let patterns = vec!["Multiple OPTIONAL blocks without connecting variables".to_string()];
+            let patterns =
+                vec!["Multiple OPTIONAL blocks without connecting variables".to_string()];
             self.anti_patterns.push(AntiPattern::CartesianProduct {
                 patterns,
                 estimated_size: 1000000, // Placeholder
@@ -330,7 +328,9 @@ impl QueryAnalyzer {
         if complexity.optional_count > 5 {
             self.anti_patterns.push(AntiPattern::OptionalOveruse {
                 count: complexity.optional_count,
-                suggestion: "Consider restructuring query to use fewer OPTIONAL blocks or use UNION instead".to_string(),
+                suggestion:
+                    "Consider restructuring query to use fewer OPTIONAL blocks or use UNION instead"
+                        .to_string(),
             });
         }
     }
@@ -339,7 +339,8 @@ impl QueryAnalyzer {
         if complexity.union_count > 3 {
             self.anti_patterns.push(AntiPattern::UnionInefficiency {
                 count: complexity.union_count,
-                suggestion: "Consider using property paths or alternative query structure".to_string(),
+                suggestion: "Consider using property paths or alternative query structure"
+                    .to_string(),
             });
         }
     }
@@ -353,7 +354,9 @@ impl QueryAnalyzer {
             if line.to_uppercase().contains("FILTER") && idx as f64 / total_lines as f64 > 0.7 {
                 self.anti_patterns.push(AntiPattern::LateFilter {
                     filter: line.trim().to_string(),
-                    recommendation: "Move FILTER closer to the patterns it constrains for early pruning".to_string(),
+                    recommendation:
+                        "Move FILTER closer to the patterns it constrains for early pruning"
+                            .to_string(),
                 });
             }
         }
@@ -363,7 +366,9 @@ impl QueryAnalyzer {
         if complexity.nesting_depth > 4 {
             self.anti_patterns.push(AntiPattern::DeepNesting {
                 depth: complexity.nesting_depth,
-                recommendation: "Consider flattening nested subqueries or breaking into multiple queries".to_string(),
+                recommendation:
+                    "Consider flattening nested subqueries or breaking into multiple queries"
+                        .to_string(),
             });
         }
     }
@@ -421,7 +426,8 @@ impl QueryOptimizer {
         if complexity.triple_pattern_count > 5 {
             optimizations.push(Optimization {
                 optimization_type: OptimizationType::TriplePatternReorder,
-                description: "Reorder triple patterns to put most selective patterns first".to_string(),
+                description: "Reorder triple patterns to put most selective patterns first"
+                    .to_string(),
                 estimated_improvement: 0.3,
                 priority: OptimizationPriority::High,
                 suggested_rewrite: None,
@@ -432,7 +438,8 @@ impl QueryOptimizer {
         if complexity.filter_count > 0 && complexity.optional_count > 0 {
             optimizations.push(Optimization {
                 optimization_type: OptimizationType::FilterPushdown,
-                description: "Move FILTER clauses closer to the patterns they constrain".to_string(),
+                description: "Move FILTER clauses closer to the patterns they constrain"
+                    .to_string(),
                 estimated_improvement: 0.4,
                 priority: OptimizationPriority::High,
                 suggested_rewrite: None,
@@ -781,7 +788,9 @@ impl SlowQueryDetector {
         // Analyze the query
         let complexity = self.analyzer.analyze(query)?;
         let anti_patterns = self.analyzer.get_anti_patterns().to_vec();
-        let optimizations = self.optimizer.suggest_optimizations(query, &complexity, &anti_patterns);
+        let optimizations =
+            self.optimizer
+                .suggest_optimizations(query, &complexity, &anti_patterns);
 
         let record = SlowQueryRecord {
             query_text: query.to_string(),
@@ -794,7 +803,10 @@ impl SlowQueryDetector {
         // Track in history
         if self.config.track_history {
             let query_hash = self.hash_query(query);
-            let history = self.query_history.entry(query_hash).or_insert_with(Vec::new);
+            let history = self
+                .query_history
+                .entry(query_hash)
+                .or_insert_with(Vec::new);
             history.push(metrics.execution_time);
 
             // Limit history size

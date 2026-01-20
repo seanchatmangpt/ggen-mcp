@@ -160,8 +160,14 @@ impl OntologyBuilder {
             prefixes: vec![
                 ("ddd".into(), "https://ddd-patterns.dev#".into()),
                 ("ggen".into(), "http://ggen.dev#".into()),
-                ("rdf".into(), "http://www.w3.org/1999/02/22-rdf-syntax-ns#".into()),
-                ("rdfs".into(), "http://www.w3.org/2000/01/rdf-schema#".into()),
+                (
+                    "rdf".into(),
+                    "http://www.w3.org/1999/02/22-rdf-syntax-ns#".into(),
+                ),
+                (
+                    "rdfs".into(),
+                    "http://www.w3.org/2000/01/rdf-schema#".into(),
+                ),
                 ("xsd".into(), "http://www.w3.org/2001/XMLSchema#".into()),
             ],
             triples: Vec::new(),
@@ -353,8 +359,7 @@ impl TestMetrics {
 
     /// Add checkpoint for tracking intermediate progress
     pub fn checkpoint(&mut self, label: &str) {
-        self.checkpoints
-            .push((label.to_string(), Instant::now()));
+        self.checkpoints.push((label.to_string(), Instant::now()));
     }
 
     /// Get elapsed time since start
@@ -503,7 +508,8 @@ impl AssertionHelpers {
                     "Error message does not contain expected text:\n\
                     \tExpected: {}\n\
                     \tActual: {}",
-                    expected_message, error_message
+                    expected_message,
+                    error_message
                 );
             }
         }
@@ -607,9 +613,9 @@ pub mod property_test_generators {
     /// Generate test ontology structures
     pub fn ontology_structure_strategy() -> impl Strategy<Value = TestOntologyStructure> {
         (
-            prop::collection::vec("[A-Z][a-zA-Z]+", 1..5),        // Aggregates
+            prop::collection::vec("[A-Z][a-zA-Z]+", 1..5), // Aggregates
             prop::collection::vec("[A-Z][a-zA-Z]+Command", 1..10), // Commands
-            prop::collection::vec("[A-Z][a-zA-Z]+Event", 1..10),   // Events
+            prop::collection::vec("[A-Z][a-zA-Z]+Event", 1..10), // Events
         )
             .prop_map(|(aggregates, commands, events)| TestOntologyStructure {
                 aggregates,
@@ -702,8 +708,8 @@ mod tests {
     #[test]
     #[cfg(feature = "proptest")]
     fn example_property_test_usage() {
-        use proptest::prelude::*;
         use property_test_generators::*;
+        use proptest::prelude::*;
 
         proptest!(|(var in valid_variable_strategy())| {
             // Property: All generated variables should start with ?

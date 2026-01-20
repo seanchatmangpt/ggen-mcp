@@ -11,7 +11,7 @@
 //! - [`OntologyMerger`]: Safe ontology merging with conflict detection
 //! - [`HashVerifier`]: Verifies ontology integrity using cryptographic hashes
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use oxigraph::model::{GraphNameRef, NamedNode, NamedNodeRef, Subject, Term, Triple};
 use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
@@ -28,9 +28,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValidationError {
     /// Cyclic class hierarchy detected
-    CyclicHierarchy {
-        cycle: Vec<String>,
-    },
+    CyclicHierarchy { cycle: Vec<String> },
     /// Property domain/range violation
     InvalidDomainRange {
         property: String,
@@ -52,33 +50,20 @@ pub enum ValidationError {
         reason: String,
     },
     /// Required property missing
-    MissingProperty {
-        node: String,
-        property: String,
-    },
+    MissingProperty { node: String, property: String },
     /// Required namespace missing
     MissingNamespace {
         prefix: String,
         expected_uri: String,
     },
     /// Invalid DDD structure
-    InvalidDddStructure {
-        aggregate: String,
-        reason: String,
-    },
+    InvalidDddStructure { aggregate: String, reason: String },
     /// Property without type
-    UntypedProperty {
-        property: String,
-    },
+    UntypedProperty { property: String },
     /// Invalid invariant definition
-    InvalidInvariant {
-        node: String,
-        reason: String,
-    },
+    InvalidInvariant { node: String, reason: String },
     /// Orphaned node (no connections)
-    OrphanedNode {
-        node: String,
-    },
+    OrphanedNode { node: String },
     /// Namespace collision
     NamespaceCollision {
         prefix: String,
@@ -86,19 +71,11 @@ pub enum ValidationError {
         uri2: String,
     },
     /// Merge conflict
-    MergeConflict {
-        resource: String,
-        reason: String,
-    },
+    MergeConflict { resource: String, reason: String },
     /// Hash mismatch (tampering detected)
-    HashMismatch {
-        expected: String,
-        actual: String,
-    },
+    HashMismatch { expected: String, actual: String },
     /// Custom validation error
-    Custom {
-        message: String,
-    },
+    Custom { message: String },
 }
 
 impl fmt::Display for ValidationError {
@@ -145,7 +122,10 @@ impl fmt::Display for ValidationError {
             ValidationError::MissingProperty { node, property } => {
                 write!(f, "Required property {} missing at node {}", property, node)
             }
-            ValidationError::MissingNamespace { prefix, expected_uri } => {
+            ValidationError::MissingNamespace {
+                prefix,
+                expected_uri,
+            } => {
                 write!(
                     f,
                     "Required namespace missing: prefix '{}' (expected: {})",
@@ -329,7 +309,9 @@ impl ConsistencyChecker {
             for solution in solutions {
                 let solution = solution?;
                 if let (Some(class), Some(superclass)) = (
-                    solution.get("class").and_then(|t| t.as_ref().as_named_node()),
+                    solution
+                        .get("class")
+                        .and_then(|t| t.as_ref().as_named_node()),
                     solution
                         .get("superclass")
                         .and_then(|t| t.as_ref().as_named_node()),
@@ -538,7 +520,9 @@ impl ConsistencyChecker {
                     solution
                         .get("targetClass")
                         .and_then(|t| t.as_ref().as_named_node()),
-                    solution.get("path").and_then(|t| t.as_ref().as_named_node()),
+                    solution
+                        .get("path")
+                        .and_then(|t| t.as_ref().as_named_node()),
                 ) {
                     let min_count = solution
                         .get("minCount")
@@ -775,11 +759,23 @@ pub struct SchemaValidator {
 impl SchemaValidator {
     pub fn new(store: Store) -> Self {
         let mut required_namespaces = HashMap::new();
-        required_namespaces.insert("ddd".to_string(), "http://ggen-mcp.dev/ontology/ddd#".to_string());
-        required_namespaces.insert("ggen".to_string(), "http://ggen-mcp.dev/ontology/".to_string());
+        required_namespaces.insert(
+            "ddd".to_string(),
+            "http://ggen-mcp.dev/ontology/ddd#".to_string(),
+        );
+        required_namespaces.insert(
+            "ggen".to_string(),
+            "http://ggen-mcp.dev/ontology/".to_string(),
+        );
         required_namespaces.insert("sh".to_string(), "http://www.w3.org/ns/shacl#".to_string());
-        required_namespaces.insert("rdfs".to_string(), "http://www.w3.org/2000/01/rdf-schema#".to_string());
-        required_namespaces.insert("xsd".to_string(), "http://www.w3.org/2001/XMLSchema#".to_string());
+        required_namespaces.insert(
+            "rdfs".to_string(),
+            "http://www.w3.org/2000/01/rdf-schema#".to_string(),
+        );
+        required_namespaces.insert(
+            "xsd".to_string(),
+            "http://www.w3.org/2001/XMLSchema#".to_string(),
+        );
 
         Self {
             store,
@@ -921,7 +917,10 @@ impl SchemaValidator {
         }
 
         for prop in untyped {
-            report.add_warning(format!("Property {} has no explicit type declaration", prop));
+            report.add_warning(format!(
+                "Property {} has no explicit type declaration",
+                prop
+            ));
         }
 
         Ok(())
@@ -1173,7 +1172,12 @@ impl OntologyMerger {
         Ok(result)
     }
 
-    fn detect_conflicts(&self, target: &Store, source: &Store, result: &mut MergeResult) -> Result<()> {
+    fn detect_conflicts(
+        &self,
+        target: &Store,
+        source: &Store,
+        result: &mut MergeResult,
+    ) -> Result<()> {
         // Check for conflicting class definitions
         self.check_class_conflicts(target, source, result)?;
 
@@ -1183,7 +1187,12 @@ impl OntologyMerger {
         Ok(())
     }
 
-    fn check_class_conflicts(&self, target: &Store, source: &Store, result: &mut MergeResult) -> Result<()> {
+    fn check_class_conflicts(
+        &self,
+        target: &Store,
+        source: &Store,
+        result: &mut MergeResult,
+    ) -> Result<()> {
         let query = r#"
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX owl: <http://www.w3.org/2002/07/owl#>
@@ -1243,7 +1252,12 @@ impl OntologyMerger {
         Ok(())
     }
 
-    fn check_property_conflicts(&self, target: &Store, source: &Store, result: &mut MergeResult) -> Result<()> {
+    fn check_property_conflicts(
+        &self,
+        target: &Store,
+        source: &Store,
+        result: &mut MergeResult,
+    ) -> Result<()> {
         let query = r#"
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
             SELECT ?property ?domain ?range
@@ -1298,7 +1312,9 @@ impl OntologyMerger {
                         ));
                     }
 
-                    if source_range.is_some() && target_range.is_some() && source_range != target_range
+                    if source_range.is_some()
+                        && target_range.is_some()
+                        && source_range != target_range
                     {
                         result.conflicts.push(format!(
                             "Property {} has conflicting range: {:?} vs {:?}",
@@ -1347,12 +1363,7 @@ impl HashVerifier {
         // Collect all triples
         for quad in self.store.iter() {
             let quad = quad?;
-            let triple_str = format!(
-                "{} {} {} .",
-                quad.subject,
-                quad.predicate,
-                quad.object
-            );
+            let triple_str = format!("{} {} {} .", quad.subject, quad.predicate, quad.object);
             triples.push(triple_str);
         }
 
@@ -1451,9 +1462,7 @@ mod tests {
         assert!(ns.register("mcp", "http://ggen-mcp.dev/mcp#").is_ok());
 
         // Test collision detection
-        assert!(ns
-            .register("mcp", "http://different-uri.dev/mcp#")
-            .is_err());
+        assert!(ns.register("mcp", "http://different-uri.dev/mcp#").is_err());
 
         // Test expansion
         assert_eq!(
@@ -1462,10 +1471,7 @@ mod tests {
         );
 
         // Test compaction
-        assert_eq!(
-            ns.compact("http://ggen-mcp.dev/mcp#Tool"),
-            "mcp:Tool"
-        );
+        assert_eq!(ns.compact("http://ggen-mcp.dev/mcp#Tool"), "mcp:Tool");
     }
 
     #[test]

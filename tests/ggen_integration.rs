@@ -62,7 +62,10 @@ fn extract_trait_names(code: &str) -> Vec<String> {
         if trimmed.starts_with("pub trait ") || trimmed.starts_with("trait ") {
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             if parts.len() >= 3 {
-                let name = parts[2].trim_end_matches('{').trim_end_matches(':').trim_end_matches('<');
+                let name = parts[2]
+                    .trim_end_matches('{')
+                    .trim_end_matches(':')
+                    .trim_end_matches('<');
                 names.push(name.to_string());
             }
         }
@@ -508,7 +511,10 @@ mod template_tests {
             .collect();
 
         // Assert
-        assert!(!template_files.is_empty(), "Should have Tera template files");
+        assert!(
+            !template_files.is_empty(),
+            "Should have Tera template files"
+        );
 
         for entry in template_files {
             let content = read_file_safe(&entry.path());
@@ -516,7 +522,8 @@ mod template_tests {
             let open_count = content.matches("{{").count() + content.matches("{%").count();
             let close_count = content.matches("}}").count() + content.matches("%}").count();
             assert_eq!(
-                open_count, close_count,
+                open_count,
+                close_count,
                 "Template {:?} has unbalanced Tera braces",
                 entry.path()
             );
@@ -693,10 +700,11 @@ mod traceability_tests {
         // Assert
         for (ontology_prop, rust_field) in expected_fields {
             if ontology_content.contains(&format!("ggen:{}", ontology_prop))
-               || ontology_content.contains(&format!("rdfs:label \"{}\"", ontology_prop)) {
+                || ontology_content.contains(&format!("rdfs:label \"{}\"", ontology_prop))
+            {
                 assert!(
                     generated_content.contains(&format!("pub {}", rust_field))
-                    || generated_content.contains(&format!("{}: ", rust_field)),
+                        || generated_content.contains(&format!("{}: ", rust_field)),
                     "Ontology property '{}' should map to Rust field '{}'",
                     ontology_prop,
                     rust_field
@@ -721,8 +729,8 @@ mod traceability_tests {
         if invariant_count > 0 {
             assert!(
                 generated_content.contains("fn validate")
-                || generated_content.contains("Result<(), ")
-                || generated_content.contains("is_empty()"),
+                    || generated_content.contains("Result<(), ")
+                    || generated_content.contains("is_empty()"),
                 "Ontology has {} invariants, generated code should have validation logic",
                 invariant_count
             );
@@ -750,11 +758,7 @@ mod ddd_pipeline_tests {
         // Act & Assert
         for file in expected_files {
             let path = project_path(file);
-            assert!(
-                path.exists(),
-                "DDD layer file should exist: {:?}",
-                path
-            );
+            assert!(path.exists(), "DDD layer file should exist: {:?}", path);
         }
     }
 
@@ -836,7 +840,7 @@ mod ddd_pipeline_tests {
 #[cfg(test)]
 mod determinism_tests {
     use super::*;
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
 
     fn hash_file(path: &Path) -> String {
         let content = read_file_safe(path);
@@ -865,10 +869,7 @@ mod determinism_tests {
 
         // Assert - Just verify files exist and are hashable
         // Full determinism would require re-running ggen sync
-        assert!(
-            !hashes.is_empty(),
-            "Should be able to hash generated files"
-        );
+        assert!(!hashes.is_empty(), "Should be able to hash generated files");
 
         for (file, hash) in &hashes {
             assert!(
@@ -985,10 +986,7 @@ mod compilation_tests {
                     let stderr = String::from_utf8_lossy(&result.stderr);
                     // Only fail on actual errors, not warnings
                     if stderr.contains("error[E") {
-                        panic!(
-                            "Cargo check failed with errors:\n{}",
-                            stderr
-                        );
+                        panic!("Cargo check failed with errors:\n{}", stderr);
                     }
                 }
             }

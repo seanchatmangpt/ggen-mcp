@@ -14,8 +14,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use spreadsheet_mcp::fork::{ForkConfig, ForkRegistry, TempFileGuard};
 use spreadsheet_mcp::ServerConfig;
+use spreadsheet_mcp::fork::{ForkConfig, ForkRegistry, TempFileGuard};
 use spreadsheet_mcp::model::WorkbookId;
 use spreadsheet_mcp::state::AppState;
 use spreadsheet_mcp::tools::fork::{
@@ -90,7 +90,10 @@ fn test_temp_file_guard_disarm() -> Result<()> {
     }
 
     // File should still exist after guard is dropped
-    assert!(temp_file.exists(), "temp file should not be cleaned up when disarmed");
+    assert!(
+        temp_file.exists(),
+        "temp file should not be cleaned up when disarmed"
+    );
 
     Ok(())
 }
@@ -117,11 +120,13 @@ fn test_fork_creation_rollback_on_invalid_base() -> Result<()> {
     assert!(result.is_err(), "should fail with non-existent base");
 
     // Verify no orphaned files in fork directory
-    let fork_files: Vec<_> = fs::read_dir(&fork_dir)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let fork_files: Vec<_> = fs::read_dir(&fork_dir)?.filter_map(|e| e.ok()).collect();
 
-    assert_eq!(fork_files.len(), 0, "no files should remain in fork directory");
+    assert_eq!(
+        fork_files.len(),
+        0,
+        "no files should remain in fork directory"
+    );
 
     Ok(())
 }
@@ -150,11 +155,13 @@ fn test_fork_creation_rollback_on_invalid_extension() -> Result<()> {
     assert!(result.is_err(), "should fail with wrong extension");
 
     // Verify no orphaned files in fork directory
-    let fork_files: Vec<_> = fs::read_dir(&fork_dir)?
-        .filter_map(|e| e.ok())
-        .collect();
+    let fork_files: Vec<_> = fs::read_dir(&fork_dir)?.filter_map(|e| e.ok()).collect();
 
-    assert_eq!(fork_files.len(), 0, "no files should remain in fork directory");
+    assert_eq!(
+        fork_files.len(),
+        0,
+        "no files should remain in fork directory"
+    );
 
     Ok(())
 }
@@ -190,7 +197,10 @@ async fn test_checkpoint_validation_before_restore() -> Result<()> {
     // Try to restore - should fail validation
     let result = registry.restore_checkpoint(&fork.fork_id, &checkpoint.checkpoint_id);
 
-    assert!(result.is_err(), "should fail validation with corrupted checkpoint");
+    assert!(
+        result.is_err(),
+        "should fail validation with corrupted checkpoint"
+    );
     assert!(
         result.unwrap_err().to_string().contains("not a valid XLSX"),
         "error should mention invalid XLSX"
@@ -266,7 +276,10 @@ async fn test_checkpoint_restore_rollback_on_error() -> Result<()> {
         .get_cell("A1")
         .unwrap()
         .get_value();
-    assert_eq!(value_after, "200", "work file should be unchanged after failed restore");
+    assert_eq!(
+        value_after, "200",
+        "work file should be unchanged after failed restore"
+    );
 
     Ok(())
 }
@@ -323,7 +336,10 @@ async fn test_save_fork_rollback_on_error() -> Result<()> {
 
     // Try to save - should fail
     let result = registry.save_fork(&fork.fork_id, &original_path, workspace.root(), false);
-    assert!(result.is_err(), "should fail to save with missing fork file");
+    assert!(
+        result.is_err(),
+        "should fail to save with missing fork file"
+    );
 
     // Verify original file is unchanged (backup/rollback worked)
     let book_after = umya_spreadsheet::reader::xlsx::read(&original_path)?;
@@ -333,7 +349,10 @@ async fn test_save_fork_rollback_on_error() -> Result<()> {
         .get_cell("A1")
         .unwrap()
         .get_value();
-    assert_eq!(value_after, "100", "original file should be unchanged after failed save");
+    assert_eq!(
+        value_after, "100",
+        "original file should be unchanged after failed save"
+    );
 
     Ok(())
 }
@@ -357,7 +376,10 @@ fn test_checkpoint_guard_cleanup_on_error() -> Result<()> {
     }
 
     // File should be cleaned up
-    assert!(!checkpoint_file.exists(), "checkpoint file should be cleaned up on error");
+    assert!(
+        !checkpoint_file.exists(),
+        "checkpoint file should be cleaned up on error"
+    );
 
     Ok(())
 }
@@ -416,7 +438,10 @@ async fn test_concurrent_fork_operations_lock_release() -> Result<()> {
     // Verify fork is still accessible (locks were released)
     let registry = state.fork_registry().expect("fork registry");
     let fork_ctx = registry.get_fork(&fork.fork_id);
-    assert!(fork_ctx.is_ok(), "fork should still be accessible after concurrent operations");
+    assert!(
+        fork_ctx.is_ok(),
+        "fork should still be accessible after concurrent operations"
+    );
 
     Ok(())
 }
@@ -452,7 +477,10 @@ fn test_fork_context_drop_cleanup() -> Result<()> {
     registry.discard_fork(&fork_id)?;
 
     // Verify work file is cleaned up
-    assert!(!work_path.exists(), "fork work file should be cleaned up on drop");
+    assert!(
+        !work_path.exists(),
+        "fork work file should be cleaned up on drop"
+    );
 
     Ok(())
 }
@@ -482,19 +510,14 @@ async fn test_checkpoint_limits_with_cleanup() -> Result<()> {
     // Create many checkpoints (more than limit)
     let mut checkpoint_ids = vec![];
     for i in 0..15 {
-        let checkpoint = registry.create_checkpoint(
-            &fork.fork_id,
-            Some(format!("checkpoint_{}", i)),
-        )?;
+        let checkpoint =
+            registry.create_checkpoint(&fork.fork_id, Some(format!("checkpoint_{}", i)))?;
         checkpoint_ids.push(checkpoint.checkpoint_id);
     }
 
     // Verify old checkpoints were cleaned up
     let checkpoints = registry.list_checkpoints(&fork.fork_id)?;
-    assert!(
-        checkpoints.len() <= 10,
-        "should enforce checkpoint limit"
-    );
+    assert!(checkpoints.len() <= 10, "should enforce checkpoint limit");
 
     // Verify oldest checkpoint files are actually deleted
     for id in &checkpoint_ids[0..5] {

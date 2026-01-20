@@ -16,19 +16,6 @@ impl GenerateCodeCommand {
     }
 }
 
-/// Generate Code - Generate code from ontology using templates
-#[derive(Clone, Debug)]
-pub struct GenerateCodeCommand {
-    pub ontology_id: String,
-    pub template_path: PathBuf,
-}
-
-impl GenerateCodeCommand {
-    pub fn execute(&self) -> Result<(), String> {
-        Ok(())
-    }
-}
-
 /// Load Ontology - Load an RDF ontology from file
 #[derive(Clone, Debug)]
 pub struct LoadOntologyCommand {
@@ -40,4 +27,3 @@ impl LoadOntologyCommand {
         Ok(())
     }
 }
-

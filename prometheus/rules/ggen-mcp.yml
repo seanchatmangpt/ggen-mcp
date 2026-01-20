@@ -1,0 +1,318 @@
+# Prometheus Recording Rules for GGEN MCP Server
+# Pre-compute expensive queries for faster dashboard loading and alerting
+
+groups:
+  # ============================================================================
+  # REQUEST RATE AGGREGATIONS
+  # ============================================================================
+  - name: ggen_mcp_request_rates
+    interval: 30s
+    rules:
+      # Total request rate across all tools (1m)
+      - record: ggen_mcp:request_rate:1m
+        expr: sum(rate(ggen_mcp_requests_total[1m]))
+
+      # Total request rate across all tools (5m)
+      - record: ggen_mcp:request_rate:5m
+        expr: sum(rate(ggen_mcp_requests_total[5m]))
+
+      # Total request rate across all tools (15m)
+      - record: ggen_mcp:request_rate:15m
+        expr: sum(rate(ggen_mcp_requests_total[15m]))
+
+      # Request rate per tool (5m)
+      - record: ggen_mcp:request_rate_by_tool:5m
+        expr: sum by (tool) (rate(ggen_mcp_requests_total[5m]))
+
+      # Request rate per tool and status (5m)
+      - record: ggen_mcp:request_rate_by_tool_status:5m
+        expr: sum by (tool, status) (rate(ggen_mcp_requests_total[5m]))
+
+  # ============================================================================
+  # ERROR RATE AGGREGATIONS
+  # ============================================================================
+  - name: ggen_mcp_error_rates
+    interval: 30s
+    rules:
+      # Total error rate (1m)
+      - record: ggen_mcp:error_rate:1m
+        expr: sum(rate(ggen_mcp_errors_total[1m]))
+
+      # Total error rate (5m)
+      - record: ggen_mcp:error_rate:5m
+        expr: sum(rate(ggen_mcp_errors_total[5m]))
+
+      # Error rate percentage (5m)
+      - record: ggen_mcp:error_rate_percentage:5m
+        expr: |
+          (
+            sum(rate(ggen_mcp_errors_total[5m]))
+            /
+            sum(rate(ggen_mcp_requests_total[5m]))
+          ) * 100
+
+      # Error rate by type (5m)
+      - record: ggen_mcp:error_rate_by_type:5m
+        expr: sum by (error_type) (rate(ggen_mcp_errors_total[5m]))
+
+      # Error rate by tool (5m)
+      - record: ggen_mcp:error_rate_by_tool:5m
+        expr: sum by (tool) (rate(ggen_mcp_errors_total[5m]))
+
+      # Error rate by tool and type (5m)
+      - record: ggen_mcp:error_rate_by_tool_type:5m
+        expr: sum by (tool, error_type) (rate(ggen_mcp_errors_total[5m]))
+
+  # ============================================================================
+  # LATENCY QUANTILES (Pre-computed for faster queries)
+  # ============================================================================
+  - name: ggen_mcp_latency_quantiles
+    interval: 30s
+    rules:
+      # Overall P50 latency (5m)
+      - record: ggen_mcp:latency_p50:5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Overall P95 latency (5m)
+      - record: ggen_mcp:latency_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # Overall P99 latency (5m)
+      - record: ggen_mcp:latency_p99:5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (le)
+          )
+
+      # P50 latency by tool (5m)
+      - record: ggen_mcp:latency_p50_by_tool:5m
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (tool, le)
+          )
+
+      # P95 latency by tool (5m)
+      - record: ggen_mcp:latency_p95_by_tool:5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (tool, le)
+          )
+
+      # P99 latency by tool (5m)
+      - record: ggen_mcp:latency_p99_by_tool:5m
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(ggen_mcp_request_duration_seconds_bucket[5m])) by (tool, le)
+          )
+
+  # ============================================================================
+  # CACHE PERFORMANCE METRICS
+  # ============================================================================
+  - name: ggen_mcp_cache_metrics
+    interval: 30s
+    rules:
+      # Cache hit rate percentage (5m)
+      - record: ggen_mcp:cache_hit_rate_percentage:5m
+        expr: |
+          (
+            rate(ggen_mcp_cache_hits_total[5m])
+            /
+            (rate(ggen_mcp_cache_hits_total[5m]) + rate(ggen_mcp_cache_misses_total[5m]))
+          ) * 100
+
+      # Cache hit rate percentage (1h)
+      - record: ggen_mcp:cache_hit_rate_percentage:1h
+        expr: |
+          (
+            rate(ggen_mcp_cache_hits_total[1h])
+            /
+            (rate(ggen_mcp_cache_hits_total[1h]) + rate(ggen_mcp_cache_misses_total[1h]))
+          ) * 100
+
+      # Cache hit rate by tool (5m)
+      - record: ggen_mcp:cache_hit_rate_by_tool:5m
+        expr: |
+          (
+            rate(ggen_mcp_cache_hits_total[5m])
+            /
+            (rate(ggen_mcp_cache_hits_total[5m]) + rate(ggen_mcp_cache_misses_total[5m]))
+          ) by (tool) * 100
+
+      # Cache operations rate (5m)
+      - record: ggen_mcp:cache_operations_rate:5m
+        expr: |
+          sum(
+            rate(ggen_mcp_cache_hits_total[5m]) +
+            rate(ggen_mcp_cache_misses_total[5m]) +
+            rate(ggen_mcp_cache_evictions_total[5m])
+          )
+
+      # Cache eviction rate (5m)
+      - record: ggen_mcp:cache_eviction_rate:5m
+        expr: rate(ggen_mcp_cache_evictions_total[5m])
+
+  # ============================================================================
+  # RESOURCE UTILIZATION AGGREGATIONS
+  # ============================================================================
+  - name: ggen_mcp_resource_metrics
+    interval: 30s
+    rules:
+      # CPU usage percentage (5m)
+      - record: ggen_mcp:cpu_usage_percentage:5m
+        expr: rate(process_cpu_seconds_total{job="ggen-mcp"}[5m]) * 100
+
+      # Memory usage in GB
+      - record: ggen_mcp:memory_usage_gb
+        expr: process_resident_memory_bytes{job="ggen-mcp"} / (1024 * 1024 * 1024)
+
+      # Memory usage percentage (assuming 4GB limit)
+      - record: ggen_mcp:memory_usage_percentage
+        expr: (process_resident_memory_bytes{job="ggen-mcp"} / (4 * 1024 * 1024 * 1024)) * 100
+
+      # Heap usage percentage
+      - record: ggen_mcp:heap_usage_percentage
+        expr: |
+          (
+            nodejs_heap_size_used_bytes{job="ggen-mcp"}
+            /
+            nodejs_heap_size_total_bytes{job="ggen-mcp"}
+          ) * 100
+
+  # ============================================================================
+  # OPERATION PERFORMANCE METRICS
+  # ============================================================================
+  - name: ggen_mcp_operation_metrics
+    interval: 30s
+    rules:
+      # Recalculation P95 duration (5m)
+      - record: ggen_mcp:recalc_duration_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_recalc_duration_seconds_bucket[5m])
+          )
+
+      # Query execution P95 duration (5m)
+      - record: ggen_mcp:query_duration_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_query_duration_seconds_bucket[5m])
+          )
+
+      # Template render P95 duration (5m)
+      - record: ggen_mcp:template_render_duration_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_template_render_duration_seconds_bucket[5m])
+          )
+
+      # Screenshot generation P95 duration (5m)
+      - record: ggen_mcp:screenshot_duration_p95:5m
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_screenshot_duration_seconds_bucket[5m])
+          )
+
+  # ============================================================================
+  # AVAILABILITY & SLO METRICS
+  # ============================================================================
+  - name: ggen_mcp_availability_metrics
+    interval: 1m
+    rules:
+      # Availability percentage (1h)
+      - record: ggen_mcp:availability_percentage:1h
+        expr: |
+          (
+            sum(rate(ggen_mcp_requests_total[1h]))
+            -
+            sum(rate(ggen_mcp_errors_total{error_type=~"5xx|unavailable"}[1h]))
+          )
+          /
+          sum(rate(ggen_mcp_requests_total[1h]))
+          * 100
+
+      # Success rate percentage (5m)
+      - record: ggen_mcp:success_rate_percentage:5m
+        expr: |
+          (
+            sum(rate(ggen_mcp_requests_total[5m]))
+            -
+            sum(rate(ggen_mcp_errors_total[5m]))
+          )
+          /
+          sum(rate(ggen_mcp_requests_total[5m]))
+          * 100
+
+      # Requests meeting latency SLO (<5s) percentage (1h)
+      - record: ggen_mcp:latency_slo_percentage:1h
+        expr: |
+          (
+            sum(rate(ggen_mcp_request_duration_seconds_bucket{le="5"}[1h]))
+            /
+            sum(rate(ggen_mcp_request_duration_seconds_count[1h]))
+          ) * 100
+
+  # ============================================================================
+  # TREND ANALYSIS (for anomaly detection)
+  # ============================================================================
+  - name: ggen_mcp_trends
+    interval: 5m
+    rules:
+      # Request rate change from 1h ago
+      - record: ggen_mcp:request_rate_change_1h
+        expr: |
+          (
+            ggen_mcp:request_rate:5m
+            -
+            ggen_mcp:request_rate:5m offset 1h
+          )
+          /
+          ggen_mcp:request_rate:5m offset 1h
+          * 100
+
+      # Error rate change from 1h ago
+      - record: ggen_mcp:error_rate_change_1h
+        expr: |
+          (
+            ggen_mcp:error_rate:5m
+            -
+            ggen_mcp:error_rate:5m offset 1h
+          )
+          /
+          (ggen_mcp:error_rate:5m offset 1h + 0.0001)
+          * 100
+
+      # Cache hit rate change from 1h ago
+      - record: ggen_mcp:cache_hit_rate_change_1h
+        expr: |
+          ggen_mcp:cache_hit_rate_percentage:5m
+          -
+          ggen_mcp:cache_hit_rate_percentage:5m offset 1h
+
+      # Memory growth rate (MB/hour)
+      - record: ggen_mcp:memory_growth_rate_mb_per_hour
+        expr: |
+          deriv(process_resident_memory_bytes{job="ggen-mcp"}[1h])
+          * 3600
+          / (1024 * 1024)
+
+  # ============================================================================
+  # AGGREGATED HEALTH SCORE
+  # ============================================================================
+  - name: ggen_mcp_health_score
+    interval: 1m
+    rules:
+      # Overall health score (0-100)
+      # Combines availability, error rate, and latency
+      - record: ggen_mcp:health_score
+        expr: |
+          (
+            (ggen_mcp:availability_percentage:1h / 100) * 0.4 +
+            (1 - min(ggen_mcp:error_rate_percentage:5m / 5, 1)) * 0.3 +
+            (1 - min(ggen_mcp:latency_p95:5m / 10, 1)) * 0.3
+          ) * 100

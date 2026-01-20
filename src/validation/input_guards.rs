@@ -276,7 +276,10 @@ pub fn validate_sheet_name(name: &str) -> ValidationResult<&str> {
     if name.len() > 31 {
         return Err(ValidationError::InvalidSheetName {
             name: name.to_string(),
-            reason: format!("sheet name exceeds maximum length of 31 characters (got {})", name.len()),
+            reason: format!(
+                "sheet name exceeds maximum length of 31 characters (got {})",
+                name.len()
+            ),
         });
     }
 
@@ -337,20 +340,25 @@ pub fn validate_workbook_id(id: &str) -> ValidationResult<&str> {
     if id.len() > 255 {
         return Err(ValidationError::InvalidWorkbookId {
             id: id.to_string(),
-            reason: format!("workbook ID exceeds maximum length of 255 characters (got {})", id.len()),
+            reason: format!(
+                "workbook ID exceeds maximum length of 255 characters (got {})",
+                id.len()
+            ),
         });
     }
 
     // Check for safe characters only
     // Allow: alphanumeric, hyphen, underscore, period, colon (for fork IDs)
-    let is_safe = id.chars().all(|c| {
-        c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ':'
-    });
+    let is_safe = id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ':');
 
     if !is_safe {
         return Err(ValidationError::InvalidWorkbookId {
             id: id.to_string(),
-            reason: "workbook ID contains invalid characters (only alphanumeric, -, _, ., : allowed)".to_string(),
+            reason:
+                "workbook ID contains invalid characters (only alphanumeric, -, _, ., : allowed)"
+                    .to_string(),
         });
     }
 
@@ -425,12 +433,12 @@ pub fn validate_cell_address(address: &str) -> ValidationResult<&str> {
     }
 
     // Validate row part is a number
-    let row_num = row_part.parse::<u32>().map_err(|_| {
-        ValidationError::InvalidCellAddress {
+    let row_num = row_part
+        .parse::<u32>()
+        .map_err(|_| ValidationError::InvalidCellAddress {
             address: address.to_string(),
             reason: "row must be a valid number".to_string(),
-        }
-    })?;
+        })?;
 
     // Excel max row is 1048576
     if row_num == 0 || row_num > 1048576 {

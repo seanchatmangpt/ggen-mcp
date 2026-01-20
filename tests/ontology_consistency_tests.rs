@@ -138,7 +138,9 @@ fn test_cardinality_violation() {
         # Two values - should violate maxCount
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let checker = ConsistencyChecker::new(store);
     let report = checker.check_all();
@@ -168,7 +170,9 @@ fn test_missing_required_property() {
         # Missing ex:requiredProperty
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let checker = ConsistencyChecker::new(store);
     let report = checker.check_all();
@@ -198,7 +202,9 @@ fn test_property_domain_violation() {
         # Using property on wrong class type
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let checker = ConsistencyChecker::new(store);
     let report = checker.check_all();
@@ -232,14 +238,22 @@ fn test_consistency_stats() {
         ex:instance2 a ex:ClassB .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let checker = ConsistencyChecker::new(store);
     let report = checker.check_all();
 
     assert!(report.stats.total_classes >= 3, "Should count classes");
-    assert!(report.stats.total_properties >= 2, "Should count properties");
-    assert!(report.stats.total_individuals >= 2, "Should count instances");
+    assert!(
+        report.stats.total_properties >= 2,
+        "Should count properties"
+    );
+    assert!(
+        report.stats.total_individuals >= 2,
+        "Should count instances"
+    );
     assert!(
         report.stats.max_hierarchy_depth >= 2,
         "Should calculate hierarchy depth"
@@ -265,7 +279,9 @@ fn test_invalid_ddd_structure() {
         # No ddd:hasProperty - invalid!
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let validator = SchemaValidator::new(store);
     let report = validator.validate_all();
@@ -294,7 +310,9 @@ fn test_invalid_invariant() {
             ] .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let validator = SchemaValidator::new(store);
     let report = validator.validate_all();
@@ -317,7 +335,9 @@ fn test_orphaned_node_detection() {
         # No rdf:type, no incoming edges - potentially orphaned
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let validator = SchemaValidator::new(store);
     let report = validator.validate_all();
@@ -352,7 +372,9 @@ fn test_untyped_property_warning() {
         # ex:untypedProperty has no rdf:type declaration
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let validator = SchemaValidator::new(store);
     let report = validator.validate_all();
@@ -372,10 +394,7 @@ fn test_namespace_registration() {
     assert!(ns.register("mcp", "http://ggen-mcp.dev/mcp#").is_ok());
 
     // Get namespace
-    assert_eq!(
-        ns.get("mcp").unwrap(),
-        "http://ggen-mcp.dev/mcp#"
-    );
+    assert_eq!(ns.get("mcp").unwrap(), "http://ggen-mcp.dev/mcp#");
 }
 
 #[test]
@@ -471,8 +490,12 @@ fn test_successful_merge() {
             rdfs:label "Class B" .
     "#;
 
-    target.load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes()).unwrap();
-    source.load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes()).unwrap();
+    target
+        .load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes())
+        .unwrap();
+    source
+        .load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes())
+        .unwrap();
 
     let merger = OntologyMerger::new();
     let result = merger.merge(&target, &source).unwrap();
@@ -504,8 +527,12 @@ fn test_merge_conflict_detection() {
             rdfs:subClassOf ex:SuperClassB .
     "#;
 
-    target.load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes()).unwrap();
-    source.load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes()).unwrap();
+    target
+        .load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes())
+        .unwrap();
+    source
+        .load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes())
+        .unwrap();
 
     let merger = OntologyMerger::new();
     let result = merger.merge(&target, &source).unwrap();
@@ -528,8 +555,12 @@ fn test_merge_duplicate_triples() {
             rdfs:label "Class A" .
     "#;
 
-    target.load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes()).unwrap();
-    source.load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes()).unwrap();
+    target
+        .load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes())
+        .unwrap();
+    source
+        .load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes())
+        .unwrap();
 
     let merger = OntologyMerger::new();
     let result = merger.merge(&target, &source).unwrap();
@@ -551,7 +582,9 @@ fn test_compute_hash() {
         ex:subject ex:predicate ex:object .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let verifier = HashVerifier::new(store);
     let hash = verifier.compute_hash().unwrap();
@@ -570,8 +603,12 @@ fn test_hash_deterministic() {
         ex:subject ex:predicate ex:object .
     "#;
 
-    store1.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
-    store2.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store1
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
+    store2
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let verifier1 = HashVerifier::new(store1);
     let verifier2 = HashVerifier::new(store2);
@@ -597,8 +634,12 @@ fn test_hash_changes_with_content() {
         ex:subject ex:predicate ex:object2 .
     "#;
 
-    store1.load_from_reader(GraphFormat::Turtle, ttl1.as_bytes()).unwrap();
-    store2.load_from_reader(GraphFormat::Turtle, ttl2.as_bytes()).unwrap();
+    store1
+        .load_from_reader(GraphFormat::Turtle, ttl1.as_bytes())
+        .unwrap();
+    store2
+        .load_from_reader(GraphFormat::Turtle, ttl2.as_bytes())
+        .unwrap();
 
     let verifier1 = HashVerifier::new(store1);
     let verifier2 = HashVerifier::new(store2);
@@ -606,7 +647,10 @@ fn test_hash_changes_with_content() {
     let hash1 = verifier1.compute_hash().unwrap();
     let hash2 = verifier2.compute_hash().unwrap();
 
-    assert_ne!(hash1, hash2, "Different content should produce different hashes");
+    assert_ne!(
+        hash1, hash2,
+        "Different content should produce different hashes"
+    );
 }
 
 #[test]
@@ -618,7 +662,9 @@ fn test_verify_hash_match() {
         ex:subject ex:predicate ex:object .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let verifier = HashVerifier::new(store);
     let hash = verifier.compute_hash().unwrap();
@@ -636,7 +682,9 @@ fn test_verify_hash_mismatch() {
         ex:subject ex:predicate ex:object .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let verifier = HashVerifier::new(store);
 
@@ -665,7 +713,9 @@ fn test_store_and_retrieve_hash() {
         ex:Ontology a owl:Ontology .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     let verifier = HashVerifier::new(store);
     let hash = verifier.compute_hash().unwrap();
@@ -721,7 +771,9 @@ fn test_full_validation_pipeline() {
             mcp:toolName "my_tool" .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     // Run consistency checks
     let consistency_checker = ConsistencyChecker::new(store.clone());
@@ -764,7 +816,9 @@ fn test_invalid_ontology_detection() {
             ] .
     "#;
 
-    store.load_from_reader(GraphFormat::Turtle, ttl.as_bytes()).unwrap();
+    store
+        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .unwrap();
 
     // Should detect multiple errors
     let consistency_checker = ConsistencyChecker::new(store.clone());

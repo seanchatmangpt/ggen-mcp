@@ -3,7 +3,7 @@
 //! This module provides compile-time constants and runtime validation functions
 //! to ensure numeric parameters stay within safe and reasonable bounds.
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 
 // ============================================================================
 // Excel Limits (Microsoft Excel 2007+)
@@ -445,10 +445,7 @@ const _: () = {
 
 /// Compile-time assertion that pagination limits are sensible
 const _: () = {
-    assert!(
-        MAX_SAMPLE_SIZE > 0,
-        "MAX_SAMPLE_SIZE must be positive"
-    );
+    assert!(MAX_SAMPLE_SIZE > 0, "MAX_SAMPLE_SIZE must be positive");
     assert!(
         MAX_PAGINATION_LIMIT > 0,
         "MAX_PAGINATION_LIMIT must be positive"

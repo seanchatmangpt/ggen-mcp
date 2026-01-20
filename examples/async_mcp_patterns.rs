@@ -93,10 +93,8 @@ async fn basic_tool_handler(
 
     // Step 3: CPU-bound work in spawn_blocking
     let sheet_name = params.sheet_name.clone();
-    let row_count = tokio::task::spawn_blocking(move || {
-        count_rows(&workbook, &sheet_name)
-    })
-    .await??;
+    let row_count =
+        tokio::task::spawn_blocking(move || count_rows(&workbook, &sheet_name)).await??;
 
     // Step 4: Return response
     Ok(BasicToolResponse {
@@ -212,8 +210,7 @@ async fn tool_with_timeout(
 /// Load a file using spawn_blocking (correct pattern)
 async fn load_file_blocking(path: PathBuf) -> Result<Vec<u8>> {
     tokio::task::spawn_blocking(move || {
-        std::fs::read(&path)
-            .map_err(|e| anyhow!("failed to read {:?}: {}", path, e))
+        std::fs::read(&path).map_err(|e| anyhow!("failed to read {:?}: {}", path, e))
     })
     .await?
 }
@@ -222,8 +219,7 @@ async fn load_file_blocking(path: PathBuf) -> Result<Vec<u8>> {
 async fn load_workbook_file(path: PathBuf) -> Result<ExampleWorkbook> {
     tokio::task::spawn_blocking(move || {
         // Step 1: Blocking file I/O
-        let data = std::fs::read(&path)
-            .map_err(|e| anyhow!("failed to read workbook: {}", e))?;
+        let data = std::fs::read(&path).map_err(|e| anyhow!("failed to read workbook: {}", e))?;
 
         // Step 2: CPU-intensive parsing
         parse_workbook_data(&data)
@@ -243,11 +239,7 @@ fn parse_workbook_data(data: &[u8]) -> Result<ExampleWorkbook> {
 }
 
 /// Edit a workbook file (blocking I/O + CPU work)
-async fn edit_workbook_file(
-    path: PathBuf,
-    sheet_name: String,
-    edits: Vec<CellEdit>,
-) -> Result<()> {
+async fn edit_workbook_file(path: PathBuf, sheet_name: String, edits: Vec<CellEdit>) -> Result<()> {
     tokio::task::spawn_blocking(move || {
         // Load workbook (blocking I/O)
         let mut workbook = load_workbook_sync(&path)?;
@@ -478,9 +470,7 @@ async fn parallel_analysis(workbook: Arc<ExampleWorkbook>) -> Result<WorkbookAna
 }
 
 /// Use try_join! for early termination on error
-async fn parallel_validation(
-    workbooks: Vec<Arc<ExampleWorkbook>>,
-) -> Result<()> {
+async fn parallel_validation(workbooks: Vec<Arc<ExampleWorkbook>>) -> Result<()> {
     use tokio::try_join;
 
     if workbooks.len() >= 3 {
@@ -526,9 +516,7 @@ async fn run_external_tool(
 
     let output = tokio::time::timeout(
         Duration::from_secs(timeout_secs),
-        Command::new(tool_path)
-            .args(&args)
-            .output(),
+        Command::new(tool_path).args(&args).output(),
     )
     .await
     .map_err(|_| anyhow!("process timed out after {}s", timeout_secs))?
@@ -543,8 +531,8 @@ async fn run_external_tool(
         ));
     }
 
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|e| anyhow!("invalid UTF-8 in output: {}", e))?;
+    let stdout =
+        String::from_utf8(output.stdout).map_err(|e| anyhow!("invalid UTF-8 in output: {}", e))?;
 
     Ok(stdout)
 }
@@ -654,12 +642,7 @@ mod tests {
         };
 
         // Should complete within timeout
-        let result = run_with_timeout(
-            "test",
-            5000,
-            basic_tool_handler(state, params),
-        )
-        .await;
+        let result = run_with_timeout("test", 5000, basic_tool_handler(state, params)).await;
 
         assert!(result.is_ok());
     }
@@ -800,9 +783,7 @@ fn save_workbook_sync(_workbook: &ExampleWorkbook, _path: &Path) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     println!("Async MCP Patterns - Example Runner");
     println!("====================================\n");

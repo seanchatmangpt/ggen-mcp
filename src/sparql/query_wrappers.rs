@@ -34,7 +34,10 @@ impl FromSparql for AggregateRootResult {
             aggregate_name: binding
                 .get_literal("aggregateName")
                 .map_err(|_| MappingError::MissingField("aggregateName".to_string()))?,
-            aggregate_description: binding.get_literal_opt("aggregateDescription").ok().flatten(),
+            aggregate_description: binding
+                .get_literal_opt("aggregateDescription")
+                .ok()
+                .flatten(),
             property_label: binding.get_literal_opt("propertyLabel").ok().flatten(),
             property_type: binding.get_literal_opt("propertyType").ok().flatten(),
             invariant_label: binding.get_literal_opt("invariantLabel").ok().flatten(),
@@ -48,13 +51,22 @@ impl AggregateRootResult {
     /// Get validator for aggregate root queries
     pub fn validator() -> ResultSetValidator {
         ResultSetValidator::new(CardinalityConstraint::ZeroOrMore)
-            .with_variable(VariableSpec::required("aggregateName", ExpectedType::Literal))
+            .with_variable(VariableSpec::required(
+                "aggregateName",
+                ExpectedType::Literal,
+            ))
             .with_variable(VariableSpec::optional(
                 "aggregateDescription",
                 ExpectedType::Literal,
             ))
-            .with_variable(VariableSpec::optional("propertyLabel", ExpectedType::Literal))
-            .with_variable(VariableSpec::optional("propertyType", ExpectedType::Literal))
+            .with_variable(VariableSpec::optional(
+                "propertyLabel",
+                ExpectedType::Literal,
+            ))
+            .with_variable(VariableSpec::optional(
+                "propertyType",
+                ExpectedType::Literal,
+            ))
             .with_variable(VariableSpec::optional(
                 "invariantLabel",
                 ExpectedType::Literal,
@@ -105,9 +117,18 @@ impl ValueObjectResult {
     pub fn validator() -> ResultSetValidator {
         ResultSetValidator::new(CardinalityConstraint::ZeroOrMore)
             .with_variable(VariableSpec::required("voName", ExpectedType::Literal))
-            .with_variable(VariableSpec::optional("voDescription", ExpectedType::Literal))
-            .with_variable(VariableSpec::optional("propertyLabel", ExpectedType::Literal))
-            .with_variable(VariableSpec::optional("propertyType", ExpectedType::Literal))
+            .with_variable(VariableSpec::optional(
+                "voDescription",
+                ExpectedType::Literal,
+            ))
+            .with_variable(VariableSpec::optional(
+                "propertyLabel",
+                ExpectedType::Literal,
+            ))
+            .with_variable(VariableSpec::optional(
+                "propertyType",
+                ExpectedType::Literal,
+            ))
     }
 }
 
@@ -449,9 +470,7 @@ pub fn load_aggregate_roots(
 }
 
 /// Load and validate MCP tools from query results
-pub fn load_mcp_tools(
-    solutions: Vec<QuerySolution>,
-) -> Result<Vec<McpToolResult>, MappingError> {
+pub fn load_mcp_tools(solutions: Vec<QuerySolution>) -> Result<Vec<McpToolResult>, MappingError> {
     McpToolResult::validator().validate_results(solutions.clone())?;
     super::result_mapper::ResultMapper::map_many(solutions)
 }

@@ -61,7 +61,7 @@ pub use graph_integrity::{
     ReferenceChecker, Severity, TripleValidator, TypeChecker, Violation,
 };
 pub use shacl::{
+    ConstraintChecker, CustomConstraints, Severity as ShaclSeverity, ShapeDiscovery,
     ShapeValidator, ValidationReport as ShaclValidationReport,
-    ValidationResult as ShaclValidationResult, Severity as ShaclSeverity,
-    ConstraintChecker, ShapeDiscovery, CustomConstraints,
+    ValidationResult as ShaclValidationResult,
 };

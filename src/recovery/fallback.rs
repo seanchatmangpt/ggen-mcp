@@ -36,7 +36,8 @@ impl RegionDetectionFallback {
         );
 
         SimplifiedRegion {
-            bounds: format!("A1:{}{}",
+            bounds: format!(
+                "A1:{}{}",
                 Self::column_number_to_name(column_count.max(1)),
                 row_count.max(1)
             ),
@@ -66,7 +67,11 @@ impl RegionDetectionFallback {
     }
 
     /// Check if region detection should use fallback
-    pub fn should_use_fallback(&self, non_empty_cells: usize, error: Option<&anyhow::Error>) -> bool {
+    pub fn should_use_fallback(
+        &self,
+        non_empty_cells: usize,
+        error: Option<&anyhow::Error>,
+    ) -> bool {
         if let Some(err) = error {
             let err_msg = err.to_string().to_lowercase();
 
@@ -208,14 +213,12 @@ where
                         );
                         Ok(result)
                     }
-                    Err(fallback_err) => {
-                        Err(anyhow!(
-                            "both primary and fallback failed for {}: primary={}, fallback={}",
-                            self.operation_name,
-                            primary_err,
-                            fallback_err
-                        ))
-                    }
+                    Err(fallback_err) => Err(anyhow!(
+                        "both primary and fallback failed for {}: primary={}, fallback={}",
+                        self.operation_name,
+                        primary_err,
+                        fallback_err
+                    )),
                 }
             }
         }
@@ -262,14 +265,12 @@ where
                         );
                         Ok(result)
                     }
-                    Err(fallback_err) => {
-                        Err(anyhow!(
-                            "both primary and fallback failed for {}: primary={}, fallback={}",
-                            self.operation_name,
-                            primary_err,
-                            fallback_err
-                        ))
-                    }
+                    Err(fallback_err) => Err(anyhow!(
+                        "both primary and fallback failed for {}: primary={}, fallback={}",
+                        self.operation_name,
+                        primary_err,
+                        fallback_err
+                    )),
                 }
             }
         }

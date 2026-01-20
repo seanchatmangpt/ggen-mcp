@@ -10,22 +10,13 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum SchemaValidationError {
     #[error("Schema validation failed for tool '{tool}': {errors}")]
-    ValidationFailed {
-        tool: String,
-        errors: Vec<String>,
-    },
+    ValidationFailed { tool: String, errors: Vec<String> },
 
     #[error("Schema generation failed for tool '{tool}': {error}")]
-    SchemaGenerationFailed {
-        tool: String,
-        error: String,
-    },
+    SchemaGenerationFailed { tool: String, error: String },
 
     #[error("Missing required field '{field}' in tool '{tool}'")]
-    MissingRequiredField {
-        tool: String,
-        field: String,
-    },
+    MissingRequiredField { tool: String, field: String },
 
     #[error("Invalid type for field '{field}' in tool '{tool}': expected {expected}, got {actual}")]
     InvalidType {
@@ -43,10 +34,7 @@ pub enum SchemaValidationError {
     },
 
     #[error("Unknown field '{field}' in tool '{tool}'")]
-    UnknownField {
-        tool: String,
-        field: String,
-    },
+    UnknownField { tool: String, field: String },
 }
 
 /// JSON schema validator for MCP tool parameters
@@ -66,18 +54,18 @@ impl SchemaValidator {
     /// Register a schema for a tool
     pub fn register_schema<T: JsonSchema>(&mut self, tool_name: &str) {
         let schema = schema_for!(T);
-        let schema_json = serde_json::to_value(schema)
-            .expect("Failed to serialize schema");
+        let schema_json = serde_json::to_value(schema).expect("Failed to serialize schema");
         self.schemas.insert(tool_name.to_string(), schema_json);
     }
 
     /// Validate parameters against a registered schema
     pub fn validate(&self, tool_name: &str, params: &Value) -> Result<(), SchemaValidationError> {
-        let schema = self.schemas.get(tool_name)
-            .ok_or_else(|| SchemaValidationError::SchemaGenerationFailed {
+        let schema = self.schemas.get(tool_name).ok_or_else(|| {
+            SchemaValidationError::SchemaGenerationFailed {
                 tool: tool_name.to_string(),
                 error: "Schema not registered".to_string(),
-            })?;
+            }
+        })?;
 
         self.validate_against_schema(tool_name, params, schema)
     }
@@ -92,11 +80,13 @@ impl SchemaValidator {
         let mut errors = Vec::new();
 
         // Extract schema definition
-        let schema_obj = schema.as_object()
-            .ok_or_else(|| SchemaValidationError::SchemaGenerationFailed {
-                tool: tool_name.to_string(),
-                error: "Invalid schema structure".to_string(),
-            })?;
+        let schema_obj =
+            schema
+                .as_object()
+                .ok_or_else(|| SchemaValidationError::SchemaGenerationFailed {
+                    tool: tool_name.to_string(),
+                    error: "Invalid schema structure".to_string(),
+                })?;
 
         // Get the actual schema definition (handle $ref if present)
         let definitions = schema_obj.get("definitions");
@@ -104,12 +94,12 @@ impl SchemaValidator {
             // Handle $ref to definitions
             if let Some(ref_str) = ref_path.as_str() {
                 if let Some(def_name) = ref_str.strip_prefix("#/definitions/") {
-                    definitions
-                        .and_then(|d| d.get(def_name))
-                        .ok_or_else(|| SchemaValidationError::SchemaGenerationFailed {
+                    definitions.and_then(|d| d.get(def_name)).ok_or_else(|| {
+                        SchemaValidationError::SchemaGenerationFailed {
                             tool: tool_name.to_string(),
                             error: format!("Definition '{}' not found", def_name),
-                        })?
+                        }
+                    })?
                 } else {
                     schema_obj
                 }
@@ -141,9 +131,7 @@ impl SchemaValidator {
                 .unwrap_or_default();
 
             // Get properties schema
-            let properties = schema_def
-                .get("properties")
-                .and_then(|p| p.as_object());
+            let properties = schema_def.get("properties").and_then(|p| p.as_object());
 
             // Check required fields
             for required_field in &required_fields {
@@ -156,13 +144,9 @@ impl SchemaValidator {
             if let Some(props) = properties {
                 for (key, value) in params_obj {
                     if let Some(prop_schema) = props.get(key) {
-                        if let Err(e) = self.validate_property(
-                            tool_name,
-                            key,
-                            value,
-                            prop_schema,
-                            definitions,
-                        ) {
+                        if let Err(e) =
+                            self.validate_property(tool_name, key, value, prop_schema, definitions)
+                        {
                             errors.push(e);
                         }
                     } else {
@@ -228,11 +212,17 @@ impl SchemaValidator {
                         }
                     }
                     // Try to validate against this variant
-                    if self.validate_property(tool_name, field_name, value, variant, definitions).is_ok() {
+                    if self
+                        .validate_property(tool_name, field_name, value, variant, definitions)
+                        .is_ok()
+                    {
                         return Ok(());
                     }
                 }
-                return Err(format!("Value does not match any variant for field '{}'", field_name));
+                return Err(format!(
+                    "Value does not match any variant for field '{}'",
+                    field_name
+                ));
             }
         }
 
@@ -246,10 +236,8 @@ impl SchemaValidator {
         if let Some(enum_values) = actual_schema.get("enum") {
             if let Some(enum_array) = enum_values.as_array() {
                 if !enum_array.contains(value) {
-                    let allowed: Vec<String> = enum_array
-                        .iter()
-                        .map(|v| format!("{:?}", v))
-                        .collect();
+                    let allowed: Vec<String> =
+                        enum_array.iter().map(|v| format!("{:?}", v)).collect();
                     return Err(format!(
                         "Field '{}': value must be one of: {}",
                         field_name,
@@ -292,8 +280,7 @@ impl SchemaValidator {
                         if !regex.is_match(s) {
                             return Err(format!(
                                 "Field '{}': value does not match pattern '{}'",
-                                field_name,
-                                pattern
+                                field_name, pattern
                             ));
                         }
                     }
@@ -309,9 +296,7 @@ impl SchemaValidator {
                     if num < min {
                         return Err(format!(
                             "Field '{}': value {} is less than minimum {}",
-                            field_name,
-                            num,
-                            min
+                            field_name, num, min
                         ));
                     }
                 }
@@ -321,33 +306,33 @@ impl SchemaValidator {
                     if num > max {
                         return Err(format!(
                             "Field '{}': value {} exceeds maximum {}",
-                            field_name,
-                            num,
-                            max
+                            field_name, num, max
                         ));
                     }
                 }
 
                 // Exclusive minimum
-                if let Some(min) = actual_schema.get("exclusiveMinimum").and_then(|v| v.as_f64()) {
+                if let Some(min) = actual_schema
+                    .get("exclusiveMinimum")
+                    .and_then(|v| v.as_f64())
+                {
                     if num <= min {
                         return Err(format!(
                             "Field '{}': value {} must be greater than {}",
-                            field_name,
-                            num,
-                            min
+                            field_name, num, min
                         ));
                     }
                 }
 
                 // Exclusive maximum
-                if let Some(max) = actual_schema.get("exclusiveMaximum").and_then(|v| v.as_f64()) {
+                if let Some(max) = actual_schema
+                    .get("exclusiveMaximum")
+                    .and_then(|v| v.as_f64())
+                {
                     if num >= max {
                         return Err(format!(
                             "Field '{}': value {} must be less than {}",
-                            field_name,
-                            num,
-                            max
+                            field_name, num, max
                         ));
                     }
                 }
@@ -384,7 +369,13 @@ impl SchemaValidator {
             if let Some(items_schema) = actual_schema.get("items") {
                 for (i, item) in arr.iter().enumerate() {
                     let item_field = format!("{}[{}]", field_name, i);
-                    self.validate_property(tool_name, &item_field, item, items_schema, definitions)?;
+                    self.validate_property(
+                        tool_name,
+                        &item_field,
+                        item,
+                        items_schema,
+                        definitions,
+                    )?;
                 }
             }
         }
@@ -432,17 +423,12 @@ impl SchemaValidator {
     }
 
     /// Validate and deserialize parameters
-    pub fn validate_and_deserialize<T>(
-        &self,
-        tool_name: &str,
-        params: Value,
-    ) -> Result<T>
+    pub fn validate_and_deserialize<T>(&self, tool_name: &str, params: Value) -> Result<T>
     where
         T: DeserializeOwned + JsonSchema,
     {
         // First validate against schema
-        self.validate(tool_name, &params)
-            .map_err(|e| anyhow!(e))?;
+        self.validate(tool_name, &params).map_err(|e| anyhow!(e))?;
 
         // Then deserialize
         serde_json::from_value(params)

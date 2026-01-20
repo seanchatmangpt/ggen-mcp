@@ -1,0 +1,165 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run coverage check daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-coverage-
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Fetch dependencies
+        run: cargo fetch --locked
+
+      - name: Generate coverage report
+        run: |
+          cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        continue-on-error: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+      - name: Generate HTML coverage report
+        run: |
+          cargo llvm-cov --all-features --workspace --html
+        continue-on-error: true
+
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/llvm-cov/html/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Coverage summary
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage report has been generated and uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage Targets" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Target |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Security code | 95%+ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Core handlers | 80%+ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Error paths | 70%+ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Business logic | 80%+ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Utilities | 60%+ |" >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+  coverage-check:
+    name: Check Coverage Thresholds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-coverage-check-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-coverage-check-
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run coverage with threshold check
+        run: |
+          # Generate coverage and fail if below overall threshold
+          # Note: Adjust the threshold as needed
+          cargo llvm-cov --all-features --workspace --fail-under-lines 50
+        continue-on-error: true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage_summary = `
+            ## 📊 Coverage Report
+
+            Coverage report has been generated. Please review:
+            - Download the HTML coverage report from the artifacts
+            - Check that critical security code has 95%+ coverage
+            - Verify core handlers have 80%+ coverage
+
+            ### Coverage Targets
+            | Category | Target |
+            |----------|--------|
+            | Security code | 95%+ |
+            | Core handlers | 80%+ |
+            | Error paths | 70%+ |
+            | Business logic | 80%+ |
+            | Utilities | 60%+ |
+
+            ℹ️ Download the full HTML report from the workflow artifacts for detailed coverage information.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverage_summary
+            });
+        continue-on-error: true

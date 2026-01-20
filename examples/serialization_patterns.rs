@@ -6,8 +6,8 @@
 //! Run with: cargo run --example serialization_patterns
 
 use schemars::{JsonSchema, schema_for};
-use serde::{Deserialize, Serialize, Deserializer};
-use serde_json::{json, Value};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::fmt;
 
@@ -438,10 +438,23 @@ pub struct WellDocumentedParams {
 /// Example 7.1: Custom error types for validation
 #[derive(Debug)]
 pub enum ValidationError {
-    EmptyField { field: String },
-    OutOfRange { field: String, min: i64, max: i64, actual: i64 },
-    InvalidFormat { field: String, expected: String, actual: String },
-    MissingRequiredField { field: String },
+    EmptyField {
+        field: String,
+    },
+    OutOfRange {
+        field: String,
+        min: i64,
+        max: i64,
+        actual: i64,
+    },
+    InvalidFormat {
+        field: String,
+        expected: String,
+        actual: String,
+    },
+    MissingRequiredField {
+        field: String,
+    },
 }
 
 impl fmt::Display for ValidationError {
@@ -450,11 +463,28 @@ impl fmt::Display for ValidationError {
             Self::EmptyField { field } => {
                 write!(f, "Field '{}' cannot be empty", field)
             }
-            Self::OutOfRange { field, min, max, actual } => {
-                write!(f, "Field '{}' out of range: {} not in [{}, {}]", field, actual, min, max)
+            Self::OutOfRange {
+                field,
+                min,
+                max,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "Field '{}' out of range: {} not in [{}, {}]",
+                    field, actual, min, max
+                )
             }
-            Self::InvalidFormat { field, expected, actual } => {
-                write!(f, "Field '{}' has invalid format: expected {}, got {}", field, expected, actual)
+            Self::InvalidFormat {
+                field,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "Field '{}' has invalid format: expected {}, got {}",
+                    field, expected, actual
+                )
             }
             Self::MissingRequiredField { field } => {
                 write!(f, "Missing required field: {}", field)
@@ -726,7 +756,8 @@ fn demo_basic_serialization() {
         "sheet_name": params.sheet_name,
         "limit": params.limit,
         "offset": params.offset,
-    })).unwrap();
+    }))
+    .unwrap();
 
     println!("Serialized parameters:");
     println!("{}", json);
@@ -822,9 +853,18 @@ fn demo_error_handling() {
 
 fn demo_pagination() {
     let items = vec![
-        DataItem { id: "1".to_string(), value: "Item 1".to_string() },
-        DataItem { id: "2".to_string(), value: "Item 2".to_string() },
-        DataItem { id: "3".to_string(), value: "Item 3".to_string() },
+        DataItem {
+            id: "1".to_string(),
+            value: "Item 1".to_string(),
+        },
+        DataItem {
+            id: "2".to_string(),
+            value: "Item 2".to_string(),
+        },
+        DataItem {
+            id: "3".to_string(),
+            value: "Item 3".to_string(),
+        },
     ];
 
     let response = PaginatedResponse::new(items, 10, 3, 0);

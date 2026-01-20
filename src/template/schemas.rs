@@ -50,49 +50,51 @@ fn domain_entity_schema() -> ParameterSchema {
                 .required()
                 .rule(ValidationRule::NotEmpty)
                 .rule(ValidationRule::Regex(
-                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap()
+                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap(),
                 ))
-                .description("Name of the entity (e.g., 'User', 'Order')")
+                .description("Name of the entity (e.g., 'User', 'Order')"),
         )
         .parameter(
             ParameterDefinition::new("description", ParameterType::String)
                 .required()
                 .rule(ValidationRule::NotEmpty)
-                .description("Human-readable description of the entity")
+                .description("Human-readable description of the entity"),
         )
         .parameter(
             ParameterDefinition::new("has_id", ParameterType::Bool)
                 .default(serde_json::json!(true))
-                .description("Whether the entity has a unique ID field")
+                .description("Whether the entity has a unique ID field"),
         )
         .parameter(
             ParameterDefinition::new("has_timestamps", ParameterType::Bool)
                 .default(serde_json::json!(false))
-                .description("Whether to include created_at and updated_at timestamps")
+                .description("Whether to include created_at and updated_at timestamps"),
         )
         .parameter(
             ParameterDefinition::new("has_validation", ParameterType::Bool)
                 .default(serde_json::json!(true))
-                .description("Whether to include validation methods")
+                .description("Whether to include validation methods"),
         )
         .parameter(
             ParameterDefinition::new("has_builder", ParameterType::Bool)
                 .default(serde_json::json!(true))
-                .description("Whether to generate a builder pattern implementation")
+                .description("Whether to generate a builder pattern implementation"),
         )
         .parameter(
-            ParameterDefinition::new("fields", ParameterType::Array(Box::new(
-                ParameterType::Object(field_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of field definitions for the entity")
+            ParameterDefinition::new(
+                "fields",
+                ParameterType::Array(Box::new(ParameterType::Object(field_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of field definitions for the entity"),
         )
         .parameter(
-            ParameterDefinition::new("invariants", ParameterType::Array(Box::new(
-                ParameterType::Object(invariant_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of business invariants to enforce")
+            ParameterDefinition::new(
+                "invariants",
+                ParameterType::Array(Box::new(ParameterType::Object(invariant_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of business invariants to enforce"),
         )
 }
 
@@ -108,49 +110,51 @@ fn mcp_tool_handler_schema() -> ParameterSchema {
                 .required()
                 .rule(ValidationRule::NotEmpty)
                 .rule(ValidationRule::Regex(
-                    Regex::new(r"^[a-z][a-z0-9_]*$").unwrap()
+                    Regex::new(r"^[a-z][a-z0-9_]*$").unwrap(),
                 ))
-                .description("Name of the tool in snake_case (e.g., 'list_workbooks')")
+                .description("Name of the tool in snake_case (e.g., 'list_workbooks')"),
         )
         .parameter(
             ParameterDefinition::new("description", ParameterType::String)
                 .required()
                 .rule(ValidationRule::NotEmpty)
-                .description("Description of what the tool does")
+                .description("Description of what the tool does"),
         )
         .parameter(
             ParameterDefinition::new("category", ParameterType::String)
                 .default(serde_json::json!("general"))
-                .description("Tool category for organization")
+                .description("Tool category for organization"),
         )
         .parameter(
             ParameterDefinition::new("has_params", ParameterType::Bool)
                 .default(serde_json::json!(true))
-                .description("Whether the tool accepts parameters")
+                .description("Whether the tool accepts parameters"),
         )
         .parameter(
             ParameterDefinition::new("has_pagination", ParameterType::Bool)
                 .default(serde_json::json!(false))
-                .description("Whether to include pagination support")
+                .description("Whether to include pagination support"),
         )
         .parameter(
             ParameterDefinition::new("has_filters", ParameterType::Bool)
                 .default(serde_json::json!(false))
-                .description("Whether to include filter support")
+                .description("Whether to include filter support"),
         )
         .parameter(
-            ParameterDefinition::new("params", ParameterType::Array(Box::new(
-                ParameterType::Object(param_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of parameter definitions")
+            ParameterDefinition::new(
+                "params",
+                ParameterType::Array(Box::new(ParameterType::Object(param_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of parameter definitions"),
         )
         .parameter(
-            ParameterDefinition::new("response_fields", ParameterType::Array(Box::new(
-                ParameterType::Object(field_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of response field definitions")
+            ParameterDefinition::new(
+                "response_fields",
+                ParameterType::Array(Box::new(ParameterType::Object(field_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of response field definitions"),
         )
 }
 
@@ -166,49 +170,50 @@ fn mcp_resource_handler_schema() -> ParameterSchema {
                 .required()
                 .rule(ValidationRule::NotEmpty)
                 .rule(ValidationRule::Regex(
-                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap()
+                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap(),
                 ))
-                .description("Name of the resource (e.g., 'Workbook', 'Cell')")
+                .description("Name of the resource (e.g., 'Workbook', 'Cell')"),
         )
         .parameter(
             ParameterDefinition::new("description", ParameterType::String)
                 .required()
                 .rule(ValidationRule::NotEmpty)
-                .description("Description of the resource")
+                .description("Description of the resource"),
         )
         .parameter(
             ParameterDefinition::new("uri_template", ParameterType::String)
                 .default(serde_json::json!(""))
-                .description("URI template pattern for the resource")
+                .description("URI template pattern for the resource"),
         )
         .parameter(
             ParameterDefinition::new("mime_type", ParameterType::String)
                 .default(serde_json::json!("application/json"))
-                .description("MIME type of the resource content")
+                .description("MIME type of the resource content"),
         )
         .parameter(
             ParameterDefinition::new("has_caching", ParameterType::Bool)
                 .default(serde_json::json!(false))
-                .description("Whether to include caching support")
+                .description("Whether to include caching support"),
         )
         .parameter(
             ParameterDefinition::new("has_subscriptions", ParameterType::Bool)
                 .default(serde_json::json!(false))
-                .description("Whether to include subscription/notification support")
+                .description("Whether to include subscription/notification support"),
         )
         .parameter(
             ParameterDefinition::new("cache_ttl_secs", ParameterType::Number)
                 .default(serde_json::json!(300))
                 .rule(ValidationRule::Min(0))
                 .rule(ValidationRule::Max(86400)) // Max 1 day
-                .description("Cache time-to-live in seconds")
+                .description("Cache time-to-live in seconds"),
         )
         .parameter(
-            ParameterDefinition::new("fields", ParameterType::Array(Box::new(
-                ParameterType::Object(field_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of resource field definitions")
+            ParameterDefinition::new(
+                "fields",
+                ParameterType::Array(Box::new(ParameterType::Object(field_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of resource field definitions"),
         )
 }
 
@@ -220,11 +225,12 @@ fn mcp_tool_params_schema() -> ParameterSchema {
     ParameterSchema::new("mcp_tool_params.rs.tera")
         .description("Generates parameter structs from SPARQL query results")
         .parameter(
-            ParameterDefinition::new("sparql_results", ParameterType::Array(Box::new(
-                ParameterType::Object(sparql_result_object_type())
-            )))
-                .required()
-                .description("Array of SPARQL query results containing tool parameter definitions")
+            ParameterDefinition::new(
+                "sparql_results",
+                ParameterType::Array(Box::new(ParameterType::Object(sparql_result_object_type()))),
+            )
+            .required()
+            .description("Array of SPARQL query results containing tool parameter definitions"),
         )
 }
 
@@ -236,11 +242,12 @@ fn mcp_tools_schema() -> ParameterSchema {
     ParameterSchema::new("mcp_tools.rs.tera")
         .description("Generates MCP tools module from SPARQL query results")
         .parameter(
-            ParameterDefinition::new("sparql_results", ParameterType::Array(Box::new(
-                ParameterType::Object(sparql_result_object_type())
-            )))
-                .required()
-                .description("Array of SPARQL query results containing tool definitions")
+            ParameterDefinition::new(
+                "sparql_results",
+                ParameterType::Array(Box::new(ParameterType::Object(sparql_result_object_type()))),
+            )
+            .required()
+            .description("Array of SPARQL query results containing tool definitions"),
         )
 }
 
@@ -256,21 +263,22 @@ fn domain_service_schema() -> ParameterSchema {
                 .required()
                 .rule(ValidationRule::NotEmpty)
                 .rule(ValidationRule::Regex(
-                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap()
+                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap(),
                 ))
-                .description("Name of the service")
+                .description("Name of the service"),
         )
         .parameter(
             ParameterDefinition::new("description", ParameterType::String)
                 .required()
-                .description("Service description")
+                .description("Service description"),
         )
         .parameter(
-            ParameterDefinition::new("methods", ParameterType::Array(Box::new(
-                ParameterType::Object(method_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of service method definitions")
+            ParameterDefinition::new(
+                "methods",
+                ParameterType::Array(Box::new(ParameterType::Object(method_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of service method definitions"),
         )
 }
 
@@ -286,23 +294,25 @@ fn value_object_schema() -> ParameterSchema {
                 .required()
                 .rule(ValidationRule::NotEmpty)
                 .rule(ValidationRule::Regex(
-                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap()
+                    Regex::new(r"^[A-Za-z][A-Za-z0-9_]*$").unwrap(),
                 ))
-                .description("Name of the value object")
+                .description("Name of the value object"),
         )
         .parameter(
-            ParameterDefinition::new("properties", ParameterType::Array(Box::new(
-                ParameterType::Object(property_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of property definitions")
+            ParameterDefinition::new(
+                "properties",
+                ParameterType::Array(Box::new(ParameterType::Object(property_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of property definitions"),
         )
         .parameter(
-            ParameterDefinition::new("invariants", ParameterType::Array(Box::new(
-                ParameterType::Object(invariant_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Array of invariants to validate")
+            ParameterDefinition::new(
+                "invariants",
+                ParameterType::Array(Box::new(ParameterType::Object(invariant_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Array of invariants to validate"),
         )
 }
 
@@ -327,14 +337,15 @@ fn command_schema() -> ParameterSchema {
             ParameterDefinition::new("command_name", ParameterType::String)
                 .required()
                 .rule(ValidationRule::NotEmpty)
-                .description("Name of the command")
+                .description("Name of the command"),
         )
         .parameter(
-            ParameterDefinition::new("params", ParameterType::Array(Box::new(
-                ParameterType::Object(param_object_type())
-            )))
-                .default(serde_json::json!([]))
-                .description("Command parameters")
+            ParameterDefinition::new(
+                "params",
+                ParameterType::Array(Box::new(ParameterType::Object(param_object_type()))),
+            )
+            .default(serde_json::json!([]))
+            .description("Command parameters"),
         )
 }
 
@@ -398,10 +409,22 @@ fn value_objects_schema() -> ParameterSchema {
 fn field_object_type() -> IndexMap<String, ParameterType> {
     let mut map = IndexMap::new();
     map.insert("name".to_string(), ParameterType::String);
-    map.insert("rust_type".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("description".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("required".to_string(), ParameterType::Optional(Box::new(ParameterType::Bool)));
-    map.insert("optional".to_string(), ParameterType::Optional(Box::new(ParameterType::Bool)));
+    map.insert(
+        "rust_type".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "description".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "required".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::Bool)),
+    );
+    map.insert(
+        "optional".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::Bool)),
+    );
     map
 }
 
@@ -409,8 +432,14 @@ fn field_object_type() -> IndexMap<String, ParameterType> {
 fn invariant_object_type() -> IndexMap<String, ParameterType> {
     let mut map = IndexMap::new();
     map.insert("expression".to_string(), ParameterType::String);
-    map.insert("message".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("description".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
+    map.insert(
+        "message".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "description".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
     map
 }
 
@@ -418,11 +447,26 @@ fn invariant_object_type() -> IndexMap<String, ParameterType> {
 fn param_object_type() -> IndexMap<String, ParameterType> {
     let mut map = IndexMap::new();
     map.insert("name".to_string(), ParameterType::String);
-    map.insert("rust_type".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("description".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("required".to_string(), ParameterType::Optional(Box::new(ParameterType::Bool)));
-    map.insert("default".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("filterable".to_string(), ParameterType::Optional(Box::new(ParameterType::Bool)));
+    map.insert(
+        "rust_type".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "description".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "required".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::Bool)),
+    );
+    map.insert(
+        "default".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "filterable".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::Bool)),
+    );
     map
 }
 
@@ -438,11 +482,20 @@ fn property_object_type() -> IndexMap<String, ParameterType> {
 fn method_object_type() -> IndexMap<String, ParameterType> {
     let mut map = IndexMap::new();
     map.insert("name".to_string(), ParameterType::String);
-    map.insert("description".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("params".to_string(), ParameterType::Optional(Box::new(
-        ParameterType::Array(Box::new(ParameterType::Object(param_object_type())))
-    )));
-    map.insert("return_type".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
+    map.insert(
+        "description".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "params".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::Array(Box::new(
+            ParameterType::Object(param_object_type()),
+        )))),
+    );
+    map.insert(
+        "return_type".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
     map
 }
 
@@ -451,13 +504,34 @@ fn sparql_result_object_type() -> IndexMap<String, ParameterType> {
     let mut map = IndexMap::new();
     // SPARQL results can have any fields with ? prefix
     // We'll use Any type for flexibility
-    map.insert("?toolName".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramName".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramType".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramRequired".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramDescription".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramAlias".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
-    map.insert("?paramDefault".to_string(), ParameterType::Optional(Box::new(ParameterType::String)));
+    map.insert(
+        "?toolName".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramName".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramType".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramRequired".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramDescription".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramAlias".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
+    map.insert(
+        "?paramDefault".to_string(),
+        ParameterType::Optional(Box::new(ParameterType::String)),
+    );
     map
 }
 

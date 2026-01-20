@@ -4,9 +4,8 @@
 //! into existing tool handlers, fork operations, and file operations.
 
 use super::{
-    AuditEvent, AuditEventType, AuditScope, audit_checkpoint_span,
-    audit_file_span, audit_fork_span, audit_scope, audit_staged_change_span,
-    audit_tool_span, get_audit_logger,
+    AuditEvent, AuditEventType, AuditScope, audit_checkpoint_span, audit_file_span,
+    audit_fork_span, audit_scope, audit_staged_change_span, audit_tool_span, get_audit_logger,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -232,7 +231,11 @@ impl ForkAuditGuard {
 }
 
 /// Audit a checkpoint creation
-pub fn audit_checkpoint_create(fork_id: &str, checkpoint_id: &str, label: Option<&str>) -> CheckpointAuditGuard {
+pub fn audit_checkpoint_create(
+    fork_id: &str,
+    checkpoint_id: &str,
+    label: Option<&str>,
+) -> CheckpointAuditGuard {
     let span = audit_checkpoint_span("create", fork_id, Some(checkpoint_id));
 
     let scope = if let Some(logger) = get_audit_logger() {
@@ -250,10 +253,7 @@ pub fn audit_checkpoint_create(fork_id: &str, checkpoint_id: &str, label: Option
         None
     };
 
-    CheckpointAuditGuard {
-        scope,
-        _span: span,
-    }
+    CheckpointAuditGuard { scope, _span: span }
 }
 
 /// Audit a checkpoint restoration
@@ -274,10 +274,7 @@ pub fn audit_checkpoint_restore(fork_id: &str, checkpoint_id: &str) -> Checkpoin
         None
     };
 
-    CheckpointAuditGuard {
-        scope,
-        _span: span,
-    }
+    CheckpointAuditGuard { scope, _span: span }
 }
 
 /// Audit a checkpoint deletion
@@ -298,10 +295,7 @@ pub fn audit_checkpoint_delete(fork_id: &str, checkpoint_id: &str) -> Checkpoint
         None
     };
 
-    CheckpointAuditGuard {
-        scope,
-        _span: span,
-    }
+    CheckpointAuditGuard { scope, _span: span }
 }
 
 /// Guard for checkpoint operations
@@ -321,7 +315,11 @@ impl CheckpointAuditGuard {
 }
 
 /// Audit a staged change creation
-pub fn audit_staged_change_create(fork_id: &str, change_id: &str, op_count: usize) -> StagedChangeAuditGuard {
+pub fn audit_staged_change_create(
+    fork_id: &str,
+    change_id: &str,
+    op_count: usize,
+) -> StagedChangeAuditGuard {
     let span = audit_staged_change_span("create", fork_id, Some(change_id));
 
     let scope = if let Some(logger) = get_audit_logger() {
@@ -339,10 +337,7 @@ pub fn audit_staged_change_create(fork_id: &str, change_id: &str, op_count: usiz
         None
     };
 
-    StagedChangeAuditGuard {
-        scope,
-        _span: span,
-    }
+    StagedChangeAuditGuard { scope, _span: span }
 }
 
 /// Audit a staged change application
@@ -363,10 +358,7 @@ pub fn audit_staged_change_apply(fork_id: &str, change_id: &str) -> StagedChange
         None
     };
 
-    StagedChangeAuditGuard {
-        scope,
-        _span: span,
-    }
+    StagedChangeAuditGuard { scope, _span: span }
 }
 
 /// Audit a staged change discard
@@ -387,10 +379,7 @@ pub fn audit_staged_change_discard(fork_id: &str, change_id: &str) -> StagedChan
         None
     };
 
-    StagedChangeAuditGuard {
-        scope,
-        _span: span,
-    }
+    StagedChangeAuditGuard { scope, _span: span }
 }
 
 /// Guard for staged change operations

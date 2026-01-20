@@ -3,6 +3,9 @@
 [![Crates.io](https://img.shields.io/crates/v/spreadsheet-mcp.svg)](https://crates.io/crates/spreadsheet-mcp)
 [![Documentation](https://docs.rs/spreadsheet-mcp/badge.svg)](https://docs.rs/spreadsheet-mcp)
 [![License](https://img.shields.io/crates/l/spreadsheet-mcp.svg)](https://github.com/PSU3D0/spreadsheet-mcp/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/YOUR_ORG/ggen-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/YOUR_ORG/ggen-mcp)
+[![CI](https://github.com/YOUR_ORG/ggen-mcp/workflows/CI/badge.svg)](https://github.com/YOUR_ORG/ggen-mcp/actions)
+[![Coverage](https://github.com/YOUR_ORG/ggen-mcp/workflows/Code%20Coverage/badge.svg)](https://github.com/YOUR_ORG/ggen-mcp/actions)
 
 ![Spreadsheet MCP](https://raw.githubusercontent.com/PSU3D0/spreadsheet-mcp/main/assets/banner.jpeg)
 
@@ -397,7 +400,55 @@ Then point your MCP client to the binary:
 
 ## Testing
 
+### Running Tests
+
 ```bash
+# Run all tests
+cargo test
+
+# Run specific test suite
+cargo test --test sparql_injection_tests
+
+# Run with all features
+cargo test --all-features
+```
+
+### Code Coverage
+
+We maintain high code coverage with category-specific targets:
+
+| Category | Target | Priority |
+|----------|--------|----------|
+| Security code | 95%+ | Critical |
+| Core handlers | 80%+ | High |
+| Error paths | 70%+ | High |
+| Business logic | 80%+ | Medium |
+| Utilities | 60%+ | Medium |
+
+#### Generate Coverage Report Locally
+
+```bash
+# Install cargo-llvm-cov
+cargo install cargo-llvm-cov
+
+# Generate HTML coverage report
+./scripts/coverage.sh --html --open
+
+# Generate LCOV for CI
+./scripts/coverage.sh --lcov
+
+# Check coverage thresholds
+./scripts/coverage.sh --check
+```
+
+Coverage reports are automatically generated in CI and available as artifacts on pull requests.
+
+For detailed coverage documentation, see [docs/CODE_COVERAGE.md](docs/CODE_COVERAGE.md).
+
+### Manual Testing
+
+```bash
+# Basic functionality test
 cargo test
 ```
 

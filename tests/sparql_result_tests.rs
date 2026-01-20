@@ -234,11 +234,7 @@ mod graph_validator_tests {
         let predicate = NamedNode::new("http://example.org/property").unwrap();
         let object = Term::Literal(Literal::new_simple_literal("value"));
 
-        graph.insert(&Triple::new(
-            Subject::NamedNode(subject),
-            predicate,
-            object,
-        ));
+        graph.insert(&Triple::new(Subject::NamedNode(subject), predicate, object));
 
         graph
     }

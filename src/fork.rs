@@ -9,8 +9,8 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{debug, warn};
 
@@ -435,6 +435,9 @@ impl ForkRegistry {
         // Commit the fork creation
         guard.commit();
 
+        // Update metrics
+        self.update_fork_metrics();
+
         debug!(fork_id = %fork_id, "created fork");
         Ok(fork_id)
     }
@@ -504,6 +507,9 @@ impl ForkRegistry {
         }
         // Clean up recalc lock
         self.recalc_locks.lock().remove(fork_id);
+        // Update metrics
+        drop(forks); // Release write lock before updating metrics
+        self.update_fork_metrics();
         Ok(())
     }
 
@@ -549,7 +555,10 @@ impl ForkRegistry {
 
         // Validate work file exists
         if !ctx.work_path.exists() {
-            return Err(anyhow!("fork work file does not exist: {:?}", ctx.work_path));
+            return Err(anyhow!(
+                "fork work file does not exist: {:?}",
+                ctx.work_path
+            ));
         }
 
         // Attempt to save
@@ -576,6 +585,9 @@ impl ForkRegistry {
             }
             // Clean up recalc lock
             self.recalc_locks.lock().remove(fork_id);
+            // Update metrics
+            drop(forks); // Release write lock
+            self.update_fork_metrics();
         } else {
             debug!(fork_id = %fork_id, "saved fork");
         }
@@ -687,7 +699,10 @@ impl ForkRegistry {
         let backup_guard = TempFileGuard::new(backup_path.clone());
 
         fs::copy(&work_path, &backup_path).map_err(|e| {
-            anyhow!("failed to create backup before checkpoint restoration: {}", e)
+            anyhow!(
+                "failed to create backup before checkpoint restoration: {}",
+                e
+            )
         })?;
 
         // Attempt restoration with rollback on error
@@ -739,9 +754,8 @@ impl ForkRegistry {
             ));
         }
 
-        let metadata = fs::metadata(&checkpoint.snapshot_path).map_err(|e| {
-            anyhow!("failed to read checkpoint metadata: {}", e)
-        })?;
+        let metadata = fs::metadata(&checkpoint.snapshot_path)
+            .map_err(|e| anyhow!("failed to read checkpoint metadata: {}", e))?;
 
         if metadata.len() == 0 {
             return Err(anyhow!("checkpoint file is empty"));
@@ -752,15 +766,13 @@ impl ForkRegistry {
         }
 
         // Verify it's a valid xlsx file by checking magic bytes
-        let mut file = fs::File::open(&checkpoint.snapshot_path).map_err(|e| {
-            anyhow!("failed to open checkpoint file: {}", e)
-        })?;
+        let mut file = fs::File::open(&checkpoint.snapshot_path)
+            .map_err(|e| anyhow!("failed to open checkpoint file: {}", e))?;
 
         let mut magic = [0u8; 4];
         use std::io::Read;
-        file.read_exact(&mut magic).map_err(|e| {
-            anyhow!("failed to read checkpoint file header: {}", e)
-        })?;
+        file.read_exact(&mut magic)
+            .map_err(|e| anyhow!("failed to read checkpoint file header: {}", e))?;
 
         // XLSX files are ZIP archives, should start with PK\x03\x04
         if &magic != b"PK\x03\x04" {
@@ -811,6 +823,7 @@ impl ForkRegistry {
             .map(|(id, _)| id.clone())
             .collect();
 
+        let evicted_count = expired.len();
         for id in expired {
             if let Some(ctx) = forks.remove(&id) {
                 ctx.cleanup_files();
@@ -819,6 +832,19 @@ impl ForkRegistry {
             // Clean up recalc lock
             self.recalc_locks.lock().remove(&id);
         }
+
+        // Update metrics if we evicted any forks
+        if evicted_count > 0 {
+            drop(forks); // Release write lock
+            self.update_fork_metrics();
+        }
+    }
+
+    /// Update Prometheus fork metrics
+    fn update_fork_metrics(&self) {
+        let forks = self.forks.read();
+        let count = forks.len();
+        crate::metrics::METRICS.update_fork_count(count);
     }
 }
 

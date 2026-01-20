@@ -13,7 +13,7 @@
 //! ## Workflow
 //! Ontology (TTL) → SPARQL Query → Template Rendering → Validation → Safe Writing
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -66,7 +66,12 @@ impl ValidationReport {
         }
     }
 
-    pub fn add_error(&mut self, message: String, location: Option<String>, suggestion: Option<String>) {
+    pub fn add_error(
+        &mut self,
+        message: String,
+        location: Option<String>,
+        suggestion: Option<String>,
+    ) {
         self.issues.push(ValidationIssue {
             severity: ValidationSeverity::Error,
             message,
@@ -76,7 +81,12 @@ impl ValidationReport {
         self.error_count += 1;
     }
 
-    pub fn add_warning(&mut self, message: String, location: Option<String>, suggestion: Option<String>) {
+    pub fn add_warning(
+        &mut self,
+        message: String,
+        location: Option<String>,
+        suggestion: Option<String>,
+    ) {
         self.issues.push(ValidationIssue {
             severity: ValidationSeverity::Warning,
             message,
@@ -174,13 +184,15 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate Rust syntax by parsing with syn
-    fn validate_syntax(&self, code: &str, report: &mut ValidationReport, file_name: &str) -> Result<()> {
+    fn validate_syntax(
+        &self,
+        code: &str,
+        report: &mut ValidationReport,
+        file_name: &str,
+    ) -> Result<()> {
         match syn::parse_file(code) {
             Ok(_) => {
-                report.add_info(
-                    format!("Syntax validation passed for {}", file_name),
-                    None
-                );
+                report.add_info(format!("Syntax validation passed for {}", file_name), None);
                 Ok(())
             }
             Err(e) => {
@@ -195,7 +207,12 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate naming conventions (snake_case for functions, PascalCase for types)
-    fn validate_naming_conventions(&self, code: &str, report: &mut ValidationReport, file_name: &str) {
+    fn validate_naming_conventions(
+        &self,
+        code: &str,
+        report: &mut ValidationReport,
+        file_name: &str,
+    ) {
         for (line_num, line) in code.lines().enumerate() {
             let trimmed = line.trim();
 
@@ -213,13 +230,18 @@ impl GeneratedCodeValidator {
             }
 
             // Check function names (should be snake_case)
-            if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") || trimmed.starts_with("async fn ") {
+            if trimmed.starts_with("pub fn ")
+                || trimmed.starts_with("fn ")
+                || trimmed.starts_with("async fn ")
+            {
                 if let Some(name) = extract_function_name(trimmed) {
                     if !is_snake_case(&name) {
                         report.add_warning(
                             format!("Function name '{}' should be snake_case", name),
                             Some(format!("{}:{}", file_name, line_num + 1)),
-                            Some("Use snake_case for function names (e.g., my_function)".to_string()),
+                            Some(
+                                "Use snake_case for function names (e.g., my_function)".to_string(),
+                            ),
                         );
                     }
                 }
@@ -228,7 +250,12 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate module structure
-    fn validate_module_structure(&self, code: &str, report: &mut ValidationReport, file_name: &str) {
+    fn validate_module_structure(
+        &self,
+        code: &str,
+        report: &mut ValidationReport,
+        file_name: &str,
+    ) {
         // Check for proper module header
         if !code.contains("//!") && !code.contains("///") {
             report.add_warning(
@@ -249,7 +276,8 @@ impl GeneratedCodeValidator {
                 let trimmed = line.trim();
                 if trimmed.starts_with("pub struct ")
                     || trimmed.starts_with("pub enum ")
-                    || trimmed.starts_with("pub fn ") {
+                    || trimmed.starts_with("pub fn ")
+                {
                     seen_item = true;
                 }
                 if seen_item && trimmed.starts_with("use ") {
@@ -278,7 +306,12 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate no duplicate definitions
-    fn validate_no_duplicates(&mut self, code: &str, report: &mut ValidationReport, file_name: &str) {
+    fn validate_no_duplicates(
+        &mut self,
+        code: &str,
+        report: &mut ValidationReport,
+        file_name: &str,
+    ) {
         for (line_num, line) in code.lines().enumerate() {
             let trimmed = line.trim();
 
@@ -319,7 +352,10 @@ impl GeneratedCodeValidator {
         for (line_num, line) in code.lines().enumerate() {
             if line.len() > self.max_line_length {
                 report.add_warning(
-                    format!("Line exceeds maximum length of {} characters", self.max_line_length),
+                    format!(
+                        "Line exceeds maximum length of {} characters",
+                        self.max_line_length
+                    ),
                     Some(format!("{}:{}", file_name, line_num + 1)),
                     Some("Split long lines for better readability".to_string()),
                 );
@@ -335,7 +371,10 @@ impl GeneratedCodeValidator {
             let line = lines[i].trim();
 
             // Check if this is a public item that needs documentation
-            if line.starts_with("pub struct ") || line.starts_with("pub trait ") || line.starts_with("pub fn ") {
+            if line.starts_with("pub struct ")
+                || line.starts_with("pub trait ")
+                || line.starts_with("pub fn ")
+            {
                 // Check if previous line has doc comment
                 let has_doc = if i > 0 {
                     let prev = lines[i - 1].trim();
@@ -417,11 +456,15 @@ impl CodeGenPipeline {
 
         // Stage 2: Post-generation validation (rendered code)
         tracing::debug!("Stage 2: Validating rendered code");
-        let validation_report = self.validate_rendered_code(rendered_code, output_path, &mut result)?;
+        let validation_report =
+            self.validate_rendered_code(rendered_code, output_path, &mut result)?;
         result.validation_report = Some(validation_report.clone());
 
         if !validation_report.is_valid() {
-            return Err(anyhow!("Code validation failed with {} errors", validation_report.error_count));
+            return Err(anyhow!(
+                "Code validation failed with {} errors",
+                validation_report.error_count
+            ));
         }
 
         // Stage 3: Format with rustfmt
@@ -452,7 +495,9 @@ impl CodeGenPipeline {
         let close_count = template.matches("}}").count() + template.matches("%}").count();
 
         if open_count != close_count {
-            result.errors.push("Template has unbalanced Tera braces".to_string());
+            result
+                .errors
+                .push("Template has unbalanced Tera braces".to_string());
             return Err(anyhow!("Template validation failed: unbalanced braces"));
         }
 
@@ -465,7 +510,8 @@ impl CodeGenPipeline {
         path: &Path,
         result: &mut GenerationResult,
     ) -> Result<ValidationReport> {
-        let file_name = path.file_name()
+        let file_name = path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
@@ -495,8 +541,7 @@ impl CodeGenPipeline {
 
         match output {
             Ok(result) if result.status.success() => {
-                fs::read_to_string(temp_path)
-                    .context("Failed to read formatted code")
+                fs::read_to_string(temp_path).context("Failed to read formatted code")
             }
             Ok(result) => {
                 let stderr = String::from_utf8_lossy(&result.stderr);
@@ -645,7 +690,9 @@ impl ArtifactTracker {
         match self.artifacts.get(path) {
             Some(metadata) => {
                 // Check if hashes match
-                if metadata.ontology_hash != ontology_hash || metadata.template_hash != template_hash {
+                if metadata.ontology_hash != ontology_hash
+                    || metadata.template_hash != template_hash
+                {
                     return true;
                 }
 
@@ -740,11 +787,7 @@ pub struct GenerationReceipt {
 
 impl GenerationReceipt {
     /// Create a new generation receipt
-    pub fn new(
-        ontology_hash: String,
-        template_hash: String,
-        artifact_hash: String,
-    ) -> Self {
+    pub fn new(ontology_hash: String, template_hash: String, artifact_hash: String) -> Self {
         let receipt_id = Self::generate_receipt_id(&ontology_hash, &template_hash, &artifact_hash);
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -762,7 +805,11 @@ impl GenerationReceipt {
     }
 
     /// Generate deterministic receipt ID
-    fn generate_receipt_id(ontology_hash: &str, template_hash: &str, artifact_hash: &str) -> String {
+    fn generate_receipt_id(
+        ontology_hash: &str,
+        template_hash: &str,
+        artifact_hash: &str,
+    ) -> String {
         let mut hasher = Sha256::new();
         hasher.update(ontology_hash.as_bytes());
         hasher.update(template_hash.as_bytes());
@@ -880,7 +927,8 @@ impl SafeCodeWriter {
     fn create_backup(&self, path: &Path) -> Result<PathBuf> {
         let backup_path = if let Some(backup_dir) = &self.backup_dir {
             fs::create_dir_all(backup_dir)?;
-            let file_name = path.file_name()
+            let file_name = path
+                .file_name()
                 .ok_or_else(|| anyhow!("Invalid file name"))?;
             backup_dir.join(format!("{}.bak", file_name.to_string_lossy()))
         } else {
@@ -902,9 +950,7 @@ impl SafeCodeWriter {
         }
 
         // Write to temporary file
-        let mut temp_file = NamedTempFile::new_in(
-            path.parent().unwrap_or_else(|| Path::new("."))
-        )?;
+        let mut temp_file = NamedTempFile::new_in(path.parent().unwrap_or_else(|| Path::new(".")))?;
         temp_file.write_all(content.as_bytes())?;
         temp_file.flush()?;
 
@@ -917,7 +963,8 @@ impl SafeCodeWriter {
     /// Rollback to backup
     pub fn rollback(&self, path: &Path) -> Result<()> {
         let backup_path = if let Some(backup_dir) = &self.backup_dir {
-            let file_name = path.file_name()
+            let file_name = path
+                .file_name()
                 .ok_or_else(|| anyhow!("Invalid file name"))?;
             backup_dir.join(format!("{}.bak", file_name.to_string_lossy()))
         } else {
@@ -980,7 +1027,10 @@ fn extract_function_name(line: &str) -> Option<String> {
     let line = line.replace("pub ", "").replace("async ", "");
     if let Some(fn_pos) = line.find("fn ") {
         let after_fn = &line[fn_pos + 3..];
-        let name_end = after_fn.find('(').or_else(|| after_fn.find('<')).or_else(|| after_fn.find(' '))?;
+        let name_end = after_fn
+            .find('(')
+            .or_else(|| after_fn.find('<'))
+            .or_else(|| after_fn.find(' '))?;
         return Some(after_fn[..name_end].trim().to_string());
     }
     None
@@ -1015,7 +1065,8 @@ fn is_snake_case(s: &str) -> bool {
     }
 
     // All characters should be lowercase, digits, or underscores
-    s.chars().all(|c| c.is_lowercase() || c.is_numeric() || c == '_')
+    s.chars()
+        .all(|c| c.is_lowercase() || c.is_numeric() || c == '_')
 }
 
 #[cfg(test)]

@@ -159,16 +159,13 @@ pub fn safe_json_str<'a>(
     key: &str,
     context: &str,
 ) -> anyhow::Result<&'a str> {
-    value
-        .get(key)
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Failed to extract string value for key '{}': {}",
-                key,
-                context
-            )
-        })
+    value.get(key).and_then(|v| v.as_str()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract string value for key '{}': {}",
+            key,
+            context
+        )
+    })
 }
 
 /// Safely extract an array from a JSON value
@@ -177,16 +174,13 @@ pub fn safe_json_array<'a>(
     key: &str,
     context: &str,
 ) -> anyhow::Result<&'a Vec<serde_json::Value>> {
-    value
-        .get(key)
-        .and_then(|v| v.as_array())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Failed to extract array value for key '{}': {}",
-                key,
-                context
-            )
-        })
+    value.get(key).and_then(|v| v.as_array()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract array value for key '{}': {}",
+            key,
+            context
+        )
+    })
 }
 
 /// Safely extract an object from a JSON value
@@ -195,16 +189,13 @@ pub fn safe_json_object<'a>(
     key: &str,
     context: &str,
 ) -> anyhow::Result<&'a serde_json::Map<String, serde_json::Value>> {
-    value
-        .get(key)
-        .and_then(|v| v.as_object())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Failed to extract object value for key '{}': {}",
-                key,
-                context
-            )
-        })
+    value.get(key).and_then(|v| v.as_object()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract object value for key '{}': {}",
+            key,
+            context
+        )
+    })
 }
 
 /// Safely strip a prefix from a string

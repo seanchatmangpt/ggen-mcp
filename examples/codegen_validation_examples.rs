@@ -142,8 +142,10 @@ fn example_full_pipeline(output_dir: &Path) -> Result<()> {
         }
 
         if let Some(report) = &result.validation_report {
-            println!("Validation: {} errors, {} warnings",
-                report.error_count, report.warning_count);
+            println!(
+                "Validation: {} errors, {} warnings",
+                report.error_count, report.warning_count
+            );
         }
     } else {
         println!("❌ Generation failed!");
@@ -320,7 +322,10 @@ fn example_receipts(output_dir: &Path) -> Result<()> {
     // Simulate modification
     let modified_hash = compute_string_hash("modified code");
     let still_reproducible = loaded.is_reproducible(&modified_hash);
-    println!("After modification, is reproducible? {}", still_reproducible);
+    println!(
+        "After modification, is reproducible? {}",
+        still_reproducible
+    );
     assert!(!still_reproducible);
 
     Ok(())
@@ -373,7 +378,10 @@ fn example_complete_workflow(output_dir: &Path) -> Result<()> {
 
     // 5. Write safely
     let writer = SafeCodeWriter::new();
-    let code = result.formatted_code.as_ref().unwrap_or(&rendered.to_string());
+    let code = result
+        .formatted_code
+        .as_ref()
+        .unwrap_or(&rendered.to_string());
 
     match writer.write(&artifact_path, code) {
         Ok(_) => println!("✅ Code written to {:?}", artifact_path),
@@ -396,11 +404,7 @@ fn example_complete_workflow(output_dir: &Path) -> Result<()> {
     println!("✅ Artifact tracked");
 
     // 7. Create receipt
-    let mut receipt = GenerationReceipt::new(
-        ontology_hash,
-        template_hash,
-        artifact_hash,
-    );
+    let mut receipt = GenerationReceipt::new(ontology_hash, template_hash, artifact_hash);
     receipt.add_metadata("generator".to_string(), "example".to_string());
 
     let receipt_path = receipt_dir.join("product.json");

@@ -127,7 +127,12 @@ fn test_validator_detects_naming_convention_violations() {
     assert!(result.is_ok());
     let report = result.unwrap();
     assert!(report.warning_count > 0);
-    assert!(report.issues.iter().any(|i| i.message.contains("PascalCase") || i.message.contains("snake_case")));
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("PascalCase") || i.message.contains("snake_case"))
+    );
 }
 
 #[test]
@@ -151,7 +156,12 @@ fn test_validator_detects_duplicate_definitions() {
     assert!(result.is_ok());
     let report = result.unwrap();
     assert!(report.has_errors());
-    assert!(report.issues.iter().any(|i| i.message.contains("Duplicate")));
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("Duplicate"))
+    );
 }
 
 #[test]
@@ -194,7 +204,12 @@ fn test_validator_detects_missing_documentation() {
     assert!(result.is_ok());
     let report = result.unwrap();
     assert!(report.warning_count > 0);
-    assert!(report.issues.iter().any(|i| i.message.contains("documentation")));
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("documentation"))
+    );
 }
 
 #[test]
@@ -220,7 +235,13 @@ fn test_validator_accepts_documented_code() {
     assert!(result.is_ok());
     let report = result.unwrap();
     // Should have fewer warnings than undocumented code
-    assert!(report.warning_count == 0 || !report.issues.iter().any(|i| i.message.contains("documentation")));
+    assert!(
+        report.warning_count == 0
+            || !report
+                .issues
+                .iter()
+                .any(|i| i.message.contains("documentation"))
+    );
 }
 
 #[test]
@@ -245,7 +266,12 @@ fn test_validator_reset_clears_tracking() {
     // Assert - Should not detect duplicate since we reset
     assert!(result.is_ok());
     let report = result.unwrap();
-    assert!(!report.issues.iter().any(|i| i.message.contains("Duplicate")));
+    assert!(
+        !report
+            .issues
+            .iter()
+            .any(|i| i.message.contains("Duplicate"))
+    );
 }
 
 // =============================================================================
@@ -407,8 +433,18 @@ fn test_tracker_finds_stale_artifacts() -> Result<()> {
     let path1 = PathBuf::from("/test/artifact1.rs");
     let path2 = PathBuf::from("/test/artifact2.rs");
 
-    tracker.record_artifact(path1.clone(), "old_hash".to_string(), "t1".to_string(), vec![])?;
-    tracker.record_artifact(path2.clone(), "old_hash".to_string(), "t2".to_string(), vec![])?;
+    tracker.record_artifact(
+        path1.clone(),
+        "old_hash".to_string(),
+        "t1".to_string(),
+        vec![],
+    )?;
+    tracker.record_artifact(
+        path2.clone(),
+        "old_hash".to_string(),
+        "t2".to_string(),
+        vec![],
+    )?;
 
     // Act
     let stale = tracker.get_stale_artifacts("new_hash");
@@ -430,7 +466,12 @@ fn test_tracker_removes_artifacts() -> Result<()> {
     let mut tracker = ArtifactTracker::new(state_file);
     let artifact_path = PathBuf::from("/test/artifact.rs");
 
-    tracker.record_artifact(artifact_path.clone(), "hash".to_string(), "t".to_string(), vec![])?;
+    tracker.record_artifact(
+        artifact_path.clone(),
+        "hash".to_string(),
+        "t".to_string(),
+        vec![],
+    )?;
 
     // Act
     tracker.remove_artifact(&artifact_path);
@@ -551,8 +592,14 @@ fn test_receipt_metadata() {
     receipt.add_metadata("version".to_string(), "0.1.0".to_string());
 
     // Assert
-    assert_eq!(receipt.generation_metadata.get("generator"), Some(&"ggen-mcp".to_string()));
-    assert_eq!(receipt.generation_metadata.get("version"), Some(&"0.1.0".to_string()));
+    assert_eq!(
+        receipt.generation_metadata.get("generator"),
+        Some(&"ggen-mcp".to_string())
+    );
+    assert_eq!(
+        receipt.generation_metadata.get("version"),
+        Some(&"0.1.0".to_string())
+    );
 }
 
 // =============================================================================
@@ -785,14 +832,21 @@ fn test_incremental_regeneration_workflow() -> Result<()> {
     let needs_regen = loaded_tracker.is_stale(&output_path, ontology_hash, template_hash);
 
     // Assert
-    assert!(!needs_regen, "Should not need regeneration with same hashes");
+    assert!(
+        !needs_regen,
+        "Should not need regeneration with same hashes"
+    );
 
     // Act - Change ontology
     let new_ontology_hash = "new_hash123";
-    let needs_regen_after_change = loaded_tracker.is_stale(&output_path, new_ontology_hash, template_hash);
+    let needs_regen_after_change =
+        loaded_tracker.is_stale(&output_path, new_ontology_hash, template_hash);
 
     // Assert
-    assert!(needs_regen_after_change, "Should need regeneration with new ontology hash");
+    assert!(
+        needs_regen_after_change,
+        "Should need regeneration with new ontology hash"
+    );
 
     Ok(())
 }

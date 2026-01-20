@@ -5,8 +5,8 @@
 
 use serde_json::json;
 use spreadsheet_mcp::template::{
-    ParameterDefinition, ParameterSchema, ParameterType, TemplateContext,
-    ValidationError, ValidationRule,
+    ParameterDefinition, ParameterSchema, ParameterType, TemplateContext, ValidationError,
+    ValidationRule,
 };
 use std::collections::HashMap;
 
@@ -173,11 +173,7 @@ fn test_validation_rule_not_empty_array() {
 
 #[test]
 fn test_validation_rule_one_of() {
-    let rule = ValidationRule::OneOf(vec![
-        json!("debug"),
-        json!("release"),
-        json!("test"),
-    ]);
+    let rule = ValidationRule::OneOf(vec![json!("debug"), json!("release"), json!("test")]);
 
     assert!(rule.validate("field", &json!("debug")).is_ok());
     assert!(rule.validate("field", &json!("release")).is_ok());
@@ -198,8 +194,7 @@ fn test_parameter_definition_required() {
 
 #[test]
 fn test_parameter_definition_default() {
-    let param =
-        ParameterDefinition::new("count", ParameterType::Number).default(json!(10));
+    let param = ParameterDefinition::new("count", ParameterType::Number).default(json!(10));
 
     assert!(!param.required);
     assert_eq!(param.default, Some(json!(10)));
@@ -221,7 +216,12 @@ fn test_parameter_definition_validate_type_mismatch() {
     let result = param.validate(&json!(42));
     assert!(result.is_err());
 
-    if let Err(ValidationError::TypeMismatch { name, expected, actual }) = result {
+    if let Err(ValidationError::TypeMismatch {
+        name,
+        expected,
+        actual,
+    }) = result
+    {
         assert_eq!(name, "name");
         assert_eq!(expected, "String");
         assert_eq!(actual, "Number");
@@ -232,8 +232,8 @@ fn test_parameter_definition_validate_type_mismatch() {
 
 #[test]
 fn test_parameter_definition_validate_rule_failure() {
-    let param = ParameterDefinition::new("name", ParameterType::String)
-        .rule(ValidationRule::MinLength(5));
+    let param =
+        ParameterDefinition::new("name", ParameterType::String).rule(ValidationRule::MinLength(5));
 
     let result = param.validate(&json!("abc"));
     assert!(result.is_err());
@@ -257,9 +257,7 @@ fn test_parameter_schema_basic() {
 fn test_parameter_schema_validate_success() {
     let schema = ParameterSchema::new("test.tera")
         .parameter(ParameterDefinition::new("name", ParameterType::String).required())
-        .parameter(
-            ParameterDefinition::new("count", ParameterType::Number).default(json!(0)),
-        );
+        .parameter(ParameterDefinition::new("count", ParameterType::Number).default(json!(0)));
 
     let mut context = HashMap::new();
     context.insert("name".to_string(), json!("test"));

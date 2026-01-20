@@ -56,13 +56,9 @@ async fn list_workbooks_with_error_example(
     }
 }
 
-async fn perform_list_workbooks(
-    _params: &ListWorkbooksParams,
-) -> Result<WorkbookListResponse> {
+async fn perform_list_workbooks(_params: &ListWorkbooksParams) -> Result<WorkbookListResponse> {
     // Implementation...
-    Ok(WorkbookListResponse {
-        workbooks: vec![],
-    })
+    Ok(WorkbookListResponse { workbooks: vec![] })
 }
 
 // ============================================================================

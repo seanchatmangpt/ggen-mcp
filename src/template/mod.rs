@@ -11,8 +11,8 @@ pub use parameter_validation::{
 
 // Re-export rendering safety components
 pub use rendering_safety::{
-    ErrorRecovery, OutputValidator, RenderConfig, RenderConfigBuilder, RenderContext,
-    RenderGuard, RenderMetrics, RenderingError, SafeRenderer, ValidationSeverity as RenderValidationSeverity,
+    ErrorRecovery, OutputValidator, RenderConfig, RenderConfigBuilder, RenderContext, RenderGuard,
+    RenderMetrics, RenderingError, SafeRenderer, ValidationSeverity as RenderValidationSeverity,
 };
 
 // Re-export common configuration constants for convenience

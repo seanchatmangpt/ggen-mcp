@@ -22,7 +22,10 @@ pub struct Receipt {
 
 impl Receipt {
     pub fn new(receipt_id: String, ontology_hash: String) -> Self {
-        Self { receipt_id, ontology_hash }
+        Self {
+            receipt_id,
+            ontology_hash,
+        }
     }
     pub fn validate(&self) {
         assert!(!self.receipt_id.is_empty());

@@ -315,6 +315,7 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
+        Term::Triple(_) => "Triple".to_string(),
     }
 }
 

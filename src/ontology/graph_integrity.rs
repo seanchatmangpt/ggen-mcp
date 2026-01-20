@@ -33,11 +33,10 @@
 //! }
 //! ```
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use oxigraph::model::{
+    BlankNode, Graph, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term, Triple,
     vocab::{rdf, rdfs, xsd},
-    BlankNode, Graph, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term,
-    Triple,
 };
 use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
@@ -348,7 +347,10 @@ impl GraphIntegrityChecker {
                 report.add_violation(Violation::new(
                     Severity::Error,
                     e.to_string(),
-                    format!("Triple validation: {} {} {}", quad.subject, quad.predicate, quad.object),
+                    format!(
+                        "Triple validation: {} {} {}",
+                        quad.subject, quad.predicate, quad.object
+                    ),
                 ));
             }
         }
@@ -416,7 +418,9 @@ impl GraphIntegrityChecker {
                 .map_err(|e| anyhow!("Invalid class URI {}: {}", class_uri, e))?;
 
             // Find all instances of this class
-            for quad in store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(class_node.into()), None) {
+            for quad in
+                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(class_node.into()), None)
+            {
                 let quad = quad?;
                 let instance = &quad.subject;
 
@@ -651,7 +655,9 @@ impl ReferenceChecker {
             "http://www.w3.org/ns/shacl#",
         ];
 
-        external_prefixes.iter().any(|prefix| uri.starts_with(prefix))
+        external_prefixes
+            .iter()
+            .any(|prefix| uri.starts_with(prefix))
     }
 
     /// Check inverse relationships
@@ -761,7 +767,9 @@ impl ReferenceChecker {
 
         path.push(current_str.clone());
 
-        for quad in store.quads_for_pattern(Some(current.clone().into()), Some(property), None, None) {
+        for quad in
+            store.quads_for_pattern(Some(current.clone().into()), Some(property), None, None)
+        {
             let quad = quad?;
             if let Term::NamedNode(next) = &quad.object {
                 self.dfs_cycle_detection(store, property, next, visited, path, cycles, depth + 1)?;
@@ -794,7 +802,9 @@ impl TypeChecker {
             let type_node = NamedNode::new(abstract_type_uri)
                 .map_err(|e| anyhow!("Invalid abstract type URI {}: {}", abstract_type_uri, e))?;
 
-            for quad in store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(type_node.into()), None) {
+            for quad in
+                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(type_node.into()), None)
+            {
                 let quad = quad?;
                 report.add_violation(
                     Violation::new(
@@ -924,7 +934,11 @@ impl GraphDiff {
     }
 
     /// Validate that the changes maintain graph integrity
-    pub fn validate(&self, checker: &GraphIntegrityChecker, store: &Store) -> Result<IntegrityReport> {
+    pub fn validate(
+        &self,
+        checker: &GraphIntegrityChecker,
+        store: &Store,
+    ) -> Result<IntegrityReport> {
         let mut report = IntegrityReport::new();
 
         // Validate added triples
@@ -933,7 +947,10 @@ impl GraphDiff {
                 report.add_violation(Violation::new(
                     Severity::Error,
                     format!("Invalid added triple: {}", e),
-                    format!("Add: {} {} {}", triple.subject, triple.predicate, triple.object),
+                    format!(
+                        "Add: {} {} {}",
+                        triple.subject, triple.predicate, triple.object
+                    ),
                 ));
             }
         }
@@ -1018,9 +1035,7 @@ mod tests {
     fn test_triple_validator_valid_triple() {
         let validator = TripleValidator::new();
 
-        let subject = Subject::NamedNode(
-            NamedNode::new("http://example.org/subject").unwrap()
-        );
+        let subject = Subject::NamedNode(NamedNode::new("http://example.org/subject").unwrap());
         let predicate = NamedNode::new("http://example.org/predicate").unwrap();
         let object = Term::Literal(Literal::new_simple_literal("value"));
 
@@ -1032,13 +1047,9 @@ mod tests {
     fn test_triple_validator_invalid_literal() {
         let validator = TripleValidator::new();
 
-        let subject = Subject::NamedNode(
-            NamedNode::new("http://example.org/subject").unwrap()
-        );
+        let subject = Subject::NamedNode(NamedNode::new("http://example.org/subject").unwrap());
         let predicate = NamedNode::new("http://example.org/predicate").unwrap();
-        let object = Term::Literal(
-            Literal::new_typed_literal("not-a-number", xsd::INTEGER)
-        );
+        let object = Term::Literal(Literal::new_typed_literal("not-a-number", xsd::INTEGER));
 
         let triple = Triple::new(subject, predicate, object);
         assert!(validator.validate(&triple).is_err());

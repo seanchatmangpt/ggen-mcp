@@ -3,11 +3,11 @@
 //! This example demonstrates how to use the template parameter validation
 //! system in ggen-mcp.
 
+use serde_json::json;
 use spreadsheet_mcp::template::{
     ParameterDefinition, ParameterSchema, ParameterType, TemplateContext, TemplateRegistry,
     ValidationRule,
 };
-use serde_json::json;
 
 fn main() -> anyhow::Result<()> {
     println!("=== Template Parameter Validation Example ===\n");
@@ -60,7 +60,10 @@ fn basic_context_example() -> anyhow::Result<()> {
     ctx.insert("fields", fields)?;
     ctx.insert("invariants", json!([]))?;
 
-    println!("✓ Created context with {} parameters", ctx.parameter_names().len());
+    println!(
+        "✓ Created context with {} parameters",
+        ctx.parameter_names().len()
+    );
     println!("  Parameters: {:?}\n", ctx.parameter_names());
 
     Ok(())
@@ -100,9 +103,10 @@ fn custom_schema_example() -> anyhow::Result<()> {
                 .description("Server port number"),
         )
         .parameter(
-            ParameterDefinition::new("features", ParameterType::Array(Box::new(
-                ParameterType::String,
-            )))
+            ParameterDefinition::new(
+                "features",
+                ParameterType::Array(Box::new(ParameterType::String)),
+            )
             .default(json!([]))
             .rule(ValidationRule::MaxLength(10))
             .description("List of feature flags"),
@@ -111,7 +115,10 @@ fn custom_schema_example() -> anyhow::Result<()> {
     println!("✓ Created schema: {}", schema.template_name);
     println!("  Description: {}", schema.description.as_ref().unwrap());
     println!("  Required parameters: {:?}", schema.required_parameters());
-    println!("  Optional parameters: {:?}\n", schema.optional_parameters());
+    println!(
+        "  Optional parameters: {:?}\n",
+        schema.optional_parameters()
+    );
 
     Ok(())
 }

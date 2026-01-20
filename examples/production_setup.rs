@@ -11,23 +11,16 @@
 /// ```
 /// cargo run --example production_setup --features recalc
 /// ```
-
 use anyhow::Result;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
 use prometheus::{
     Encoder, Histogram, HistogramOpts, IntCounter, IntGauge, Opts, Registry, TextEncoder,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tracing::{info, warn};
@@ -170,11 +163,13 @@ impl Metrics {
         ))?;
         registry.register(Box::new(requests_total.clone()))?;
 
-        let request_duration = Histogram::with_opts(HistogramOpts::new(
-            "spreadsheet_mcp_request_duration_seconds",
-            "MCP tool request duration in seconds",
-        )
-        .buckets(vec![0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]))?;
+        let request_duration = Histogram::with_opts(
+            HistogramOpts::new(
+                "spreadsheet_mcp_request_duration_seconds",
+                "MCP tool request duration in seconds",
+            )
+            .buckets(vec![0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]),
+        )?;
         registry.register(Box::new(request_duration.clone()))?;
 
         let errors_total = IntCounter::with_opts(Opts::new(
@@ -314,7 +309,10 @@ async fn check_metrics(state: &AppState) -> CheckStatus {
 
     CheckStatus {
         status: "healthy".to_string(),
-        message: Some(format!("{} metric families registered", metric_families.len())),
+        message: Some(format!(
+            "{} metric families registered",
+            metric_families.len()
+        )),
         latency_ms: Some(0),
     }
 }
@@ -341,7 +339,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
 // ============================================================================
 
 async fn wait_for_shutdown_signal(shutdown_tx: broadcast::Sender<()>) {
-    use tokio::signal::unix::{signal, SignalKind};
+    use tokio::signal::unix::{SignalKind, signal};
 
     let mut sigterm = signal(SignalKind::terminate()).expect("failed to register SIGTERM");
     let mut sigint = signal(SignalKind::interrupt()).expect("failed to register SIGINT");

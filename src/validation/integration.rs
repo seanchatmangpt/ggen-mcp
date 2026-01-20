@@ -3,8 +3,8 @@
 //! This module provides examples and utilities for integrating JSON schema validation
 //! with the rmcp MCP server framework.
 
-use crate::validation::{SchemaValidator, SchemaValidationMiddleware, SchemaValidatorBuilder};
 use crate::tools;
+use crate::validation::{SchemaValidationMiddleware, SchemaValidator, SchemaValidatorBuilder};
 use std::sync::Arc;
 
 /// Create a fully configured schema validator with all tool schemas registered

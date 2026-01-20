@@ -4,14 +4,13 @@
 /// covering RAII guards, shared state, lifetime management, and cleanup strategies.
 ///
 /// Run with: cargo run --example resource_management_patterns
-
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
 
@@ -222,8 +221,8 @@ impl ResourceRegistry {
             .ok_or_else(|| anyhow!("Resource not found: {}", id))?;
 
         // Get mutable reference to the Arc's data
-        let resource = Arc::get_mut(resource)
-            .ok_or_else(|| anyhow!("Resource has multiple references"))?;
+        let resource =
+            Arc::get_mut(resource).ok_or_else(|| anyhow!("Resource has multiple references"))?;
 
         // Validate version
         resource.validate_version(expected_version)?;
@@ -640,8 +639,8 @@ async fn demo_bounded_collections() -> Result<()> {
     println!("--- Demo 5: Bounded Collections ---");
 
     let mut collection = BoundedCollection::<String>::new(
-        5,                  // Max 5 items
-        1024 * 1024 * 10,   // Max 10MB
+        5,                // Max 5 items
+        1024 * 1024 * 10, // Max 10MB
     );
 
     println!("Created bounded collection: max 5 items, 10MB");

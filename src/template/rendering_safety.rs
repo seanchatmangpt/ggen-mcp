@@ -31,7 +31,7 @@
 //! let output = renderer.render_safe("template.tera", &context)?;
 //! ```
 
-use anyhow::{anyhow, Context as AnyhowContext, Result};
+use anyhow::{Context as AnyhowContext, Result, anyhow};
 use parking_lot::{Mutex, RwLock};
 use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
@@ -730,14 +730,13 @@ impl OutputValidator {
             }
 
             // Check for system command execution
-            if trimmed.contains("std::process::Command")
-                || trimmed.contains("std::process::Stdio")
+            if trimmed.contains("std::process::Command") || trimmed.contains("std::process::Stdio")
             {
                 errors.push(ValidationError {
                     line: Some(line_num + 1),
                     column: None,
-                    message:
-                        "System command execution detected - potential security risk".to_string(),
+                    message: "System command execution detected - potential security risk"
+                        .to_string(),
                     severity: ValidationSeverity::Warning,
                 });
             }
@@ -747,9 +746,8 @@ impl OutputValidator {
                 errors.push(ValidationError {
                     line: Some(line_num + 1),
                     column: None,
-                    message:
-                        "File system modification detected - verify permissions are correct"
-                            .to_string(),
+                    message: "File system modification detected - verify permissions are correct"
+                        .to_string(),
                     severity: ValidationSeverity::Info,
                 });
             }
@@ -1095,7 +1093,10 @@ impl SafeRenderer {
         if has_critical {
             let error_msg = OutputValidator::format_errors(&validation_errors);
             return Err(RenderingError::ValidationFailed {
-                errors: validation_errors.iter().map(|e| e.message.clone()).collect(),
+                errors: validation_errors
+                    .iter()
+                    .map(|e| e.message.clone())
+                    .collect(),
             });
         }
 
@@ -1211,9 +1212,7 @@ mod tests {
         let config = RenderConfig::default();
         let renderer = SafeRenderer::new(config).unwrap();
 
-        renderer
-            .add_template("test", "Hello {{ name }}!")
-            .unwrap();
+        renderer.add_template("test", "Hello {{ name }}!").unwrap();
 
         let mut context = RenderContext::new();
         context.insert("name", &"World").unwrap();

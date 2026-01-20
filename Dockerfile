@@ -22,5 +22,8 @@ LABEL org.opencontainers.image.description="MCP server for spreadsheet analysis 
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL io.modelcontextprotocol.server.name="io.github.psu3d0/spreadsheet-mcp"
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/usr/local/bin/spreadsheet-mcp", "--version"] || exit 1
+
 ENTRYPOINT ["spreadsheet-mcp"]
 CMD ["--workspace-root", "/data", "--transport", "http", "--http-bind", "0.0.0.0:8079"]

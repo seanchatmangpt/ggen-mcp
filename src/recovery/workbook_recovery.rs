@@ -3,7 +3,7 @@
 use anyhow::{Result, anyhow};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::{debug, warn, error};
+use tracing::{debug, error, warn};
 
 /// Corruption detection and recovery
 pub struct CorruptionDetector {
@@ -16,7 +16,7 @@ pub struct CorruptionDetector {
 impl Default for CorruptionDetector {
     fn default() -> Self {
         Self {
-            min_file_size: 100, // 100 bytes minimum
+            min_file_size: 100,               // 100 bytes minimum
             max_file_size: 500 * 1024 * 1024, // 500 MB maximum
         }
     }
@@ -29,9 +29,8 @@ impl CorruptionDetector {
             return Ok(CorruptionStatus::Missing);
         }
 
-        let metadata = fs::metadata(path).map_err(|e| {
-            anyhow!("failed to read file metadata for {:?}: {}", path, e)
-        })?;
+        let metadata = fs::metadata(path)
+            .map_err(|e| anyhow!("failed to read file metadata for {:?}: {}", path, e))?;
 
         if !metadata.is_file() {
             return Ok(CorruptionStatus::NotAFile);
@@ -135,10 +134,7 @@ impl CorruptionStatus {
     }
 
     pub fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            CorruptionStatus::Healthy | CorruptionStatus::Unknown
-        )
+        matches!(self, CorruptionStatus::Healthy | CorruptionStatus::Unknown)
     }
 }
 
@@ -194,7 +190,9 @@ impl WorkbookRecoveryStrategy {
             CorruptionStatus::Missing => {
                 if self.backup_enabled {
                     if let Some(backup) = self.find_backup(path) {
-                        return Ok(RecoveryAction::RestoreFromBackup { backup_path: backup });
+                        return Ok(RecoveryAction::RestoreFromBackup {
+                            backup_path: backup,
+                        });
                     }
                 }
                 Ok(RecoveryAction::MarkCorrupted)
@@ -203,7 +201,9 @@ impl WorkbookRecoveryStrategy {
             CorruptionStatus::InvalidSignature | CorruptionStatus::TooSmall { .. } => {
                 if self.backup_enabled {
                     if let Some(backup) = self.find_backup(path) {
-                        return Ok(RecoveryAction::RestoreFromBackup { backup_path: backup });
+                        return Ok(RecoveryAction::RestoreFromBackup {
+                            backup_path: backup,
+                        });
                     }
                 }
                 Ok(RecoveryAction::UseFallback)
@@ -211,19 +211,16 @@ impl WorkbookRecoveryStrategy {
 
             CorruptionStatus::TooLarge { .. } => Ok(RecoveryAction::MarkCorrupted),
 
-            CorruptionStatus::NotAFile
-            | CorruptionStatus::UnsupportedFormat => Ok(RecoveryAction::MarkCorrupted),
+            CorruptionStatus::NotAFile | CorruptionStatus::UnsupportedFormat => {
+                Ok(RecoveryAction::MarkCorrupted)
+            }
 
             CorruptionStatus::Unknown => Ok(RecoveryAction::EvictAndReload),
         }
     }
 
     /// Execute a recovery action
-    pub fn execute_recovery(
-        &self,
-        path: &Path,
-        action: RecoveryAction,
-    ) -> Result<RecoveryResult> {
+    pub fn execute_recovery(&self, path: &Path, action: RecoveryAction) -> Result<RecoveryResult> {
         debug!(path = ?path, action = ?action, "executing recovery action");
 
         match action {

@@ -5,13 +5,13 @@
 
 use anyhow::Result;
 use oxigraph::model::{
-    vocab::{rdf, rdfs, xsd},
     BlankNode, Literal, NamedNode, Subject, Term, Triple,
+    vocab::{rdf, rdfs, xsd},
 };
 use oxigraph::store::Store;
 use spreadsheet_mcp::ontology::{
-    GraphDiff, GraphIntegrityChecker, IntegrityConfig, ReferenceChecker, Severity,
-    TripleValidator, TypeChecker,
+    GraphDiff, GraphIntegrityChecker, IntegrityConfig, ReferenceChecker, Severity, TripleValidator,
+    TypeChecker,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -261,7 +261,10 @@ fn test_circular_reference_detection() -> Result<()> {
     let property = nn("http://example.org/references");
     let cycles = reference_checker.detect_circular_references(&store, &property)?;
 
-    assert!(!cycles.is_empty(), "Should detect circular reference A->B->C->A");
+    assert!(
+        !cycles.is_empty(),
+        "Should detect circular reference A->B->C->A"
+    );
 
     Ok(())
 }
@@ -375,10 +378,7 @@ fn test_graph_diff_validation() -> Result<()> {
     let checker = GraphIntegrityChecker::new(IntegrityConfig::default());
     let report = diff.validate(&checker, &store)?;
 
-    assert!(
-        report.has_errors(),
-        "Should detect invalid triple in diff"
-    );
+    assert!(report.has_errors(), "Should detect invalid triple in diff");
 
     Ok(())
 }
@@ -449,10 +449,7 @@ fn test_corrupted_graph_comprehensive() -> Result<()> {
     let checker = GraphIntegrityChecker::new(IntegrityConfig::default());
     let report = checker.check(&store)?;
 
-    assert!(
-        !report.is_valid(),
-        "Corrupted graph should fail validation"
-    );
+    assert!(!report.is_valid(), "Corrupted graph should fail validation");
     assert!(report.has_errors(), "Should have errors");
     assert!(
         report.violations.len() >= 3,

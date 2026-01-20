@@ -65,16 +65,7 @@
 pub mod validation;
 
 pub use validation::{
-    ArtifactMetadata,
-    ArtifactTracker,
-    CodeGenPipeline,
-    GeneratedCodeValidator,
-    GenerationReceipt,
-    GenerationResult,
-    SafeCodeWriter,
-    ValidationIssue,
-    ValidationReport,
-    ValidationSeverity,
-    compute_file_hash,
-    compute_string_hash,
+    ArtifactMetadata, ArtifactTracker, CodeGenPipeline, GeneratedCodeValidator, GenerationReceipt,
+    GenerationResult, SafeCodeWriter, ValidationIssue, ValidationReport, ValidationSeverity,
+    compute_file_hash, compute_string_hash,
 };

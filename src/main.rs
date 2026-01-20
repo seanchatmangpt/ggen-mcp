@@ -1,24 +1,25 @@
 use clap::Parser;
-use spreadsheet_mcp::{CliArgs, ServerConfig, run_server};
-use tracing_subscriber::EnvFilter;
+use spreadsheet_mcp::{
+    CliArgs, LoggingConfig, ServerConfig, init_logging, run_server, shutdown_telemetry,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_tracing();
+    // Initialize structured logging with OpenTelemetry integration
+    let logging_config = LoggingConfig::from_env();
+    let _guard = init_logging(logging_config)?;
+
     let cli = CliArgs::parse();
     let config = ServerConfig::from_args(cli)?;
 
     // Validate configuration before server startup (fail-fast)
     config.validate()?;
 
-    run_server(config).await
-}
+    // Run server and handle graceful shutdown
+    let result = run_server(config).await;
 
-fn init_tracing() {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_target(true)
-        .with_writer(std::io::stderr)
-        .try_init();
+    // Ensure traces are flushed before exit
+    shutdown_telemetry();
+
+    result
 }

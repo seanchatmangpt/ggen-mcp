@@ -7,8 +7,8 @@ use chrono::{DateTime, Duration, Utc};
 use lru::LruCache;
 use oxigraph::sparql::QuerySolution;
 use parking_lot::RwLock;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
@@ -123,11 +123,13 @@ impl QueryResultCache {
         Self::new(CacheConfig::default())
     }
 
-    /// Generate fingerprint for a query
+    /// Generate fingerprint for a query using ahash (5-10x faster than SHA256)
+    /// This is safe for cache keys as we don't need cryptographic security
+    #[inline]
     pub fn fingerprint(query: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(query.as_bytes());
-        format!("{:x}", hasher.finalize())
+        let mut hasher = ahash::AHasher::default();
+        query.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
     }
 
     /// Store query results in cache

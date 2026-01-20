@@ -67,12 +67,16 @@ mod validation_tests {
         });
 
         let result = validator.validate("complex_tool", &params);
-        assert!(result.is_ok(), "Expected validation to pass, got: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "Expected validation to pass, got: {:?}",
+            result
+        );
     }
 
     #[test]
     fn test_missing_required_field() {
-        use spreadsheet_mcp::validation::{SchemaValidator, SchemaValidationError};
+        use spreadsheet_mcp::validation::{SchemaValidationError, SchemaValidator};
 
         let mut validator = SchemaValidator::new();
         validator.register_schema::<SimpleParams>("simple_tool");
@@ -95,7 +99,7 @@ mod validation_tests {
 
     #[test]
     fn test_invalid_type() {
-        use spreadsheet_mcp::validation::{SchemaValidator, SchemaValidationError};
+        use spreadsheet_mcp::validation::{SchemaValidationError, SchemaValidator};
 
         let mut validator = SchemaValidator::new();
         validator.register_schema::<SimpleParams>("simple_tool");
@@ -146,7 +150,7 @@ mod validation_tests {
 
     #[test]
     fn test_middleware_creation() {
-        use spreadsheet_mcp::validation::{SchemaValidator, SchemaValidationMiddleware};
+        use spreadsheet_mcp::validation::{SchemaValidationMiddleware, SchemaValidator};
         use std::sync::Arc;
 
         let mut validator = SchemaValidator::new();
@@ -159,7 +163,11 @@ mod validation_tests {
             "count": 42
         });
 
-        assert!(middleware.validate_tool_call("simple_tool", &params).is_ok());
+        assert!(
+            middleware
+                .validate_tool_call("simple_tool", &params)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -183,7 +191,11 @@ mod validation_tests {
         let optional_params = json!({
             "required_field": "value"
         });
-        assert!(validator.validate("optional_tool", &optional_params).is_ok());
+        assert!(
+            validator
+                .validate("optional_tool", &optional_params)
+                .is_ok()
+        );
 
         // Test complex tool
         let complex_params = json!({
@@ -195,7 +207,9 @@ mod validation_tests {
 
     #[test]
     fn test_error_message_formatting() {
-        use spreadsheet_mcp::validation::{SchemaValidator, SchemaValidationError, format_validation_errors};
+        use spreadsheet_mcp::validation::{
+            SchemaValidationError, SchemaValidator, format_validation_errors,
+        };
 
         let mut validator = SchemaValidator::new();
         validator.register_schema::<SimpleParams>("simple_tool");
@@ -227,7 +241,8 @@ mod validation_tests {
             "count": 42
         });
 
-        let result: Result<SimpleParams, _> = validator.validate_and_deserialize("simple_tool", params);
+        let result: Result<SimpleParams, _> =
+            validator.validate_and_deserialize("simple_tool", params);
         assert!(result.is_ok());
 
         let deserialized = result.unwrap();

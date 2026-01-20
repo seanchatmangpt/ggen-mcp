@@ -11,8 +11,8 @@
 //! - Type checking
 //! - Custom DDD constraints
 
-use spreadsheet_mcp::ontology::shacl::{ShapeValidator, Severity};
 use anyhow::Result;
+use spreadsheet_mcp::ontology::shacl::{Severity, ShapeValidator};
 
 // =============================================================================
 // Test Helper Functions
@@ -89,16 +89,22 @@ fn test_invalid_tool_name_pattern() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Invalid tool name should fail validation");
+    assert!(
+        !report.conforms(),
+        "Invalid tool name should fail validation"
+    );
 
     let violations: Vec<_> = report.violations().collect();
     assert!(violations.len() > 0, "Should have at least one violation");
 
     // Check that the violation is about the name pattern
-    let has_pattern_violation = violations.iter().any(|v| {
-        v.message().contains("snake_case") || v.message().contains("pattern")
-    });
-    assert!(has_pattern_violation, "Should have pattern violation for tool name");
+    let has_pattern_violation = violations
+        .iter()
+        .any(|v| v.message().contains("snake_case") || v.message().contains("pattern"));
+    assert!(
+        has_pattern_violation,
+        "Should have pattern violation for tool name"
+    );
 
     Ok(())
 }
@@ -119,10 +125,16 @@ fn test_missing_required_property() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Missing required properties should fail validation");
+    assert!(
+        !report.conforms(),
+        "Missing required properties should fail validation"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    assert!(violations.len() >= 2, "Should have violations for missing description and handler");
+    assert!(
+        violations.len() >= 2,
+        "Should have violations for missing description and handler"
+    );
 
     Ok(())
 }
@@ -149,9 +161,9 @@ fn test_tool_description_length() -> Result<()> {
     assert!(!report.conforms(), "Description too short should fail");
 
     let violations: Vec<_> = report.violations().collect();
-    let has_length_violation = violations.iter().any(|v| {
-        v.message().contains("10-500") || v.message().contains("character")
-    });
+    let has_length_violation = violations
+        .iter()
+        .any(|v| v.message().contains("10-500") || v.message().contains("character"));
     assert!(has_length_violation, "Should have length violation");
 
     Ok(())
@@ -178,10 +190,13 @@ fn test_invalid_handler_pattern() -> Result<()> {
     assert!(!report.conforms(), "Invalid handler pattern should fail");
 
     let violations: Vec<_> = report.violations().collect();
-    let has_handler_violation = violations.iter().any(|v| {
-        v.message().contains("handle_") || v.message().contains("Handler")
-    });
-    assert!(has_handler_violation, "Should have handler pattern violation");
+    let has_handler_violation = violations
+        .iter()
+        .any(|v| v.message().contains("handle_") || v.message().contains("Handler"));
+    assert!(
+        has_handler_violation,
+        "Should have handler pattern violation"
+    );
 
     Ok(())
 }
@@ -210,7 +225,10 @@ fn test_valid_mcp_resource() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(report.conforms(), "Valid MCP Resource should pass validation");
+    assert!(
+        report.conforms(),
+        "Valid MCP Resource should pass validation"
+    );
     Ok(())
 }
 
@@ -237,9 +255,9 @@ fn test_invalid_mime_type() -> Result<()> {
     assert!(!report.conforms(), "Invalid MIME type should fail");
 
     let violations: Vec<_> = report.violations().collect();
-    let has_mime_violation = violations.iter().any(|v| {
-        v.message().contains("MIME") || v.message().contains("mime")
-    });
+    let has_mime_violation = violations
+        .iter()
+        .any(|v| v.message().contains("MIME") || v.message().contains("mime"));
     assert!(has_mime_violation, "Should have MIME type violation");
 
     Ok(())
@@ -275,7 +293,10 @@ fn test_valid_aggregate_root() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(report.conforms(), "Valid Aggregate Root should pass validation");
+    assert!(
+        report.conforms(),
+        "Valid Aggregate Root should pass validation"
+    );
     Ok(())
 }
 
@@ -300,12 +321,15 @@ fn test_aggregate_invalid_label() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Aggregate with invalid label should fail");
+    assert!(
+        !report.conforms(),
+        "Aggregate with invalid label should fail"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    let has_label_violation = violations.iter().any(|v| {
-        v.message().contains("PascalCase")
-    });
+    let has_label_violation = violations
+        .iter()
+        .any(|v| v.message().contains("PascalCase"));
     assert!(has_label_violation, "Should have PascalCase violation");
 
     Ok(())
@@ -328,13 +352,19 @@ fn test_aggregate_no_properties() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Aggregate without properties should fail");
+    assert!(
+        !report.conforms(),
+        "Aggregate without properties should fail"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    let has_property_violation = violations.iter().any(|v| {
-        v.message().contains("property") || v.message().contains("at least one")
-    });
-    assert!(has_property_violation, "Should have property count violation");
+    let has_property_violation = violations
+        .iter()
+        .any(|v| v.message().contains("property") || v.message().contains("at least one"));
+    assert!(
+        has_property_violation,
+        "Should have property count violation"
+    );
 
     Ok(())
 }
@@ -397,13 +427,19 @@ fn test_repository_invalid_name() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Repository with invalid name should fail");
+    assert!(
+        !report.conforms(),
+        "Repository with invalid name should fail"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    let has_name_violation = violations.iter().any(|v| {
-        v.message().contains("Repository")
-    });
-    assert!(has_name_violation, "Should have Repository naming violation");
+    let has_name_violation = violations
+        .iter()
+        .any(|v| v.message().contains("Repository"));
+    assert!(
+        has_name_violation,
+        "Should have Repository naming violation"
+    );
 
     Ok(())
 }
@@ -425,13 +461,19 @@ fn test_repository_missing_aggregate() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Repository without aggregate should fail");
+    assert!(
+        !report.conforms(),
+        "Repository without aggregate should fail"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    let has_aggregate_violation = violations.iter().any(|v| {
-        v.message().contains("Aggregate") || v.message().contains("aggregate")
-    });
-    assert!(has_aggregate_violation, "Should have aggregate association violation");
+    let has_aggregate_violation = violations
+        .iter()
+        .any(|v| v.message().contains("Aggregate") || v.message().contains("aggregate"));
+    assert!(
+        has_aggregate_violation,
+        "Should have aggregate association violation"
+    );
 
     Ok(())
 }
@@ -527,14 +569,20 @@ fn test_multiple_violations() -> Result<()> {
     assert!(!report.conforms(), "Multiple bad tools should fail");
 
     let violations: Vec<_> = report.violations().collect();
-    assert!(violations.len() > 3, "Should have multiple violations from both tools");
+    assert!(
+        violations.len() > 3,
+        "Should have multiple violations from both tools"
+    );
 
     // Check that violations reference different focus nodes
     let mut focus_nodes = std::collections::HashSet::new();
     for v in violations {
         focus_nodes.insert(v.focus_node().to_string());
     }
-    assert!(focus_nodes.len() >= 2, "Should have violations from at least 2 different nodes");
+    assert!(
+        focus_nodes.len() >= 2,
+        "Should have violations from at least 2 different nodes"
+    );
 
     Ok(())
 }
@@ -576,13 +624,19 @@ fn test_cardinality_max_count() -> Result<()> {
     let data_store = validator.load_data_from_turtle(data)?;
     let report = validator.validate_graph(&data_store)?;
 
-    assert!(!report.conforms(), "Duplicate names should violate maxCount");
+    assert!(
+        !report.conforms(),
+        "Duplicate names should violate maxCount"
+    );
 
     let violations: Vec<_> = report.violations().collect();
-    let has_cardinality_violation = violations.iter().any(|v| {
-        v.message().contains("at most") || v.message().contains("maxCount")
-    });
-    assert!(has_cardinality_violation, "Should have cardinality violation");
+    let has_cardinality_violation = violations
+        .iter()
+        .any(|v| v.message().contains("at most") || v.message().contains("maxCount"));
+    assert!(
+        has_cardinality_violation,
+        "Should have cardinality violation"
+    );
 
     Ok(())
 }

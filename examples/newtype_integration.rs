@@ -213,8 +213,16 @@ fn example_regions() -> Result<()> {
     // This would fail:
     // let bad = Region::new(0, "Data", "A1:D10".to_string())?;  // ID must be > 0
 
-    println!("Region {} on sheet '{}'", region1.id(), region1.sheet.as_str());
-    println!("Region {} on sheet '{}'", region2.id(), region2.sheet.as_str());
+    println!(
+        "Region {} on sheet '{}'",
+        region1.id(),
+        region1.sheet.as_str()
+    );
+    println!(
+        "Region {} on sheet '{}'",
+        region2.id(),
+        region2.sheet.as_str()
+    );
 
     // Type safety prevents mixing region IDs with row/col indices
     fn process_region(region_id: RegionId, row: u32, col: u32) {
@@ -341,7 +349,10 @@ fn example_error_handling() {
     match SheetName::new("Invalid[Sheet]".to_string()) {
         Ok(name) => println!("Valid name: {}", name),
         Err(ValidationError::InvalidCharacter { field, character }) => {
-            eprintln!("Error: {} contains invalid character '{}'", field, character);
+            eprintln!(
+                "Error: {} contains invalid character '{}'",
+                field, character
+            );
         }
         Err(e) => eprintln!("Validation error: {}", e),
     }

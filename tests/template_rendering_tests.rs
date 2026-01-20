@@ -18,9 +18,7 @@ fn test_basic_template_rendering() {
     let config = RenderConfig::default();
     let renderer = SafeRenderer::new(config).unwrap();
 
-    renderer
-        .add_template("basic", "Hello {{ name }}!")
-        .unwrap();
+    renderer.add_template("basic", "Hello {{ name }}!").unwrap();
 
     let mut context = RenderContext::new();
     context.insert("name", &"World").unwrap();
@@ -109,7 +107,11 @@ fn test_context_recursion_depth() {
     let config = RenderConfig::default().with_max_recursion_depth(5);
     let mut context = RenderContext::new();
 
-    assert!(context.check_recursion_depth(config.max_recursion_depth).is_ok());
+    assert!(
+        context
+            .check_recursion_depth(config.max_recursion_depth)
+            .is_ok()
+    );
 
     // Simulate deep nesting
     let mut current = Arc::new(context);
@@ -126,12 +128,28 @@ fn test_context_macro_counting() {
     let config = RenderConfig::default().with_max_macro_expansions(3);
     let mut context = RenderContext::new();
 
-    assert!(context.increment_macro_count(config.max_macro_expansions).is_ok());
-    assert!(context.increment_macro_count(config.max_macro_expansions).is_ok());
-    assert!(context.increment_macro_count(config.max_macro_expansions).is_ok());
+    assert!(
+        context
+            .increment_macro_count(config.max_macro_expansions)
+            .is_ok()
+    );
+    assert!(
+        context
+            .increment_macro_count(config.max_macro_expansions)
+            .is_ok()
+    );
+    assert!(
+        context
+            .increment_macro_count(config.max_macro_expansions)
+            .is_ok()
+    );
 
     // Fourth increment should fail
-    assert!(context.increment_macro_count(config.max_macro_expansions).is_err());
+    assert!(
+        context
+            .increment_macro_count(config.max_macro_expansions)
+            .is_err()
+    );
 }
 
 // ============================================================================
@@ -194,9 +212,11 @@ unsafe {
 
     let errors = validator.validate(unsafe_code).unwrap();
     assert!(!errors.is_empty(), "Should detect unsafe code");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.to_lowercase().contains("unsafe")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("unsafe"))
+    );
 }
 
 #[test]
@@ -213,9 +233,11 @@ fn run_command() {
 
     let errors = validator.validate(dangerous_code).unwrap();
     assert!(!errors.is_empty(), "Should detect command execution");
-    assert!(errors
-        .iter()
-        .any(|e| e.message.to_lowercase().contains("command")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("command"))
+    );
 }
 
 #[test]
@@ -296,8 +318,7 @@ fn test_malicious_deep_nesting() {
 
 #[test]
 fn test_malicious_large_output() {
-    let config = RenderConfig::default()
-        .with_max_output_size(1024); // 1KB limit
+    let config = RenderConfig::default().with_max_output_size(1024); // 1KB limit
 
     let renderer = SafeRenderer::new(config).unwrap();
 
@@ -383,9 +404,11 @@ fn query_user(id: &str) -> String {
     let errors = validator.validate(&output).unwrap();
 
     // Should detect potential SQL injection
-    assert!(errors
-        .iter()
-        .any(|e| e.message.to_lowercase().contains("sql")));
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("sql"))
+    );
 }
 
 #[test]

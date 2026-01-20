@@ -5,12 +5,12 @@
 // Run examples with: cargo run --example concurrency_patterns
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use parking_lot::{Mutex, RwLock};
-use tokio::sync::{mpsc, Semaphore};
+use tokio::sync::{Semaphore, mpsc};
 use tokio::time;
 
 // ============================================================================
@@ -178,9 +178,7 @@ impl PerResourceLockRegistry {
     /// Get a resource (concurrent reads)
     pub fn get(&self, id: &str) -> Option<u64> {
         let resources = self.resources.read();
-        resources
-            .get(id)
-            .map(|r| r.version.load(Ordering::SeqCst))
+        resources.get(id).map(|r| r.version.load(Ordering::SeqCst))
     }
 
     /// Acquire per-resource lock for exclusive operation
@@ -354,10 +352,7 @@ impl LeveledScheduler {
     pub async fn enqueue(&self, request: String) {
         let mut buffer = self.buffer.lock();
         buffer.push_back(request);
-        println!(
-            "[Heijunka] Buffered request, queue depth: {}",
-            buffer.len()
-        );
+        println!("[Heijunka] Buffered request, queue depth: {}", buffer.len());
     }
 
     /// Process requests at steady rate (leveled production)

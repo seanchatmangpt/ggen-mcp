@@ -375,7 +375,7 @@ pub struct CellAddress(String);
 
 impl CellAddress {
     const MAX_COLUMN: u32 = 16384; // Excel XFD
-    const MAX_ROW: u32 = 1048576;  // Excel limit
+    const MAX_ROW: u32 = 1048576; // Excel limit
 
     /// Parses a cell address from A1 notation.
     ///
@@ -390,12 +390,12 @@ impl CellAddress {
     /// ```
     pub fn parse(s: &str) -> Result<Self, ValidationError> {
         // Find the split between letters and numbers
-        let split_idx = s
-            .find(|c: char| c.is_ascii_digit())
-            .ok_or_else(|| ValidationError::Invalid {
-                field: "CellAddress",
-                reason: "must contain row number",
-            })?;
+        let split_idx =
+            s.find(|c: char| c.is_ascii_digit())
+                .ok_or_else(|| ValidationError::Invalid {
+                    field: "CellAddress",
+                    reason: "must contain row number",
+                })?;
 
         if split_idx == 0 {
             return Err(ValidationError::Invalid {
@@ -407,10 +407,12 @@ impl CellAddress {
         let (col_str, row_str) = s.split_at(split_idx);
 
         // Parse row
-        let row = row_str.parse::<u32>().map_err(|_| ValidationError::Invalid {
-            field: "CellAddress",
-            reason: "invalid row number",
-        })?;
+        let row = row_str
+            .parse::<u32>()
+            .map_err(|_| ValidationError::Invalid {
+                field: "CellAddress",
+                reason: "invalid row number",
+            })?;
 
         if row == 0 || row > Self::MAX_ROW {
             return Err(ValidationError::OutOfRange {

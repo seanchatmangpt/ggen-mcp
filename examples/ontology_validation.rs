@@ -36,13 +36,35 @@ fn main() -> Result<()> {
     let consistency_report = consistency_checker.check_all();
 
     println!("\nConsistency Report:");
-    println!("  Status: {}", if consistency_report.valid { "✓ Valid" } else { "✗ Invalid" });
+    println!(
+        "  Status: {}",
+        if consistency_report.valid {
+            "✓ Valid"
+        } else {
+            "✗ Invalid"
+        }
+    );
     println!("\nStatistics:");
-    println!("  - Total triples: {}", consistency_report.stats.total_triples);
-    println!("  - Total classes: {}", consistency_report.stats.total_classes);
-    println!("  - Total properties: {}", consistency_report.stats.total_properties);
-    println!("  - Total individuals: {}", consistency_report.stats.total_individuals);
-    println!("  - Max hierarchy depth: {}", consistency_report.stats.max_hierarchy_depth);
+    println!(
+        "  - Total triples: {}",
+        consistency_report.stats.total_triples
+    );
+    println!(
+        "  - Total classes: {}",
+        consistency_report.stats.total_classes
+    );
+    println!(
+        "  - Total properties: {}",
+        consistency_report.stats.total_properties
+    );
+    println!(
+        "  - Total individuals: {}",
+        consistency_report.stats.total_individuals
+    );
+    println!(
+        "  - Max hierarchy depth: {}",
+        consistency_report.stats.max_hierarchy_depth
+    );
 
     if !consistency_report.errors.is_empty() {
         println!("\n❌ Errors found:");
@@ -64,7 +86,14 @@ fn main() -> Result<()> {
     let schema_report = schema_validator.validate_all();
 
     println!("\nSchema Validation Report:");
-    println!("  Status: {}", if schema_report.valid { "✓ Valid" } else { "✗ Invalid" });
+    println!(
+        "  Status: {}",
+        if schema_report.valid {
+            "✓ Valid"
+        } else {
+            "✗ Invalid"
+        }
+    );
 
     if !schema_report.errors.is_empty() {
         println!("\n❌ Schema errors found:");
@@ -129,7 +158,10 @@ fn main() -> Result<()> {
         None => {
             println!("\nNo stored hash found. This is the first validation.");
             println!("To store this hash for future verification, add it to your ontology:");
-            println!("\n  ggen:ontology ggen:ontologyHash \"{}\" .", computed_hash);
+            println!(
+                "\n  ggen:ontology ggen:ontologyHash \"{}\" .",
+                computed_hash
+            );
         }
     }
 

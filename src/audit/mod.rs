@@ -25,9 +25,9 @@
 //! drop(span);
 //! ```
 
-pub mod integration;
 #[cfg(test)]
 mod examples;
+pub mod integration;
 
 use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
@@ -35,11 +35,11 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::VecDeque;
-use std::fs::{File, OpenOptions, self};
+use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tracing::{Span, info, warn, error, info_span};
+use tracing::{Span, error, info, info_span, warn};
 
 /// Maximum number of events to keep in memory
 const DEFAULT_MEMORY_BUFFER_SIZE: usize = 10_000;
@@ -246,8 +246,7 @@ impl AuditLogger {
     /// Create a new audit logger
     pub fn new(config: AuditConfig) -> Result<Self> {
         if config.persistent_logging {
-            fs::create_dir_all(&config.log_dir)
-                .context("failed to create audit log directory")?;
+            fs::create_dir_all(&config.log_dir).context("failed to create audit log directory")?;
         }
 
         let logger = Self {
@@ -358,7 +357,10 @@ impl AuditLogger {
 
         // Create new log file
         let timestamp = Utc::now().format("%Y%m%d-%H%M%S");
-        let new_log_path = self.config.log_dir.join(format!("audit-{}.jsonl", timestamp));
+        let new_log_path = self
+            .config
+            .log_dir
+            .join(format!("audit-{}.jsonl", timestamp));
 
         let file = OpenOptions::new()
             .create(true)
@@ -548,8 +550,7 @@ impl AuditFilter {
 
 /// Helper to create a tracing span for tool invocations
 pub fn audit_tool_span(tool_name: &str, params: &impl Serialize) -> Span {
-    let params_json = serde_json::to_value(params)
-        .unwrap_or(JsonValue::Null);
+    let params_json = serde_json::to_value(params).unwrap_or(JsonValue::Null);
 
     info_span!(
         "tool_invocation",
@@ -716,13 +717,11 @@ mod tests {
             .with_resource("fork-123")
             .with_outcome(AuditOutcome::Success);
 
-        let filter = AuditFilter::new()
-            .with_event_type(AuditEventType::ForkCreate);
+        let filter = AuditFilter::new().with_event_type(AuditEventType::ForkCreate);
 
         assert!(filter.matches(&event));
 
-        let filter = AuditFilter::new()
-            .with_event_type(AuditEventType::ForkEdit);
+        let filter = AuditFilter::new().with_event_type(AuditEventType::ForkEdit);
 
         assert!(!filter.matches(&event));
     }

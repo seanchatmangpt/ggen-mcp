@@ -4,11 +4,8 @@ use crate::model::{StylePatch, WorkbookId};
 use crate::state::AppState;
 use crate::utils::make_short_random_id;
 use crate::validation::{
+    DEFAULT_MAX_PNG_AREA_PX, DEFAULT_MAX_PNG_DIM_PX, MAX_SCREENSHOT_COLS, MAX_SCREENSHOT_ROWS,
     validate_pagination,
-    DEFAULT_MAX_PNG_AREA_PX,
-    DEFAULT_MAX_PNG_DIM_PX,
-    MAX_SCREENSHOT_COLS,
-    MAX_SCREENSHOT_ROWS,
 };
 use anyhow::{Result, anyhow, bail};
 use chrono::Utc;

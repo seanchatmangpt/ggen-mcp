@@ -381,22 +381,14 @@ impl GraphValidator {
                 let subject_str = triple.subject.to_string();
                 let object_str = obj_node.as_str().to_string();
 
-                adjacency
-                    .entry(subject_str)
-                    .or_default()
-                    .push(object_str);
+                adjacency.entry(subject_str).or_default().push(object_str);
             }
         }
 
         // DFS for cycle detection
         for node in adjacency.keys() {
             if !visited.contains(node) {
-                if self.has_cycle_dfs(
-                    node,
-                    &adjacency,
-                    &mut visited,
-                    &mut rec_stack,
-                )? {
+                if self.has_cycle_dfs(node, &adjacency, &mut visited, &mut rec_stack)? {
                     return Err(GraphValidationError::CycleDetected(node.clone()));
                 }
             }

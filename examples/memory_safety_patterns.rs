@@ -9,8 +9,8 @@ use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 // =============================================================================
 // Example 1: RAII Guards for Resource Cleanup
@@ -208,14 +208,19 @@ fn example_string_capacity() {
     println!("\n=== Example 3: String Capacity ===");
 
     let addresses = vec![
-        format_cell_address(1, 1),       // A1
-        format_cell_address(1, 26),      // Z1
-        format_cell_address(1, 27),      // AA1
+        format_cell_address(1, 1),           // A1
+        format_cell_address(1, 26),          // Z1
+        format_cell_address(1, 27),          // AA1
         format_cell_address(1048576, 16384), // XFD1048576 (max)
     ];
 
     for addr in addresses {
-        println!("Cell address: {} (len={}, cap={})", addr, addr.len(), addr.capacity());
+        println!(
+            "Cell address: {} (len={}, cap={})",
+            addr,
+            addr.len(),
+            addr.capacity()
+        );
     }
 }
 
@@ -377,16 +382,8 @@ fn example_weak_references() {
     println!("Added children: {}, {}", child1.name(), child2.name());
 
     // Children can access parent
-    println!(
-        "{}'s parent: {:?}",
-        child1.name(),
-        child1.parent_name()
-    );
-    println!(
-        "{}'s parent: {:?}",
-        child2.name(),
-        child2.parent_name()
-    );
+    println!("{}'s parent: {:?}", child1.name(), child1.parent_name());
+    println!("{}'s parent: {:?}", child2.name(), child2.parent_name());
 
     // Drop parent
     drop(parent);
@@ -488,7 +485,10 @@ pub struct ResourceHandle {
 impl ResourceHandle {
     pub fn new(id: u64) -> Self {
         println!("Acquired resource: {}", id);
-        Self { id, released: false }
+        Self {
+            id,
+            released: false,
+        }
     }
 
     pub fn release(&mut self) -> Result<(), String> {
@@ -575,20 +575,11 @@ fn example_string_interning() {
     let s2 = interner.intern("world");
     let s3 = interner.intern("hello"); // Same as s1
 
-    println!(
-        "Interned 3 strings, unique count: {}",
-        interner.stats()
-    );
+    println!("Interned 3 strings, unique count: {}", interner.stats());
 
     // s1 and s3 point to the same allocation
-    println!(
-        "s1 and s3 are same allocation: {}",
-        Arc::ptr_eq(&s1, &s3)
-    );
-    println!(
-        "s1 and s2 are same allocation: {}",
-        Arc::ptr_eq(&s1, &s2)
-    );
+    println!("s1 and s3 are same allocation: {}", Arc::ptr_eq(&s1, &s3));
+    println!("s1 and s2 are same allocation: {}", Arc::ptr_eq(&s1, &s2));
 
     println!("s1: {}", s1);
     println!("s2: {}", s2);
@@ -658,7 +649,10 @@ fn example_atomic_counters() {
     }
 
     let (total, success, failure) = metrics.stats();
-    println!("Total: {}, Success: {}, Failure: {}", total, success, failure);
+    println!(
+        "Total: {}, Success: {}, Failure: {}",
+        total, success, failure
+    );
 }
 
 // =============================================================================

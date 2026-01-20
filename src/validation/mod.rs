@@ -51,74 +51,68 @@
 //! ```
 
 pub mod bounds;
+pub mod enhanced_bounds;
 pub mod input_guards;
 pub mod integration;
 pub mod middleware;
 pub mod schema;
 
 pub use bounds::{
-    // Excel limits
-    EXCEL_MAX_COLUMNS,
-    EXCEL_MAX_ROWS,
-    EXCEL_MAX_COLUMN_INDEX,
-    EXCEL_MAX_ROW_INDEX,
-    EXCEL_MAX_CELLS,
-
-    // Cache limits
-    MIN_CACHE_CAPACITY,
-    MAX_CACHE_CAPACITY,
-    DEFAULT_CACHE_CAPACITY,
-
-    // Screenshot limits
-    MAX_SCREENSHOT_ROWS,
-    MAX_SCREENSHOT_COLS,
-    MAX_SCREENSHOT_CELLS,
-    DEFAULT_MAX_PNG_DIM_PX,
-    DEFAULT_MAX_PNG_AREA_PX,
-    ABSOLUTE_MAX_PNG_DIM_PX,
     ABSOLUTE_MAX_PNG_AREA_PX,
 
-    // Sample and pagination limits
-    MAX_SAMPLE_SIZE,
+    ABSOLUTE_MAX_PNG_DIM_PX,
+    DEFAULT_CACHE_CAPACITY,
+
+    DEFAULT_MAX_PNG_AREA_PX,
+    DEFAULT_MAX_PNG_DIM_PX,
+    EXCEL_MAX_CELLS,
+
+    EXCEL_MAX_COLUMN_INDEX,
+    // Excel limits
+    EXCEL_MAX_COLUMNS,
+    EXCEL_MAX_ROW_INDEX,
+    EXCEL_MAX_ROWS,
+    MAX_CACHE_CAPACITY,
     MAX_PAGINATION_LIMIT,
     MAX_PAGINATION_OFFSET,
 
-    // Validation functions
-    validate_row_1based,
-    validate_column_1based,
-    validate_cell_1based,
-    validate_range_1based,
-    validate_cache_capacity,
+    // Sample and pagination limits
+    MAX_SAMPLE_SIZE,
+    MAX_SCREENSHOT_CELLS,
+    MAX_SCREENSHOT_COLS,
+    // Screenshot limits
+    MAX_SCREENSHOT_ROWS,
+    // Cache limits
+    MIN_CACHE_CAPACITY,
     clamp_cache_capacity,
-    validate_sample_size,
+    validate_cache_capacity,
+    validate_cell_1based,
+    validate_column_1based,
     validate_pagination,
     validate_png_dimensions,
+    validate_range_1based,
+    // Validation functions
+    validate_row_1based,
+    validate_sample_size,
     validate_screenshot_range,
 };
 
+pub use enhanced_bounds::{
+    validate_column_enhanced, validate_pagination_enhanced, validate_range_enhanced,
+    validate_row_enhanced, validate_sample_size_enhanced, validate_screenshot_range_enhanced,
+};
+
 pub use input_guards::{
-    ValidationError,
-    ValidationResult,
-    validate_non_empty_string,
-    validate_numeric_range,
-    validate_optional_numeric_range,
-    validate_path_safe,
-    validate_sheet_name,
-    validate_workbook_id,
-    validate_cell_address,
-    validate_range_string,
+    ValidationError, ValidationResult, validate_cell_address, validate_non_empty_string,
+    validate_numeric_range, validate_optional_numeric_range, validate_path_safe,
+    validate_range_string, validate_sheet_name, validate_workbook_id,
 };
 
 // JSON Schema validation exports
-pub use schema::{
-    SchemaValidator, SchemaValidationError, SharedSchemaValidator,
-    create_validator,
-};
+pub use schema::{SchemaValidationError, SchemaValidator, SharedSchemaValidator, create_validator};
 
 pub use middleware::{
-    ValidationMiddleware as SchemaValidationMiddleware,
-    ValidateParams,
-    format_validation_errors,
+    ValidateParams, ValidationMiddleware as SchemaValidationMiddleware, format_validation_errors,
     validate_with_details,
 };
 

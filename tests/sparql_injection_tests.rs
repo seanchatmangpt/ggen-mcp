@@ -14,8 +14,8 @@
 //! 7. Query Structure Manipulation
 
 use spreadsheet_mcp::sparql::{
-    IriValidator, QueryBuilder, SafeLiteralBuilder, SparqlSanitizer,
-    SparqlSecurityError, VariableValidator,
+    IriValidator, QueryBuilder, SafeLiteralBuilder, SparqlSanitizer, SparqlSecurityError,
+    VariableValidator,
 };
 
 // ============================================================================
@@ -55,7 +55,10 @@ fn test_union_injection_attempt_blocked() {
     let malicious = "' } UNION { ?s ?p ?o }";
     let result = SparqlSanitizer::escape_string(malicious);
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::MaliciousPattern(_))));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::MaliciousPattern(_))
+    ));
 }
 
 #[test]
@@ -81,7 +84,10 @@ fn test_filter_injection_blocked() {
     let malicious = "' } FILTER (?age > 0) { ";
     let result = SparqlSanitizer::escape_string(malicious);
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::MaliciousPattern(_))));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::MaliciousPattern(_))
+    ));
 }
 
 #[test]
@@ -183,7 +189,10 @@ fn test_relative_uri_requires_absolute() {
     let relative = "path/to/resource";
     let result = IriValidator::require_absolute(relative);
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::RelativeUriInUnsafeContext)));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::RelativeUriInUnsafeContext)
+    ));
 }
 
 #[test]
@@ -260,7 +269,10 @@ fn test_valid_dollar_variable() {
 fn test_variable_without_prefix_invalid() {
     let result = VariableValidator::validate("person");
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::InvalidVariable(_))));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::InvalidVariable(_))
+    ));
 }
 
 #[test]
@@ -281,7 +293,10 @@ fn test_variable_too_long_invalid() {
     let long_var = format!("?{}", "a".repeat(128));
     let result = VariableValidator::validate(&long_var);
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::VariableNameTooLong)));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::VariableNameTooLong)
+    ));
 }
 
 #[test]
@@ -365,13 +380,17 @@ fn test_language_tagged_literal() {
 
 #[test]
 fn test_language_tagged_literal_with_region() {
-    let lit = SafeLiteralBuilder::string("Hello").language("en-US").build();
+    let lit = SafeLiteralBuilder::string("Hello")
+        .language("en-US")
+        .build();
     assert!(lit.contains("@en-US"));
 }
 
 #[test]
 fn test_invalid_language_tag_ignored() {
-    let lit = SafeLiteralBuilder::string("Test").language("invalid123").build();
+    let lit = SafeLiteralBuilder::string("Test")
+        .language("invalid123")
+        .build();
     // Invalid language tags should be ignored
     assert!(!lit.contains("@invalid123"));
 }
@@ -564,7 +583,10 @@ fn test_closing_brace_blocked() {
     let malicious = "test } DROP ALL";
     let result = SparqlSanitizer::escape_string(malicious);
     assert!(result.is_err());
-    assert!(matches!(result, Err(SparqlSecurityError::StructureManipulation)));
+    assert!(matches!(
+        result,
+        Err(SparqlSecurityError::StructureManipulation)
+    ));
 }
 
 #[test]
@@ -579,7 +601,7 @@ fn test_query_builder_rejects_destructive_where_clause() {
     let query = QueryBuilder::select()
         .variable("?person")
         .where_clause("?person a :Person")
-        .where_clause("DROP GRAPH <http://example.org>")  // Should be ignored
+        .where_clause("DROP GRAPH <http://example.org>") // Should be ignored
         .build()
         .unwrap();
 
@@ -624,9 +646,9 @@ fn test_information_disclosure_via_error() {
 fn test_safe_user_input_integration() {
     // Demonstrate safe handling of user input
     let user_input = "John O'Brien";
-    
+
     let safe_literal = SafeLiteralBuilder::string(user_input).build();
-    
+
     let query = QueryBuilder::select()
         .prefix("foaf", "http://xmlns.com/foaf/0.1/")
         .variable("?person")
@@ -634,7 +656,7 @@ fn test_safe_user_input_integration() {
         .where_clause(&format!("?person foaf:name {}", safe_literal))
         .build()
         .unwrap();
-    
+
     // Query should contain escaped apostrophe
     assert!(query.contains("John O\\'Brien"));
     // Should not allow query structure manipulation
@@ -646,18 +668,18 @@ fn test_parameterized_query_with_multiple_inputs() {
     let name = "Alice";
     let age = 30;
     let city = "Paris";
-    
+
     let name_lit = SafeLiteralBuilder::string(name).build();
     let age_lit = SafeLiteralBuilder::integer(age).build();
     let city_lit = SafeLiteralBuilder::string(city).language("en").build();
-    
+
     let query = QueryBuilder::select()
         .variable("?person")
         .where_clause("?person :name " + &name_lit)
         .where_clause("?person :age " + &age_lit)
         .where_clause("?person :city " + &city_lit)
         .build();
-    
+
     assert!(query.is_ok());
 }
 
@@ -679,7 +701,9 @@ fn test_empty_iri_invalid() {
 
 #[test]
 fn test_unicode_in_literal() {
-    let lit = SafeLiteralBuilder::string("こんにちは").language("ja").build();
+    let lit = SafeLiteralBuilder::string("こんにちは")
+        .language("ja")
+        .build();
     assert!(lit.contains("こんにちは"));
     assert!(lit.contains("@ja"));
 }

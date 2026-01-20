@@ -17,10 +17,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 use tokio::task;
-use tracing::debug;
+use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
 /// Application state with enhanced concurrency protection
@@ -46,6 +47,30 @@ pub struct AppState {
     recalc_semaphore: Option<GlobalRecalcLock>,
     #[cfg(feature = "recalc")]
     screenshot_semaphore: Option<GlobalScreenshotLock>,
+}
+
+/// Cache warming configuration
+#[derive(Debug, Clone)]
+pub struct CacheWarmingConfig {
+    /// Enable cache warming on startup
+    pub enabled: bool,
+    /// Maximum number of workbooks to pre-load
+    pub max_workbooks: usize,
+    /// Timeout for warming operation (seconds)
+    pub timeout_secs: u64,
+    /// Specific workbook IDs to warm (empty = auto-detect frequently used)
+    pub workbook_ids: Vec<String>,
+}
+
+impl Default for CacheWarmingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_workbooks: 5,
+            timeout_secs: 30,
+            workbook_ids: vec![],
+        }
+    }
 }
 
 impl AppState {
@@ -141,6 +166,15 @@ impl AppState {
         }
     }
 
+    /// Update Prometheus cache metrics
+    fn update_cache_metrics(&self) {
+        let cache = self.cache.read();
+        let size = cache.len();
+        // Rough estimate: 1MB per workbook average
+        let estimated_bytes = (size * 1024 * 1024) as u64;
+        crate::metrics::METRICS.update_cache_stats(size, estimated_bytes);
+    }
+
     pub fn list_workbooks(&self, filter: WorkbookFilter) -> Result<WorkbookListResponse> {
         let response = build_workbook_list(&self.config, &filter)?;
 
@@ -172,12 +206,14 @@ impl AppState {
             let mut cache = self.cache.write();
             if let Some(entry) = cache.get(&canonical) {
                 self.cache_hits.fetch_add(1, Ordering::Relaxed);
+                crate::metrics::METRICS.record_cache_hit();
                 debug!(workbook_id = %canonical, "cache hit");
                 return Ok(entry.clone());
             }
         }
 
         self.cache_misses.fetch_add(1, Ordering::Relaxed);
+        crate::metrics::METRICS.record_cache_miss();
         debug!(workbook_id = %canonical, "cache miss");
 
         // Load workbook outside of locks to avoid blocking other operations
@@ -204,6 +240,7 @@ impl AppState {
             let mut cache = self.cache.write();
             cache.put(workbook_id_clone, workbook.clone());
         }
+        self.update_cache_metrics();
 
         debug!(workbook_id = %canonical, "workbook loaded and cached");
         Ok(workbook)
@@ -217,6 +254,7 @@ impl AppState {
             let mut cache = self.cache.write();
             cache.pop(&canonical);
         }
+        self.update_cache_metrics();
 
         debug!(workbook_id = %canonical, "workbook closed");
         Ok(())
@@ -235,6 +273,7 @@ impl AppState {
         if let Some(id) = workbook_id {
             let mut cache = self.cache.write();
             cache.pop(&id);
+            self.update_cache_metrics();
             debug!(path = ?path, workbook_id = %id, "evicted workbook by path");
         }
     }
@@ -375,6 +414,130 @@ impl AppState {
             "registered workbook location"
         );
     }
+
+    /// Warm up the cache by pre-loading frequently used workbooks
+    /// This eliminates cold-start latency for common operations
+    pub async fn warm_cache(&self, config: CacheWarmingConfig) -> Result<CacheWarmingResult> {
+        if !config.enabled {
+            debug!("cache warming disabled");
+            return Ok(CacheWarmingResult::default());
+        }
+
+        let start_time = Instant::now();
+        info!(
+            max_workbooks = config.max_workbooks,
+            timeout_secs = config.timeout_secs,
+            "starting cache warming"
+        );
+
+        let workbooks_to_warm = if !config.workbook_ids.is_empty() {
+            // Use explicitly configured workbooks
+            config.workbook_ids.clone()
+        } else {
+            // Auto-detect workbooks to warm
+            self.discover_warmup_candidates(config.max_workbooks)?
+        };
+
+        let mut loaded = 0;
+        let mut failed = 0;
+        let mut errors = Vec::new();
+
+        for workbook_id in workbooks_to_warm.iter().take(config.max_workbooks) {
+            // Check timeout
+            if start_time.elapsed().as_secs() >= config.timeout_secs {
+                warn!(
+                    loaded,
+                    failed, "cache warming timeout reached, stopping early"
+                );
+                break;
+            }
+
+            info!(workbook_id = %workbook_id, "warming cache for workbook");
+
+            match self.open_workbook(&WorkbookId(workbook_id.clone())).await {
+                Ok(wb) => {
+                    loaded += 1;
+                    debug!(
+                        workbook_id = %workbook_id,
+                        short_id = %wb.short_id,
+                        "workbook loaded into cache"
+                    );
+                }
+                Err(e) => {
+                    failed += 1;
+                    let error_msg = format!("{}: {}", workbook_id, e);
+                    warn!(workbook_id = %workbook_id, error = %e, "failed to warm workbook");
+                    errors.push(error_msg);
+                }
+            }
+        }
+
+        let duration = start_time.elapsed();
+        let result = CacheWarmingResult {
+            loaded,
+            failed,
+            duration_ms: duration.as_millis() as u64,
+            errors,
+        };
+
+        info!(
+            loaded,
+            failed,
+            duration_ms = result.duration_ms,
+            "cache warming completed"
+        );
+
+        Ok(result)
+    }
+
+    /// Discover candidate workbooks for cache warming
+    /// Heuristic: pick the most recently modified workbooks
+    fn discover_warmup_candidates(&self, max_count: usize) -> Result<Vec<String>> {
+        let mut candidates: Vec<(String, std::time::SystemTime)> = Vec::new();
+
+        if let Some(single) = self.config.single_workbook() {
+            let metadata = fs::metadata(single)?;
+            let canonical = WorkbookId(hash_path_metadata(single, &metadata));
+            if let Ok(modified) = metadata.modified() {
+                candidates.push((canonical.0, modified));
+            }
+        } else {
+            for entry in WalkDir::new(&self.config.workspace_root).max_depth(3) {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                let path = entry.path();
+                if !has_supported_extension(&self.config.supported_extensions, path) {
+                    continue;
+                }
+
+                let metadata = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+
+                let canonical = WorkbookId(hash_path_metadata(path, &metadata));
+                if let Ok(modified) = metadata.modified() {
+                    candidates.push((canonical.0, modified));
+                }
+            }
+        }
+
+        // Sort by modification time (most recent first)
+        candidates.sort_by(|a, b| b.1.cmp(&a.1));
+
+        Ok(candidates
+            .into_iter()
+            .take(max_count)
+            .map(|(id, _)| id)
+            .collect())
+    }
 }
 
 struct LocatedWorkbook {
@@ -411,4 +574,17 @@ impl CacheStats {
             self.hits as f64 / self.operations as f64
         }
     }
+}
+
+/// Result of cache warming operation
+#[derive(Debug, Clone, Default)]
+pub struct CacheWarmingResult {
+    /// Number of workbooks successfully loaded
+    pub loaded: usize,
+    /// Number of workbooks that failed to load
+    pub failed: usize,
+    /// Duration of warming operation in milliseconds
+    pub duration_ms: u64,
+    /// Error messages for failed workbooks
+    pub errors: Vec<String>,
 }

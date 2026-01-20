@@ -59,9 +59,7 @@ impl ResultMapper {
     }
 
     /// Map multiple solutions to a vector
-    pub fn map_many<T: FromSparql>(
-        solutions: Vec<QuerySolution>,
-    ) -> Result<Vec<T>, MappingError> {
+    pub fn map_many<T: FromSparql>(solutions: Vec<QuerySolution>) -> Result<Vec<T>, MappingError> {
         let mut results = Vec::with_capacity(solutions.len());
         let mut errors = Vec::new();
 
@@ -152,7 +150,9 @@ impl FromSparql for String {
         let vars = binding.variables();
 
         if vars.is_empty() {
-            return Err(MappingError::Validation("No variables in solution".to_string()));
+            return Err(MappingError::Validation(
+                "No variables in solution".to_string(),
+            ));
         }
 
         // Try to get the first variable as a string
@@ -169,7 +169,9 @@ impl FromSparql for i64 {
         let vars = binding.variables();
 
         if vars.is_empty() {
-            return Err(MappingError::Validation("No variables in solution".to_string()));
+            return Err(MappingError::Validation(
+                "No variables in solution".to_string(),
+            ));
         }
 
         binding.get_integer(&vars[0]).map_err(|e| e.into())
@@ -182,7 +184,9 @@ impl FromSparql for f64 {
         let vars = binding.variables();
 
         if vars.is_empty() {
-            return Err(MappingError::Validation("No variables in solution".to_string()));
+            return Err(MappingError::Validation(
+                "No variables in solution".to_string(),
+            ));
         }
 
         binding.get_float(&vars[0]).map_err(|e| e.into())
@@ -195,7 +199,9 @@ impl FromSparql for bool {
         let vars = binding.variables();
 
         if vars.is_empty() {
-            return Err(MappingError::Validation("No variables in solution".to_string()));
+            return Err(MappingError::Validation(
+                "No variables in solution".to_string(),
+            ));
         }
 
         binding.get_boolean(&vars[0]).map_err(|e| e.into())
@@ -317,7 +323,10 @@ impl FromSparql for AggregateRoot {
             .map_err(|_| MappingError::MissingField("aggregateName".to_string()))?;
 
         // Optional fields
-        let description = binding.get_literal_opt("aggregateDescription").ok().flatten();
+        let description = binding
+            .get_literal_opt("aggregateDescription")
+            .ok()
+            .flatten();
 
         // For simplicity, properties and invariants are single values here
         // In a real implementation, you'd aggregate these from multiple rows
@@ -386,9 +395,10 @@ mod tests {
     use oxigraph::model::{Literal, NamedNode, Term};
 
     fn create_test_solution(name: &str, value: &str) -> QuerySolution {
-        let bindings = vec![
-            (name.to_string(), Term::Literal(Literal::new_simple_literal(value))),
-        ];
+        let bindings = vec![(
+            name.to_string(),
+            Term::Literal(Literal::new_simple_literal(value)),
+        )];
         QuerySolution::from(bindings)
     }
 

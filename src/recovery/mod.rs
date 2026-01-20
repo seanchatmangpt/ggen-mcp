@@ -9,19 +9,19 @@
 
 use anyhow::{Result, anyhow};
 use std::time::{Duration, Instant};
-use tracing::{debug, warn, error};
+use tracing::{debug, error, warn};
 
-mod retry;
 mod circuit_breaker;
 mod fallback;
 mod partial_success;
+mod retry;
 mod workbook_recovery;
 
-pub use retry::{RetryPolicy, RetryConfig, retry_with_policy, exponential_backoff};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState};
-pub use fallback::{RegionDetectionFallback, RecalcFallback};
-pub use partial_success::{BatchResult, PartialSuccessHandler, BatchOperationResult};
-pub use workbook_recovery::{WorkbookRecoveryStrategy, RecoveryAction, CorruptionDetector};
+pub use fallback::{RecalcFallback, RegionDetectionFallback};
+pub use partial_success::{BatchOperationResult, BatchResult, PartialSuccessHandler};
+pub use retry::{RetryConfig, RetryPolicy, exponential_backoff, retry_with_policy};
+pub use workbook_recovery::{CorruptionDetector, RecoveryAction, WorkbookRecoveryStrategy};
 
 /// Recovery context for tracking recovery attempts and state
 #[derive(Debug, Clone)]
@@ -119,10 +119,7 @@ pub trait Recoverable<T> {
 }
 
 /// Execute a recoverable operation with automatic retry and fallback
-pub async fn execute_with_recovery<T, F, Fut>(
-    operation_name: &str,
-    operation: F,
-) -> Result<T>
+pub async fn execute_with_recovery<T, F, Fut>(operation_name: &str, operation: F) -> Result<T>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T>>,
@@ -150,7 +147,8 @@ where
 
                 match strategy {
                     RecoveryStrategy::Retry if context.should_retry() => {
-                        let delay = exponential_backoff(context.attempt, Duration::from_millis(100));
+                        let delay =
+                            exponential_backoff(context.attempt, Duration::from_millis(100));
                         warn!(
                             operation = operation_name,
                             attempt = context.attempt,
@@ -273,13 +271,22 @@ mod tests {
     #[test]
     fn test_determine_recovery_strategy() {
         let timeout_err = anyhow!("operation timed out");
-        assert_eq!(determine_recovery_strategy(&timeout_err), RecoveryStrategy::Retry);
+        assert_eq!(
+            determine_recovery_strategy(&timeout_err),
+            RecoveryStrategy::Retry
+        );
 
         let not_found_err = anyhow!("file not found");
-        assert_eq!(determine_recovery_strategy(&not_found_err), RecoveryStrategy::Fallback);
+        assert_eq!(
+            determine_recovery_strategy(&not_found_err),
+            RecoveryStrategy::Fallback
+        );
 
         let batch_err = anyhow!("batch operation failed");
-        assert_eq!(determine_recovery_strategy(&batch_err), RecoveryStrategy::PartialSuccess);
+        assert_eq!(
+            determine_recovery_strategy(&batch_err),
+            RecoveryStrategy::PartialSuccess
+        );
     }
 
     #[test]

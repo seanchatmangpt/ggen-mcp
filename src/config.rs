@@ -7,13 +7,13 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-
 const DEFAULT_CACHE_CAPACITY: usize = 5;
 const DEFAULT_MAX_RECALCS: usize = 2;
 const DEFAULT_EXTENSIONS: &[&str] = &["xlsx", "xlsm", "xls", "xlsb"];
 const DEFAULT_HTTP_BIND: &str = "127.0.0.1:8079";
 const DEFAULT_TOOL_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_MAX_RESPONSE_BYTES: u64 = 1_000_000;
+const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS: u64 = 45;
 
 const MAX_CACHE_CAPACITY: usize = 1000;
 const MIN_CACHE_CAPACITY: usize = 1;
@@ -58,6 +58,7 @@ pub struct ServerConfig {
     pub tool_timeout_ms: Option<u64>,
     pub max_response_bytes: Option<u64>,
     pub allow_overwrite: bool,
+    pub graceful_shutdown_timeout_secs: u64,
 }
 
 impl ServerConfig {
@@ -77,6 +78,7 @@ impl ServerConfig {
             tool_timeout_ms: cli_tool_timeout_ms,
             max_response_bytes: cli_max_response_bytes,
             allow_overwrite: cli_allow_overwrite,
+            graceful_shutdown_timeout_secs: cli_graceful_shutdown_timeout_secs,
         } = args;
 
         let file_config = if let Some(path) = config.as_ref() {
@@ -99,6 +101,7 @@ impl ServerConfig {
             tool_timeout_ms: file_tool_timeout_ms,
             max_response_bytes: file_max_response_bytes,
             allow_overwrite: file_allow_overwrite,
+            graceful_shutdown_timeout_secs: file_graceful_shutdown_timeout_secs,
         } = file_config;
 
         let single_workbook = cli_single_workbook.or(file_single_workbook);
@@ -224,6 +227,10 @@ impl ServerConfig {
 
         let allow_overwrite = cli_allow_overwrite || file_allow_overwrite.unwrap_or(false);
 
+        let graceful_shutdown_timeout_secs = cli_graceful_shutdown_timeout_secs
+            .or(file_graceful_shutdown_timeout_secs)
+            .unwrap_or(DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS);
+
         Ok(Self {
             workspace_root,
             cache_capacity,
@@ -238,6 +245,7 @@ impl ServerConfig {
             tool_timeout_ms,
             max_response_bytes,
             allow_overwrite,
+            graceful_shutdown_timeout_secs,
         })
     }
 
@@ -573,6 +581,15 @@ pub struct CliArgs {
         help = "Allow save_fork to overwrite original workbook files"
     )]
     pub allow_overwrite: bool,
+
+    #[arg(
+        long,
+        env = "SPREADSHEET_MCP_GRACEFUL_SHUTDOWN_TIMEOUT_SECS",
+        value_name = "SECS",
+        help = "Graceful shutdown timeout in seconds (default: 45)",
+        value_parser = clap::value_parser!(u64)
+    )]
+    pub graceful_shutdown_timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -590,6 +607,7 @@ struct PartialConfig {
     tool_timeout_ms: Option<u64>,
     max_response_bytes: Option<u64>,
     allow_overwrite: Option<bool>,
+    graceful_shutdown_timeout_secs: Option<u64>,
 }
 
 fn load_config_file(path: &Path) -> Result<PartialConfig> {

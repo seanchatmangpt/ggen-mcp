@@ -1,10 +1,9 @@
 //! Comprehensive tests for SPARQL query performance analysis and optimization
 
 use spreadsheet_mcp::sparql::{
-    AntiPattern, OptimizationPriority, OptimizationType, PerformanceBudget,
-    PerformanceError, PerformanceLevel, PerformanceMetrics, QueryAnalyzer,
-    QueryComplexity, QueryOptimizer, QueryProfiler, SlowQueryConfig,
-    SlowQueryDetector,
+    AntiPattern, OptimizationPriority, OptimizationType, PerformanceBudget, PerformanceError,
+    PerformanceLevel, PerformanceMetrics, QueryAnalyzer, QueryComplexity, QueryOptimizer,
+    QueryProfiler, SlowQueryConfig, SlowQueryDetector,
 };
 use std::time::Duration;
 
@@ -27,7 +26,10 @@ fn test_analyzer_simple_query() {
     assert_eq!(complexity.triple_pattern_count, 2);
     assert_eq!(complexity.optional_count, 0);
     assert_eq!(complexity.union_count, 0);
-    assert!(matches!(complexity.performance_level(), PerformanceLevel::Excellent | PerformanceLevel::Good));
+    assert!(matches!(
+        complexity.performance_level(),
+        PerformanceLevel::Excellent | PerformanceLevel::Good
+    ));
 }
 
 #[test]
@@ -71,8 +73,12 @@ fn test_analyzer_detects_optional_overuse() {
 
     analyzer.analyze(query).unwrap();
     let anti_patterns = analyzer.get_anti_patterns();
-    
-    assert!(anti_patterns.iter().any(|ap| matches!(ap, AntiPattern::OptionalOveruse { .. })));
+
+    assert!(
+        anti_patterns
+            .iter()
+            .any(|ap| matches!(ap, AntiPattern::OptionalOveruse { .. }))
+    );
 }
 
 #[test]
@@ -92,8 +98,12 @@ fn test_analyzer_detects_union_inefficiency() {
 
     analyzer.analyze(query).unwrap();
     let anti_patterns = analyzer.get_anti_patterns();
-    
-    assert!(anti_patterns.iter().any(|ap| matches!(ap, AntiPattern::UnionInefficiency { .. })));
+
+    assert!(
+        anti_patterns
+            .iter()
+            .any(|ap| matches!(ap, AntiPattern::UnionInefficiency { .. }))
+    );
 }
 
 #[test]
@@ -124,8 +134,12 @@ fn test_analyzer_detects_deep_nesting() {
 
     analyzer.analyze(query).unwrap();
     let anti_patterns = analyzer.get_anti_patterns();
-    
-    assert!(anti_patterns.iter().any(|ap| matches!(ap, AntiPattern::DeepNesting { .. })));
+
+    assert!(
+        anti_patterns
+            .iter()
+            .any(|ap| matches!(ap, AntiPattern::DeepNesting { .. }))
+    );
 }
 
 #[test]
@@ -188,10 +202,12 @@ fn test_optimizer_suggests_triple_reordering() {
 
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
     let optimizations = optimizer.suggest_optimizations(query, &complexity, &[]);
-    
-    assert!(optimizations.iter().any(|opt| 
-        opt.optimization_type == OptimizationType::TriplePatternReorder
-    ));
+
+    assert!(
+        optimizations
+            .iter()
+            .any(|opt| opt.optimization_type == OptimizationType::TriplePatternReorder)
+    );
 }
 
 #[test]
@@ -218,12 +234,14 @@ fn test_optimizer_suggests_filter_pushdown() {
             FILTER(?email = "test@example.com")
         }
     "#;
-    
+
     let optimizations = optimizer.suggest_optimizations(query, &complexity, &[]);
-    
-    assert!(optimizations.iter().any(|opt| 
-        opt.optimization_type == OptimizationType::FilterPushdown
-    ));
+
+    assert!(
+        optimizations
+            .iter()
+            .any(|opt| opt.optimization_type == OptimizationType::FilterPushdown)
+    );
 }
 
 #[test]
@@ -245,10 +263,12 @@ fn test_optimizer_suggests_subquery_flattening() {
 
     let query = "SELECT ?s WHERE { SELECT * WHERE { SELECT * WHERE { ?s ?p ?o } } }";
     let optimizations = optimizer.suggest_optimizations(query, &complexity, &[]);
-    
-    assert!(optimizations.iter().any(|opt| 
-        opt.optimization_type == OptimizationType::SubqueryFlattening
-    ));
+
+    assert!(
+        optimizations
+            .iter()
+            .any(|opt| opt.optimization_type == OptimizationType::SubqueryFlattening)
+    );
 }
 
 #[test]
@@ -270,11 +290,13 @@ fn test_optimizer_suggests_index_hints_for_complex_queries() {
 
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
     let optimizations = optimizer.suggest_optimizations(query, &complexity, &[]);
-    
-    assert!(optimizations.iter().any(|opt| 
-        opt.optimization_type == OptimizationType::IndexHint &&
-        opt.priority == OptimizationPriority::Critical
-    ));
+
+    assert!(
+        optimizations
+            .iter()
+            .any(|opt| opt.optimization_type == OptimizationType::IndexHint
+                && opt.priority == OptimizationPriority::Critical)
+    );
 }
 
 #[test]
@@ -296,7 +318,7 @@ fn test_optimizer_prioritizes_optimizations() {
 
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
     let optimizations = optimizer.suggest_optimizations(query, &complexity, &[]);
-    
+
     // Verify optimizations are sorted by priority (highest first)
     for i in 0..optimizations.len().saturating_sub(1) {
         assert!(optimizations[i].priority >= optimizations[i + 1].priority);
@@ -346,7 +368,10 @@ fn test_budget_strict_validation_fails_on_too_many_patterns() {
 
     let result = budget.validate_query(&complexity);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), PerformanceError::TriplePatternCountExceeded { .. }));
+    assert!(matches!(
+        result.unwrap_err(),
+        PerformanceError::TriplePatternCountExceeded { .. }
+    ));
 }
 
 #[test]
@@ -368,7 +393,10 @@ fn test_budget_strict_validation_fails_on_deep_nesting() {
 
     let result = budget.validate_query(&complexity);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), PerformanceError::NestingDepthExceeded { .. }));
+    assert!(matches!(
+        result.unwrap_err(),
+        PerformanceError::NestingDepthExceeded { .. }
+    ));
 }
 
 #[test]
@@ -387,7 +415,10 @@ fn test_budget_execution_time_exceeded() {
 
     let result = budget.validate_execution(&metrics);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), PerformanceError::ExecutionTimeBudgetExceeded { .. }));
+    assert!(matches!(
+        result.unwrap_err(),
+        PerformanceError::ExecutionTimeBudgetExceeded { .. }
+    ));
 }
 
 #[test]
@@ -406,7 +437,10 @@ fn test_budget_result_set_size_exceeded() {
 
     let result = budget.validate_execution(&metrics);
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), PerformanceError::ResultSetSizeBudgetExceeded { .. }));
+    assert!(matches!(
+        result.unwrap_err(),
+        PerformanceError::ResultSetSizeBudgetExceeded { .. }
+    ));
 }
 
 #[test]
@@ -437,9 +471,9 @@ fn test_budget_unlimited_allows_everything() {
 fn test_profiler_basic_metrics() {
     let mut profiler = QueryProfiler::new("test-query-1".to_string());
     profiler.start();
-    
+
     std::thread::sleep(Duration::from_millis(10));
-    
+
     profiler.record_result_size(150);
     profiler.record_memory_usage(2048);
     profiler.record_triples_scanned(300);
@@ -448,7 +482,7 @@ fn test_profiler_basic_metrics() {
     profiler.record_cache_miss();
 
     let metrics = profiler.finish();
-    
+
     assert_eq!(metrics.query_id, "test-query-1");
     assert!(metrics.execution_time >= Duration::from_millis(10));
     assert_eq!(metrics.result_set_size, 150);
@@ -462,7 +496,7 @@ fn test_profiler_basic_metrics() {
 fn test_profiler_cache_hit_ratio() {
     let mut profiler = QueryProfiler::new("test-query-2".to_string());
     profiler.start();
-    
+
     for _ in 0..8 {
         profiler.record_cache_hit();
     }
@@ -512,7 +546,7 @@ fn test_slow_query_detector_identifies_slow_queries() {
 
     let result = detector.check_query(query, metrics).unwrap();
     assert!(result.is_some());
-    
+
     let record = result.unwrap();
     assert_eq!(record.query_text, query);
     assert!(!record.suggested_optimizations.is_empty());
@@ -557,7 +591,7 @@ fn test_slow_query_detector_tracks_history() {
     let mut detector = SlowQueryDetector::new(config);
 
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
-    
+
     for i in 0..3 {
         let metrics = PerformanceMetrics {
             query_id: format!("test-{}", i),
@@ -573,7 +607,7 @@ fn test_slow_query_detector_tracks_history() {
     }
 
     assert_eq!(detector.get_slow_queries().len(), 3);
-    
+
     let history = detector.get_query_history(query);
     assert!(history.is_some());
     assert_eq!(history.unwrap().len(), 3);
@@ -591,7 +625,7 @@ fn test_slow_query_detector_limits_history_size() {
     let mut detector = SlowQueryDetector::new(config);
 
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
-    
+
     for i in 0..10 {
         let metrics = PerformanceMetrics {
             query_id: format!("test-{}", i),
@@ -626,10 +660,10 @@ fn test_slow_query_detector_clear_history() {
         cache_misses: 5,
         timestamp: chrono::Utc::now(),
     };
-    
+
     detector.check_query(query, metrics).unwrap();
     assert!(!detector.get_slow_queries().is_empty());
-    
+
     detector.clear_history();
     assert!(detector.get_slow_queries().is_empty());
 }
@@ -659,7 +693,7 @@ fn test_full_pipeline_simple_query() {
     // Optimize
     let anti_patterns = analyzer.get_anti_patterns();
     let optimizations = optimizer.suggest_optimizations(query, &complexity, anti_patterns);
-    
+
     // Should have few or no optimizations for simple query
     assert!(optimizations.len() <= 2);
 }
@@ -706,42 +740,43 @@ fn test_full_pipeline_complex_query() {
 
     // Analyze
     let complexity = analyzer.analyze(query).unwrap();
-    
+
     // Optimize
     let anti_patterns = analyzer.get_anti_patterns();
     assert!(!anti_patterns.is_empty());
-    
+
     let optimizations = optimizer.suggest_optimizations(query, &complexity, anti_patterns);
     assert!(!optimizations.is_empty());
-    
+
     // Verify some optimizations have high priority
-    assert!(optimizations.iter().any(|opt| 
-        matches!(opt.priority, OptimizationPriority::High | OptimizationPriority::Critical)
-    ));
+    assert!(optimizations.iter().any(|opt| matches!(
+        opt.priority,
+        OptimizationPriority::High | OptimizationPriority::Critical
+    )));
 }
 
 #[test]
 fn test_profiler_with_detector() {
     let mut profiler = QueryProfiler::new("integration-test".to_string());
     profiler.start();
-    
+
     // Simulate some work
     std::thread::sleep(Duration::from_millis(150));
-    
+
     profiler.record_result_size(500);
     profiler.record_triples_scanned(2000);
-    
+
     let metrics = profiler.finish();
-    
+
     let config = SlowQueryConfig {
         slow_query_threshold: Duration::from_millis(100),
         ..Default::default()
     };
     let mut detector = SlowQueryDetector::new(config);
-    
+
     let query = "SELECT ?s WHERE { ?s ?p ?o }";
     let result = detector.check_query(query, metrics).unwrap();
-    
+
     assert!(result.is_some());
     let record = result.unwrap();
     assert!(record.metrics.execution_time >= Duration::from_millis(150));

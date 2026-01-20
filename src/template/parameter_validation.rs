@@ -32,7 +32,7 @@
 //! let output = registry.render("domain_entity.rs.tera", &ctx)?;
 //! ```
 
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 use indexmap::IndexMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -140,11 +140,9 @@ impl ParameterType {
             (ParameterType::Array(inner), JsonValue::Array(arr)) => {
                 arr.iter().all(|v| inner.matches(v))
             }
-            (ParameterType::Object(fields), JsonValue::Object(obj)) => {
-                fields.iter().all(|(k, t)| {
-                    obj.get(k).map(|v| t.matches(v)).unwrap_or(false)
-                })
-            }
+            (ParameterType::Object(fields), JsonValue::Object(obj)) => fields
+                .iter()
+                .all(|(k, t)| obj.get(k).map(|v| t.matches(v)).unwrap_or(false)),
             (ParameterType::Optional(inner), JsonValue::Null) => true,
             (ParameterType::Optional(inner), v) => inner.matches(v),
             (ParameterType::Any, _) => true,
@@ -432,7 +430,10 @@ impl ParameterSchema {
     }
 
     /// Validate a context against this schema
-    pub fn validate_context(&self, context: &HashMap<String, JsonValue>) -> Result<(), Vec<ValidationError>> {
+    pub fn validate_context(
+        &self,
+        context: &HashMap<String, JsonValue>,
+    ) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
 
         // Check for missing required parameters
@@ -507,7 +508,11 @@ impl TemplateContext {
     }
 
     /// Insert a string parameter
-    pub fn insert_string(&mut self, name: impl Into<String>, value: impl Into<String>) -> Result<&mut Self> {
+    pub fn insert_string(
+        &mut self,
+        name: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Result<&mut Self> {
         let name = name.into();
         self.context.insert(name, JsonValue::String(value.into()));
         Ok(self)
@@ -539,14 +544,22 @@ impl TemplateContext {
     }
 
     /// Insert an array parameter
-    pub fn insert_array(&mut self, name: impl Into<String>, value: Vec<JsonValue>) -> Result<&mut Self> {
+    pub fn insert_array(
+        &mut self,
+        name: impl Into<String>,
+        value: Vec<JsonValue>,
+    ) -> Result<&mut Self> {
         let name = name.into();
         self.context.insert(name, JsonValue::Array(value));
         Ok(self)
     }
 
     /// Insert an object parameter
-    pub fn insert_object(&mut self, name: impl Into<String>, value: serde_json::Map<String, JsonValue>) -> Result<&mut Self> {
+    pub fn insert_object(
+        &mut self,
+        name: impl Into<String>,
+        value: serde_json::Map<String, JsonValue>,
+    ) -> Result<&mut Self> {
         let name = name.into();
         self.context.insert(name, JsonValue::Object(value));
         Ok(self)
@@ -598,8 +611,12 @@ impl TemplateContext {
     /// Convert to Tera Context
     pub fn to_tera_context(&self) -> Result<Context> {
         let json_str = serde_json::to_string(&self.context)?;
-        Context::from_serialize(&self.context)
-            .with_context(|| format!("failed to create Tera context for template '{}'", self.template_name))
+        Context::from_serialize(&self.context).with_context(|| {
+            format!(
+                "failed to create Tera context for template '{}'",
+                self.template_name
+            )
+        })
     }
 
     /// Get the template name
@@ -701,8 +718,9 @@ impl TemplateValidator {
     /// Create a new template validator
     pub fn new(template_dir: impl AsRef<Path>) -> Result<Self> {
         let pattern = template_dir.as_ref().join("**/*.tera");
-        let tera = Tera::new(pattern.to_str().unwrap())
-            .with_context(|| format!("failed to load templates from {:?}", template_dir.as_ref()))?;
+        let tera = Tera::new(pattern.to_str().unwrap()).with_context(|| {
+            format!("failed to load templates from {:?}", template_dir.as_ref())
+        })?;
 
         Ok(Self {
             tera,
@@ -787,11 +805,14 @@ impl SafeFilter {
     /// Check rate limit
     fn check_rate_limit(&self) -> Result<(), ValidationError> {
         if let Some(limit) = self.rate_limit {
-            let count = self.call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let count = self
+                .call_count
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
             let mut last_reset = self.last_reset.lock().unwrap();
             if last_reset.elapsed() >= std::time::Duration::from_secs(1) {
-                self.call_count.store(0, std::sync::atomic::Ordering::SeqCst);
+                self.call_count
+                    .store(0, std::sync::atomic::Ordering::SeqCst);
                 *last_reset = std::time::Instant::now();
             } else if count >= limit {
                 return Err(ValidationError::RateLimitExceeded(self.name.clone()));
@@ -839,10 +860,9 @@ impl SafeFilterRegistry {
     pub fn register_with_tera(&self, tera: &mut Tera) {
         for (name, safe_filter) in &self.filters {
             let filter = safe_filter.clone();
-            tera.register_filter(
-                name,
-                move |value: &Value, args: &HashMap<String, Value>| filter.apply(value, args),
-            );
+            tera.register_filter(name, move |value: &Value, args: &HashMap<String, Value>| {
+                filter.apply(value, args)
+            });
         }
     }
 
@@ -943,7 +963,7 @@ impl TemplateRegistry {
     }
 
     /// Render a template from a string with validation
-    pub fn render_str(&self, template: &str, context: &TemplateContext) -> Result<String> {
+    pub fn render_str(&mut self, template: &str, context: &TemplateContext) -> Result<String> {
         // Validate the context (skip syntax check for ad-hoc templates)
         self.validator.param_validator.validate(context)?;
 
@@ -955,7 +975,10 @@ impl TemplateRegistry {
 
     /// Get all registered template names
     pub fn template_names(&self) -> Vec<String> {
-        self.tera.get_template_names().map(|s| s.to_string()).collect()
+        self.tera
+            .get_template_names()
+            .map(|s| s.to_string())
+            .collect()
     }
 
     /// Check if a template exists
@@ -991,9 +1014,7 @@ impl TemplateRegistry {
 
             while let Some(current) = stack.pop() {
                 if visited.contains(current) {
-                    return Err(ValidationError::CircularDependency(
-                        template.clone(),
-                    ));
+                    return Err(ValidationError::CircularDependency(template.clone()));
                 }
                 visited.insert(current);
 
@@ -1071,7 +1092,10 @@ mod tests {
         ctx.insert_bool("flag", true).unwrap();
         ctx.insert_number("count", 42).unwrap();
 
-        assert_eq!(ctx.get("name"), Some(&JsonValue::String("value".to_string())));
+        assert_eq!(
+            ctx.get("name"),
+            Some(&JsonValue::String("value".to_string()))
+        );
         assert_eq!(ctx.get("flag"), Some(&JsonValue::Bool(true)));
         assert_eq!(ctx.get("count"), Some(&JsonValue::Number(42.into())));
     }
@@ -1079,10 +1103,8 @@ mod tests {
     #[test]
     fn test_parameter_schema_validation() {
         let mut schema = ParameterSchema::new("test.tera");
-        schema = schema.parameter(
-            ParameterDefinition::new("name", ParameterType::String)
-                .required()
-        );
+        schema =
+            schema.parameter(ParameterDefinition::new("name", ParameterType::String).required());
 
         let mut context = HashMap::new();
         context.insert("name".to_string(), JsonValue::String("test".to_string()));

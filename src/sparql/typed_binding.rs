@@ -74,12 +74,12 @@ impl TypedValue {
     pub fn as_i64(&self) -> Result<i64, BindingError> {
         match self {
             TypedValue::Integer(i) => Ok(*i),
-            TypedValue::Literal(s) | TypedValue::TypedLiteral { value: s, .. } => {
-                s.parse::<i64>().map_err(|e| BindingError::LiteralValueError {
+            TypedValue::Literal(s) | TypedValue::TypedLiteral { value: s, .. } => s
+                .parse::<i64>()
+                .map_err(|e| BindingError::LiteralValueError {
                     var: "value".to_string(),
                     reason: e.to_string(),
-                })
-            }
+                }),
             _ => Err(BindingError::TypeMismatch {
                 var: "value".to_string(),
                 expected: "integer".to_string(),
@@ -93,12 +93,12 @@ impl TypedValue {
         match self {
             TypedValue::Float(f) => Ok(*f),
             TypedValue::Integer(i) => Ok(*i as f64),
-            TypedValue::Literal(s) | TypedValue::TypedLiteral { value: s, .. } => {
-                s.parse::<f64>().map_err(|e| BindingError::LiteralValueError {
+            TypedValue::Literal(s) | TypedValue::TypedLiteral { value: s, .. } => s
+                .parse::<f64>()
+                .map_err(|e| BindingError::LiteralValueError {
                     var: "value".to_string(),
                     reason: e.to_string(),
-                })
-            }
+                }),
             _ => Err(BindingError::TypeMismatch {
                 var: "value".to_string(),
                 expected: "float".to_string(),
@@ -247,13 +247,15 @@ impl<'a> TypedBinding<'a> {
     /// Extract integer (from xsd:integer or similar)
     pub fn get_integer(&self, var: &str) -> Result<i64, BindingError> {
         match self.get_term(var)? {
-            Term::Literal(lit) => lit.value().parse::<i64>().map_err(|e| {
-                BindingError::ConversionFailed {
-                    var: var.to_string(),
-                    target_type: "i64".to_string(),
-                    reason: e.to_string(),
-                }
-            }),
+            Term::Literal(lit) => {
+                lit.value()
+                    .parse::<i64>()
+                    .map_err(|e| BindingError::ConversionFailed {
+                        var: var.to_string(),
+                        target_type: "i64".to_string(),
+                        reason: e.to_string(),
+                    })
+            }
             term => Err(BindingError::TypeMismatch {
                 var: var.to_string(),
                 expected: "Literal<integer>".to_string(),
@@ -266,13 +268,14 @@ impl<'a> TypedBinding<'a> {
     pub fn get_integer_opt(&self, var: &str) -> Result<Option<i64>, BindingError> {
         match self.get_term_opt(var) {
             Some(Term::Literal(lit)) => {
-                let val = lit.value().parse::<i64>().map_err(|e| {
-                    BindingError::ConversionFailed {
-                        var: var.to_string(),
-                        target_type: "i64".to_string(),
-                        reason: e.to_string(),
-                    }
-                })?;
+                let val =
+                    lit.value()
+                        .parse::<i64>()
+                        .map_err(|e| BindingError::ConversionFailed {
+                            var: var.to_string(),
+                            target_type: "i64".to_string(),
+                            reason: e.to_string(),
+                        })?;
                 Ok(Some(val))
             }
             Some(term) => Err(BindingError::TypeMismatch {
@@ -287,13 +290,15 @@ impl<'a> TypedBinding<'a> {
     /// Extract float/double
     pub fn get_float(&self, var: &str) -> Result<f64, BindingError> {
         match self.get_term(var)? {
-            Term::Literal(lit) => lit.value().parse::<f64>().map_err(|e| {
-                BindingError::ConversionFailed {
-                    var: var.to_string(),
-                    target_type: "f64".to_string(),
-                    reason: e.to_string(),
-                }
-            }),
+            Term::Literal(lit) => {
+                lit.value()
+                    .parse::<f64>()
+                    .map_err(|e| BindingError::ConversionFailed {
+                        var: var.to_string(),
+                        target_type: "f64".to_string(),
+                        reason: e.to_string(),
+                    })
+            }
             term => Err(BindingError::TypeMismatch {
                 var: var.to_string(),
                 expected: "Literal<float>".to_string(),
@@ -354,11 +359,13 @@ impl<'a> TypedBinding<'a> {
         T::Err: std::fmt::Display,
     {
         let value = self.get_literal(var)?;
-        value.parse::<T>().map_err(|e| BindingError::ConversionFailed {
-            var: var.to_string(),
-            target_type: std::any::type_name::<T>().to_string(),
-            reason: e.to_string(),
-        })
+        value
+            .parse::<T>()
+            .map_err(|e| BindingError::ConversionFailed {
+                var: var.to_string(),
+                target_type: std::any::type_name::<T>().to_string(),
+                reason: e.to_string(),
+            })
     }
 
     /// Get all variable names in this solution
@@ -421,6 +428,11 @@ fn term_to_typed_value(term: &Term) -> Result<TypedValue, BindingError> {
                 datatype: datatype.to_string(),
             })
         }
+        Term::Triple(_) => Err(BindingError::UnsupportedType {
+            variable: "unknown".to_string(),
+            expected: "Term".to_string(),
+            found: "Triple".to_string(),
+        }),
     }
 }
 
@@ -436,6 +448,7 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
+        Term::Triple(_) => "Triple".to_string(),
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::validation::schema::{SchemaValidator, SchemaValidationError, SharedSchemaValidator};
+use crate::validation::schema::{SchemaValidationError, SchemaValidator, SharedSchemaValidator};
 use anyhow::{Result, anyhow};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -42,19 +42,21 @@ impl ValidationMiddleware {
     }
 
     /// Validate and deserialize tool parameters
-    pub fn validate_and_deserialize<T>(
-        &self,
-        tool_name: &str,
-        params: Value,
-    ) -> Result<T>
+    pub fn validate_and_deserialize<T>(&self, tool_name: &str, params: Value) -> Result<T>
     where
         T: DeserializeOwned + JsonSchema,
     {
-        debug!(tool = tool_name, "validating and deserializing tool parameters");
+        debug!(
+            tool = tool_name,
+            "validating and deserializing tool parameters"
+        );
 
         match self.validator.validate_and_deserialize(tool_name, params) {
             Ok(deserialized) => {
-                debug!(tool = tool_name, "tool parameters validated and deserialized successfully");
+                debug!(
+                    tool = tool_name,
+                    "tool parameters validated and deserialized successfully"
+                );
                 Ok(deserialized)
             }
             Err(e) => {
@@ -113,19 +115,11 @@ impl ValidationResult {
 /// Extension trait for validating tool parameters
 pub trait ValidateParams {
     /// Validate parameters against a schema
-    fn validate_params(
-        &self,
-        tool_name: &str,
-        params: &Value,
-    ) -> Result<ValidationResult>;
+    fn validate_params(&self, tool_name: &str, params: &Value) -> Result<ValidationResult>;
 }
 
 impl ValidateParams for SchemaValidator {
-    fn validate_params(
-        &self,
-        tool_name: &str,
-        params: &Value,
-    ) -> Result<ValidationResult> {
+    fn validate_params(&self, tool_name: &str, params: &Value) -> Result<ValidationResult> {
         match self.validate(tool_name, params) {
             Ok(()) => Ok(ValidationResult::success(tool_name.to_string())),
             Err(SchemaValidationError::ValidationFailed { errors, .. }) => {
@@ -147,8 +141,7 @@ pub fn format_validation_errors(tool_name: &str, errors: &[String]) -> String {
 
     format!(
         "Tool '{}' parameter validation failed:\n{}",
-        tool_name,
-        error_list
+        tool_name, error_list
     )
 }
 
@@ -193,14 +186,22 @@ mod tests {
             "count": 42
         });
 
-        assert!(middleware.validate_tool_call("test_tool", &valid_params).is_ok());
+        assert!(
+            middleware
+                .validate_tool_call("test_tool", &valid_params)
+                .is_ok()
+        );
 
         let invalid_params = serde_json::json!({
             "name": "test"
             // missing count
         });
 
-        assert!(middleware.validate_tool_call("test_tool", &invalid_params).is_err());
+        assert!(
+            middleware
+                .validate_tool_call("test_tool", &invalid_params)
+                .is_err()
+        );
     }
 
     #[test]

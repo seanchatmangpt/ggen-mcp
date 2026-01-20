@@ -183,9 +183,10 @@ impl SparqlSanitizer {
     pub fn escape_number(input: &str) -> Result<String> {
         // Validate it's a valid number
         if !Self::is_valid_number(input) {
-            return Err(SparqlSecurityError::InvalidLiteral(
-                format!("Not a valid number: {}", input)
-            ));
+            return Err(SparqlSecurityError::InvalidLiteral(format!(
+                "Not a valid number: {}",
+                input
+            )));
         }
 
         Ok(input.to_string())
@@ -211,9 +212,10 @@ impl SparqlSanitizer {
 
         for pattern in &dangerous_patterns {
             if upper.contains(pattern) {
-                return Err(SparqlSecurityError::MaliciousPattern(
-                    format!("Keyword {} detected in user input", pattern)
-                ));
+                return Err(SparqlSecurityError::MaliciousPattern(format!(
+                    "Keyword {} detected in user input",
+                    pattern
+                )));
             }
         }
 
@@ -236,7 +238,7 @@ impl SparqlSanitizer {
     fn is_valid_fragment(input: &str) -> bool {
         // Fragment should be after the last # and contain valid characters
         if let Some(pos) = input.rfind('#') {
-            let fragment = &input[pos+1..];
+            let fragment = &input[pos + 1..];
             !fragment.contains("//") && !fragment.contains(' ')
         } else {
             false
@@ -532,24 +534,26 @@ impl VariableValidator {
         // Check minimum length
         if var.len() < 2 {
             return Err(SparqlSecurityError::InvalidVariable(
-                "Variable name too short".to_string()
+                "Variable name too short".to_string(),
             ));
         }
 
         // Check first character
         let first_char = var.chars().next().unwrap();
         if first_char != '?' && first_char != '$' {
-            return Err(SparqlSecurityError::InvalidVariable(
-                format!("Variable must start with ? or $, got: {}", first_char)
-            ));
+            return Err(SparqlSecurityError::InvalidVariable(format!(
+                "Variable must start with ? or $, got: {}",
+                first_char
+            )));
         }
 
         // Check remaining characters
         for ch in var.chars().skip(1) {
             if !ch.is_alphanumeric() && ch != '_' {
-                return Err(SparqlSecurityError::InvalidVariable(
-                    format!("Invalid character in variable name: {}", ch)
-                ));
+                return Err(SparqlSecurityError::InvalidVariable(format!(
+                    "Invalid character in variable name: {}",
+                    ch
+                )));
             }
         }
 
@@ -562,9 +566,12 @@ impl VariableValidator {
     /// Check if variable name conflicts with reserved keywords.
     fn check_reserved_keywords(var: &str) -> Result<()> {
         let reserved: HashSet<&str> = [
-            "?a", "?b", "?c", "?o", "?p", "?s", "?x", "?y", "?z",
-            "?base", "?prefix", "?graph", "?default",
-        ].iter().cloned().collect();
+            "?a", "?b", "?c", "?o", "?p", "?s", "?x", "?y", "?z", "?base", "?prefix", "?graph",
+            "?default",
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         if reserved.contains(var) {
             return Err(SparqlSecurityError::ReservedKeyword(var.to_string()));
@@ -664,8 +671,8 @@ impl SafeLiteralBuilder {
     /// Build the literal as a SPARQL string.
     pub fn build(self) -> String {
         // Escape the value
-        let escaped_value = SparqlSanitizer::escape_string(&self.value)
-            .unwrap_or_else(|_| self.value);
+        let escaped_value =
+            SparqlSanitizer::escape_string(&self.value).unwrap_or_else(|_| self.value);
 
         let mut result = format!("\"{}\"", escaped_value);
 
@@ -716,14 +723,14 @@ impl IriValidator {
         // Check for dangerous characters
         if iri.contains('<') || iri.contains('>') {
             return Err(SparqlSecurityError::InvalidIri(
-                "IRI contains angle brackets".to_string()
+                "IRI contains angle brackets".to_string(),
             ));
         }
 
         // Check for spaces
         if iri.contains(' ') {
             return Err(SparqlSecurityError::InvalidIri(
-                "IRI contains spaces".to_string()
+                "IRI contains spaces".to_string(),
             ));
         }
 
@@ -741,9 +748,11 @@ impl IriValidator {
         let scheme = &iri[..scheme_end];
 
         let valid_schemes: HashSet<&str> = [
-            "http", "https", "urn", "ftp", "file",
-            "mailto", "tel", "data", "urn",
-        ].iter().cloned().collect();
+            "http", "https", "urn", "ftp", "file", "mailto", "tel", "data", "urn",
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
         if !valid_schemes.contains(scheme) {
             return Err(SparqlSecurityError::InvalidScheme(scheme.to_string()));
@@ -789,7 +798,10 @@ mod tests {
     #[test]
     fn test_sanitizer_detects_malicious_patterns() {
         let result = SparqlSanitizer::escape_string("test UNION select");
-        assert!(matches!(result, Err(SparqlSecurityError::MaliciousPattern(_))));
+        assert!(matches!(
+            result,
+            Err(SparqlSecurityError::MaliciousPattern(_))
+        ));
     }
 
     #[test]

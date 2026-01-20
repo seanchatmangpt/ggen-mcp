@@ -8,7 +8,7 @@ mod tests {
             "ont-test123".to_string(),
             "path/to/onto.ttl".to_string(),
         );
-        
+
         // Act & Assert
         ontology.validate();
         assert!(!ontology.id.is_empty());
@@ -16,11 +16,9 @@ mod tests {
 
     test!(test_receipt_validate, {
         // Arrange
-        let receipt = crate::domain::aggregates::Receipt::new(
-            "receipt-123".to_string(),
-            "hash1".to_string(),
-        );
-        
+        let receipt =
+            crate::domain::aggregates::Receipt::new("receipt-123".to_string(), "hash1".to_string());
+
         // Act & Assert
         receipt.validate();
         assert_eq!(receipt.receipt_id, "receipt-123");

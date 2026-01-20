@@ -14,12 +14,12 @@ pub mod injection_prevention;
 pub mod performance;
 
 // Result validation and type-safe bindings
+pub mod cache;
+pub mod graph_validator;
+pub mod query_wrappers;
+pub mod result_mapper;
 pub mod result_validation;
 pub mod typed_binding;
-pub mod result_mapper;
-pub mod graph_validator;
-pub mod cache;
-pub mod query_wrappers;
 
 // Re-export injection prevention components
 pub use injection_prevention::{
@@ -35,12 +35,12 @@ pub use performance::{
 };
 
 // Re-export result validation components
-pub use result_validation::{ResultSetValidator, ValidationError, CardinalityConstraint};
-pub use typed_binding::{TypedBinding, TypedValue, BindingError};
-pub use result_mapper::{ResultMapper, FromSparql, MappingError};
-pub use graph_validator::{GraphValidator, GraphValidationError};
-pub use cache::{QueryResultCache, CacheConfig, CacheInvalidationStrategy};
+pub use cache::{CacheConfig, CacheInvalidationStrategy, QueryResultCache};
+pub use graph_validator::{GraphValidationError, GraphValidator};
 pub use query_wrappers::*;
+pub use result_mapper::{FromSparql, MappingError, ResultMapper};
+pub use result_validation::{CardinalityConstraint, ResultSetValidator, ValidationError};
+pub use typed_binding::{BindingError, TypedBinding, TypedValue};
 
 use oxigraph::sparql::QueryResults;
 use std::collections::HashMap;

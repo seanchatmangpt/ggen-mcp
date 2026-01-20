@@ -1,7 +1,7 @@
 //! Partial success handling for batch operations
 
 use anyhow::Result;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, warn};
 
@@ -108,8 +108,7 @@ impl<T> BatchResult<T> {
             .saturating_sub(self.summary.failure_count);
 
         if total > 0 {
-            self.summary.success_rate =
-                (self.summary.success_count as f64 / total as f64) * 100.0;
+            self.summary.success_rate = (self.summary.success_count as f64 / total as f64) * 100.0;
         }
 
         self
@@ -174,11 +173,7 @@ impl PartialSuccessHandler {
     }
 
     /// Process a batch of items with partial success handling
-    pub fn process_batch<T, I, F>(
-        &self,
-        items: Vec<I>,
-        mut processor: F,
-    ) -> BatchResult<T>
+    pub fn process_batch<T, I, F>(&self, items: Vec<I>, mut processor: F) -> BatchResult<T>
     where
         F: FnMut(usize, I) -> Result<T>,
     {
@@ -202,12 +197,7 @@ impl PartialSuccessHandler {
                 }
                 Err(err) => {
                     let is_fatal = self.is_fatal_error(&err);
-                    result.add_failure(
-                        index,
-                        format!("item_{}", index),
-                        err.to_string(),
-                        is_fatal,
-                    );
+                    result.add_failure(index, format!("item_{}", index), err.to_string(), is_fatal);
 
                     if is_fatal || self.fail_fast {
                         warn!(
@@ -253,12 +243,7 @@ impl PartialSuccessHandler {
                 }
                 Err(err) => {
                     let is_fatal = self.is_fatal_error(&err);
-                    result.add_failure(
-                        index,
-                        format!("item_{}", index),
-                        err.to_string(),
-                        is_fatal,
-                    );
+                    result.add_failure(index, format!("item_{}", index), err.to_string(), is_fatal);
 
                     if is_fatal || self.fail_fast {
                         warn!(

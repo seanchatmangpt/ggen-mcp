@@ -202,8 +202,8 @@ fn example_phantom_validation() -> Result<()> {
 
     let validated = unvalidated.validate()?;
 
-    println!("{}", validated.process());  // ✓ OK
-    validated.save()?;                     // ✓ OK
+    println!("{}", validated.process()); // ✓ OK
+    validated.save()?; // ✓ OK
 
     Ok(())
 }
@@ -264,7 +264,7 @@ fn example_resource_tracking() -> Result<()> {
     // resource.use_resource();  // ✗ Compile error! Not acquired
 
     let acquired = resource.acquire()?;
-    acquired.use_resource()?;   // ✓ OK
+    acquired.use_resource()?; // ✓ OK
 
     let released = acquired.release();
     // released.use_resource();  // ✗ Compile error! Released
@@ -304,7 +304,10 @@ impl ToolHandler for CountRowsHandler {
     type Response = CountRowsResponse;
 
     async fn execute(&self, params: Self::Params) -> Result<Self::Response> {
-        println!("Counting rows in {}/{}", params.workbook_id, params.sheet_name);
+        println!(
+            "Counting rows in {}/{}",
+            params.workbook_id, params.sheet_name
+        );
         Ok(CountRowsResponse { count: 100 })
     }
 
@@ -598,15 +601,15 @@ fn example_state_machine() -> Result<()> {
     // conn.query("SELECT *");  // ✗ Compile error! Not connected
 
     let conn = conn.connect()?.finish_connect()?;
-    conn.query("SELECT * FROM users")?;  // ✓ OK
+    conn.query("SELECT * FROM users")?; // ✓ OK
 
     let conn = conn.begin_transaction()?;
-    conn.execute("INSERT INTO users VALUES (...)")?;  // ✓ OK
+    conn.execute("INSERT INTO users VALUES (...)")?; // ✓ OK
 
     // conn.query("SELECT *");  // ✗ Compile error! In transaction, use execute()
 
     let conn = conn.commit()?;
-    conn.query("SELECT * FROM users")?;  // ✓ OK again
+    conn.query("SELECT * FROM users")?; // ✓ OK again
 
     Ok(())
 }

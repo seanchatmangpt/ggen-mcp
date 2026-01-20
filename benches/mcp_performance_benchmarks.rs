@@ -10,7 +10,7 @@
 // View reports: target/criterion/report/index.html
 
 use criterion::{
-    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
 };
 use lru::LruCache;
 use parking_lot::RwLock;
@@ -30,28 +30,24 @@ fn bench_cache_operations(c: &mut Criterion) {
     // Test different cache sizes (realistic for MCP server)
     for size in [10, 50, 100, 500] {
         // Cache Hit Performance
-        group.bench_with_input(
-            BenchmarkId::new("hit_rwlock", size),
-            &size,
-            |b, &size| {
-                let cache = Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(size).unwrap())));
+        group.bench_with_input(BenchmarkId::new("hit_rwlock", size), &size, |b, &size| {
+            let cache = Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(size).unwrap())));
 
-                // Pre-populate cache
-                {
-                    let mut c = cache.write();
-                    for i in 0..size {
-                        c.put(format!("key-{}", i), format!("value-{}", i));
-                    }
+            // Pre-populate cache
+            {
+                let mut c = cache.write();
+                for i in 0..size {
+                    c.put(format!("key-{}", i), format!("value-{}", i));
                 }
+            }
 
-                let key = format!("key-{}", size / 2);
+            let key = format!("key-{}", size / 2);
 
-                b.iter(|| {
-                    let c = cache.read();
-                    black_box(c.peek(&key).cloned())
-                });
-            },
-        );
+            b.iter(|| {
+                let c = cache.read();
+                black_box(c.peek(&key).cloned())
+            });
+        });
 
         // Cache Miss + Insert Performance
         group.bench_with_input(
@@ -171,25 +167,33 @@ fn bench_vec_allocations(c: &mut Criterion) {
     for size in [10, 100, 1000] {
         group.throughput(Throughput::Elements(size as u64));
 
-        group.bench_with_input(BenchmarkId::new("push_reallocate", size), &size, |b, &size| {
-            b.iter(|| {
-                let mut v = Vec::new();
-                for i in 0..size {
-                    v.push(i);
-                }
-                black_box(v)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("push_reallocate", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut v = Vec::new();
+                    for i in 0..size {
+                        v.push(i);
+                    }
+                    black_box(v)
+                });
+            },
+        );
 
-        group.bench_with_input(BenchmarkId::new("with_capacity", size), &size, |b, &size| {
-            b.iter(|| {
-                let mut v = Vec::with_capacity(size);
-                for i in 0..size {
-                    v.push(i);
-                }
-                black_box(v)
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("with_capacity", size),
+            &size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut v = Vec::with_capacity(size);
+                    for i in 0..size {
+                        v.push(i);
+                    }
+                    black_box(v)
+                });
+            },
+        );
 
         group.bench_with_input(BenchmarkId::new("collect", size), &size, |b, &size| {
             b.iter(|| {
@@ -250,9 +254,7 @@ fn bench_lock_types(c: &mut Criterion) {
 
     group.bench_function("atomic_counter", |b| {
         let counter = AtomicU64::new(0);
-        b.iter(|| {
-            black_box(counter.fetch_add(1, Ordering::Relaxed))
-        });
+        b.iter(|| black_box(counter.fetch_add(1, Ordering::Relaxed)));
     });
 
     group.bench_function("mutex_counter", |b| {
@@ -310,7 +312,7 @@ fn bench_hashing(c: &mut Criterion) {
 }
 
 // =============================================================================
-// 5. SPARQL QUERY CACHE SIMULATION
+// 5. SPARQL QUERY CACHE SIMULATION (WITH OPTIMIZATION COMPARISON)
 // =============================================================================
 
 fn bench_sparql_cache(c: &mut Criterion) {
@@ -325,10 +327,11 @@ fn bench_sparql_cache(c: &mut Criterion) {
         "ASK { ?s a owl:Class }",
     ];
 
-    group.bench_function("fingerprint_and_lookup", |b| {
-        let cache = Arc::new(RwLock::new(
-            LruCache::<String, Vec<String>>::new(NonZeroUsize::new(100).unwrap()),
-        ));
+    // BEFORE: SHA256-based fingerprinting
+    group.bench_function("sha256_fingerprint_and_lookup", |b| {
+        let cache = Arc::new(RwLock::new(LruCache::<String, Vec<String>>::new(
+            NonZeroUsize::new(100).unwrap(),
+        )));
 
         // Pre-populate with some entries
         {
@@ -351,6 +354,41 @@ fn bench_sparql_cache(c: &mut Criterion) {
             let mut hasher = Sha256::new();
             hasher.update(query.as_bytes());
             let fp = format!("{:x}", hasher.finalize());
+
+            // Cache lookup
+            let c = cache.read();
+            black_box(c.peek(&fp).cloned())
+        });
+    });
+
+    // AFTER: ahash-based fingerprinting (optimized)
+    group.bench_function("ahash_fingerprint_and_lookup", |b| {
+        use std::hash::{Hash, Hasher};
+        let cache = Arc::new(RwLock::new(LruCache::<String, Vec<String>>::new(
+            NonZeroUsize::new(100).unwrap(),
+        )));
+
+        // Pre-populate with some entries
+        {
+            let mut c = cache.write();
+            for (i, query) in queries.iter().enumerate() {
+                let mut hasher = ahash::AHasher::default();
+                query.hash(&mut hasher);
+                let fp = format!("{:016x}", hasher.finish());
+                c.put(fp, vec![format!("result-{}", i)]);
+            }
+        }
+
+        let mut query_idx = 0;
+
+        b.iter(|| {
+            let query = queries[query_idx % queries.len()];
+            query_idx += 1;
+
+            // Fingerprint (optimized with ahash)
+            let mut hasher = ahash::AHasher::default();
+            query.hash(&mut hasher);
+            let fp = format!("{:016x}", hasher.finish());
 
             // Cache lookup
             let c = cache.read();
@@ -453,16 +491,14 @@ fn bench_json_serialization(c: &mut Criterion) {
     let json_str = serde_json::to_string(&descriptor).unwrap();
 
     group.bench_function("deserialize_from_str", |b| {
-        b.iter(|| {
-            black_box(serde_json::from_str::<WorkbookDescriptor>(&json_str).unwrap())
-        });
+        b.iter(|| black_box(serde_json::from_str::<WorkbookDescriptor>(&json_str).unwrap()));
     });
 
     group.finish();
 }
 
 // =============================================================================
-// 8. FORMULA PARSING SIMULATION
+// 8. FORMULA PARSING SIMULATION (WITH CACHE BOUNDS)
 // =============================================================================
 
 fn bench_formula_patterns(c: &mut Criterion) {
@@ -488,6 +524,61 @@ fn bench_formula_patterns(c: &mut Criterion) {
             let mut hasher = ahash::AHasher::default();
             formula.hash(&mut hasher);
             black_box(hasher.finish())
+        });
+    });
+
+    // BEFORE: Unbounded HashMap cache
+    group.bench_function("unbounded_cache", |b| {
+        use std::collections::HashMap;
+        let cache = Arc::new(RwLock::new(HashMap::<String, String>::new()));
+
+        b.iter(|| {
+            let formula = formulas[black_box(0) % formulas.len()];
+
+            // Check cache
+            {
+                let c = cache.read();
+                if let Some(cached) = c.get(formula) {
+                    return black_box(cached.clone());
+                }
+            }
+
+            // Parse and insert
+            let result = format!("parsed_{}", formula);
+            {
+                let mut c = cache.write();
+                c.insert(formula.to_string(), result.clone());
+            }
+
+            black_box(result)
+        });
+    });
+
+    // AFTER: LRU-bounded cache (prevents memory leak)
+    group.bench_function("lru_bounded_cache", |b| {
+        let cache = Arc::new(RwLock::new(LruCache::<String, String>::new(
+            NonZeroUsize::new(100).unwrap(),
+        )));
+
+        b.iter(|| {
+            let formula = formulas[black_box(0) % formulas.len()];
+
+            // Check cache
+            {
+                let mut c = cache.write();
+                if let Some(cached) = c.get(formula) {
+                    return black_box(cached.clone());
+                }
+            }
+
+            // Parse and insert
+            let result = format!("parsed_{}", formula);
+            {
+                let mut c = cache.write();
+                c.push(formula.to_string(), result.clone());
+            }
+
+            black_box(result)
         });
     });
 
@@ -554,7 +645,68 @@ fn bench_io_patterns(c: &mut Criterion) {
 }
 
 // =============================================================================
-// 10. REALISTIC MCP REQUEST SIMULATION
+// 10. CACHE WARMING SIMULATION
+// =============================================================================
+
+fn bench_cache_warming(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cache_warming");
+    group.sample_size(20);
+
+    // Simulate cache warming for multiple workbooks
+    group.bench_function("cold_start_no_warming", |b| {
+        b.iter(|| {
+            // Simulate loading workbook from disk (cold)
+            let workbook_ids = vec!["wb1", "wb2", "wb3", "wb4", "wb5"];
+            let mut results = Vec::new();
+
+            for id in &workbook_ids {
+                // Simulate disk I/O latency
+                std::thread::sleep(Duration::from_micros(100));
+                results.push(format!("loaded_{}", id));
+            }
+
+            black_box(results)
+        });
+    });
+
+    group.bench_function("warm_start_with_cache", |b| {
+        // Pre-warm cache
+        let cache = Arc::new(RwLock::new(LruCache::<String, String>::new(
+            NonZeroUsize::new(50).unwrap(),
+        )));
+
+        {
+            let mut c = cache.write();
+            for i in 1..=5 {
+                let id = format!("wb{}", i);
+                c.put(id.clone(), format!("loaded_{}", id));
+            }
+        }
+
+        b.iter(|| {
+            let workbook_ids = vec!["wb1", "wb2", "wb3", "wb4", "wb5"];
+            let mut results = Vec::new();
+
+            for id in &workbook_ids {
+                let cache = cache.read();
+                if let Some(cached) = cache.peek(*id) {
+                    results.push(cached.clone());
+                } else {
+                    // Simulate disk I/O only for cache miss
+                    std::thread::sleep(Duration::from_micros(100));
+                    results.push(format!("loaded_{}", id));
+                }
+            }
+
+            black_box(results)
+        });
+    });
+
+    group.finish();
+}
+
+// =============================================================================
+// 11. REALISTIC MCP REQUEST SIMULATION
 // =============================================================================
 
 fn bench_mcp_request_simulation(c: &mut Criterion) {
@@ -569,9 +721,7 @@ fn bench_mcp_request_simulation(c: &mut Criterion) {
 
     impl MockAppState {
         fn new() -> Self {
-            let cache = Arc::new(RwLock::new(
-                LruCache::new(NonZeroUsize::new(50).unwrap())
-            ));
+            let cache = Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(50).unwrap())));
             let index = Arc::new(RwLock::new(HashMap::new()));
 
             // Pre-populate
@@ -621,9 +771,7 @@ fn bench_mcp_request_simulation(c: &mut Criterion) {
             state.get_workbook(&format!("wb-{}", i));
         }
 
-        b.iter(|| {
-            black_box(state.get_workbook("wb-5"))
-        });
+        b.iter(|| black_box(state.get_workbook("wb-5")));
     });
 
     group.bench_function("cache_miss_request", |b| {
@@ -655,6 +803,7 @@ criterion_group!(
     bench_json_serialization,
     bench_formula_patterns,
     bench_io_patterns,
+    bench_cache_warming,
     bench_mcp_request_simulation,
 );
 

@@ -5,9 +5,9 @@
 
 use anyhow::Result;
 use spreadsheet_mcp::recovery::{
-    CircuitBreaker, CircuitBreakerConfig, RetryConfig, ExponentialBackoff,
-    retry_async_with_policy, RegionDetectionFallback, PartialSuccessHandler,
-    WorkbookRecoveryStrategy, GracefulDegradation,
+    CircuitBreaker, CircuitBreakerConfig, ExponentialBackoff, GracefulDegradation,
+    PartialSuccessHandler, RegionDetectionFallback, RetryConfig, WorkbookRecoveryStrategy,
+    retry_async_with_policy,
 };
 use std::path::Path;
 use std::sync::Arc;
@@ -109,10 +109,7 @@ mod resilient_region_detection {
             .execute()
     }
 
-    fn detect_regions_primary(
-        _sheet: &Worksheet,
-        _metrics: &SheetMetrics,
-    ) -> Result<Vec<String>> {
+    fn detect_regions_primary(_sheet: &Worksheet, _metrics: &SheetMetrics) -> Result<Vec<String>> {
         // This would call the actual region detection logic
         // For now, simulate with an error to show fallback
         anyhow::bail!("Region detection timed out")
@@ -123,7 +120,7 @@ mod resilient_region_detection {
 #[cfg(feature = "recalc")]
 mod resilient_batch_operations {
     use super::*;
-    use spreadsheet_mcp::recovery::{BatchResult, BatchOperationResult};
+    use spreadsheet_mcp::recovery::{BatchOperationResult, BatchResult};
 
     #[derive(Debug, Clone)]
     pub struct CellEdit {
@@ -278,8 +275,7 @@ mod combined_recovery {
             let backup_path = self.workbook_manager.create_backup(path)?;
 
             // Step 3: Recalculate with retry and circuit breaker
-            let recalc_result = match self.recalc_executor.recalculate_with_recovery(path).await
-            {
+            let recalc_result = match self.recalc_executor.recalculate_with_recovery(path).await {
                 Ok(result) => Some(result),
                 Err(err) => {
                     tracing::warn!("Recalculation failed, continuing without it: {}", err);

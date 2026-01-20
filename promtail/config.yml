@@ -1,0 +1,129 @@
+# Promtail Configuration for Log Collection
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+
+scrape_configs:
+  # ============================================================================
+  # System Logs
+  # ============================================================================
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          host: ggen-mcp-host
+          __path__: /var/log/*.log
+
+  # ============================================================================
+  # Docker Container Logs
+  # ============================================================================
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Only collect logs from containers with specific labels
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        regex: 'ggen-mcp.*'
+        action: keep
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: stream
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: service
+
+  # ============================================================================
+  # GGEN MCP Application Logs
+  # ============================================================================
+  - job_name: ggen-mcp
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ggen-mcp
+          service: ggen-mcp
+          __path__: /var/log/ggen-mcp/*.log
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            message: message
+            tool: tool
+            error: error
+            duration_ms: duration_ms
+            trace_id: trace_id
+      # Extract timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      # Set log level
+      - labels:
+          level:
+          tool:
+      # Add trace ID for correlation
+      - labels:
+          trace_id:
+
+  # ============================================================================
+  # NGINX/Access Logs (if applicable)
+  # ============================================================================
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: nginx
+          __path__: /var/log/nginx/*.log
+    pipeline_stages:
+      # Parse NGINX combined log format
+      - regex:
+          expression: '^(?P<remote_addr>[\d\.]+) - (?P<remote_user>[^ ]+) \[(?P<time_local>[^\]]+)\] "(?P<method>[A-Z]+) (?P<request_path>[^ ]+) (?P<protocol>[^"]+)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)"'
+      - labels:
+          method:
+          status:
+      # Extract numeric values as metrics
+      - metrics:
+          request_duration:
+            type: Histogram
+            description: "Duration of HTTP requests"
+            source: body_bytes_sent
+            config:
+              buckets: [100, 1000, 10000, 100000]
+
+  # ============================================================================
+  # Error Logs (specific filtering)
+  # ============================================================================
+  - job_name: errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: errors
+          severity: error
+          __path__: /var/log/**/*error*.log
+    pipeline_stages:
+      - match:
+          selector: '{job="errors"}'
+          stages:
+            - regex:
+                expression: '(?P<level>(ERROR|FATAL|CRITICAL))'
+            - labels:
+                level:

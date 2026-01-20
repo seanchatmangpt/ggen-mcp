@@ -117,7 +117,10 @@ fn main() {
     });
 
     println!("Parameters:");
-    println!("{}", serde_json::to_string_pretty(&invalid_type_params).unwrap());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&invalid_type_params).unwrap()
+    );
 
     println!("\n✗ Validation failed:");
     println!("  - Field 'limit': expected integer, got string\n");
