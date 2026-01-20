@@ -1,0 +1,32 @@
+{
+  "tool_name": "ListUsers",
+  "description": "Lists users with pagination and filtering support",
+  "category": "user_management",
+  "has_params": true,
+  "has_pagination": true,
+  "has_filters": true,
+  "params": [
+    {
+      "name": "role",
+      "rust_type": "String",
+      "description": "Filter users by role",
+      "required": false,
+      "filterable": true
+    },
+    {
+      "name": "active_only",
+      "rust_type": "bool",
+      "description": "Only return active users",
+      "required": false,
+      "default": "true",
+      "filterable": true
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "items",
+      "rust_type": "Vec<UserSummary>",
+      "description": "List of user summaries"
+    }
+  ]
+}

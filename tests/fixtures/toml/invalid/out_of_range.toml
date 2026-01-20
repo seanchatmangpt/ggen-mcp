@@ -1,0 +1,23 @@
+# Invalid: values out of acceptable ranges
+
+[project]
+name = "test"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+base_uri = "https://test.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://test.dev/"
+default_format = "turtle"
+
+[sparql]
+timeout = -10        # Negative timeout
+max_results = 0      # Zero or negative results
+cache_ttl = -1       # Negative TTL
+
+[performance]
+max_workers = 0      # Zero workers
+memory_limit_mb = -100  # Negative memory

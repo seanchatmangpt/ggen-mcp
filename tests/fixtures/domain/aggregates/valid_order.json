@@ -1,0 +1,37 @@
+{
+  "id": "order_789",
+  "user_id": "user_123",
+  "items": [
+    {
+      "product_id": "product_001",
+      "quantity": 2,
+      "unit_price": {
+        "amount": 2999,
+        "currency": "USD"
+      },
+      "subtotal": {
+        "amount": 5998,
+        "currency": "USD"
+      }
+    },
+    {
+      "product_id": "product_002",
+      "quantity": 1,
+      "unit_price": {
+        "amount": 1499,
+        "currency": "USD"
+      },
+      "subtotal": {
+        "amount": 1499,
+        "currency": "USD"
+      }
+    }
+  ],
+  "total": {
+    "amount": 7497,
+    "currency": "USD"
+  },
+  "status": "Confirmed",
+  "payment_status": "Paid",
+  "version": 3
+}

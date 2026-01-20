@@ -1,0 +1,23 @@
+[server]
+host = "127.0.0.1"
+port = 3000
+workers = 4
+
+[database]
+url = "postgresql://localhost/ggen"
+pool_size = 10
+timeout_seconds = 30
+
+[ontology]
+file = "ggen-mcp.ttl"
+namespace = "http://example.org/ggen#"
+
+[codegen]
+output_dir = "generated"
+template_dir = "templates"
+overwrite = false
+
+[validation]
+enabled = true
+strict_mode = true
+max_errors = 100

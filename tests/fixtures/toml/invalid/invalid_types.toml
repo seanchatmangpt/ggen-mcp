@@ -1,0 +1,23 @@
+# Invalid: wrong types for fields
+
+[project]
+name = "test"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+base_uri = "https://test.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://test.dev/"
+default_format = "turtle"
+
+[sparql]
+timeout = "invalid"  # Should be a number
+max_results = true    # Should be a number
+cache_enabled = "yes" # Should be boolean
+
+[performance]
+parallel_execution = "true"  # Should be boolean
+max_workers = "eight"         # Should be number

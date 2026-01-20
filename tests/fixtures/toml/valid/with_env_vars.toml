@@ -1,0 +1,35 @@
+# Configuration with environment variable overrides
+
+[project]
+name = "env-test"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/env.ttl"
+base_uri = "https://env.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://env.dev/"
+default_format = "turtle"
+
+[logging]
+level = "info"
+format = "pretty"
+
+# Environment-specific overrides
+[env.development]
+"logging.level" = "debug"
+"performance.max_workers" = 2
+"sparql.cache_ttl" = 300
+
+[env.ci]
+"logging.level" = "warn"
+"logging.format" = "json"
+"performance.max_workers" = 1
+
+[env.production]
+"logging.level" = "error"
+"logging.format" = "json"
+"performance.max_workers" = 16
+"sparql.cache_ttl" = 86400

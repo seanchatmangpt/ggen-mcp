@@ -1,0 +1,40 @@
+{
+  "entity_name": "User",
+  "description": "User aggregate root for managing user accounts",
+  "has_id": true,
+  "has_timestamps": true,
+  "has_validation": true,
+  "has_builder": true,
+  "fields": [
+    {
+      "name": "username",
+      "rust_type": "String",
+      "description": "Unique username for the user",
+      "required": true
+    },
+    {
+      "name": "email",
+      "rust_type": "String",
+      "description": "Email address for the user",
+      "required": true
+    },
+    {
+      "name": "full_name",
+      "rust_type": "String",
+      "description": "Full display name",
+      "required": false
+    }
+  ],
+  "invariants": [
+    {
+      "description": "Username must be at least 3 characters",
+      "expression": "self.username.len() >= 3",
+      "message": "Username must be at least 3 characters long"
+    },
+    {
+      "description": "Email must contain @ symbol",
+      "expression": "self.email.contains('@')",
+      "message": "Email must be a valid email address"
+    }
+  ]
+}

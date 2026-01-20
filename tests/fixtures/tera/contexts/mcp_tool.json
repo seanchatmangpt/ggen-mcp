@@ -1,0 +1,51 @@
+{
+  "tool_name": "CreateUser",
+  "description": "Creates a new user account with validation",
+  "category": "user_management",
+  "has_params": true,
+  "has_pagination": false,
+  "has_filters": false,
+  "params": [
+    {
+      "name": "username",
+      "rust_type": "String",
+      "description": "Unique username for the new user",
+      "required": true,
+      "filterable": false
+    },
+    {
+      "name": "email",
+      "rust_type": "String",
+      "description": "Email address for the new user",
+      "required": true,
+      "filterable": false
+    },
+    {
+      "name": "full_name",
+      "rust_type": "String",
+      "description": "Full display name",
+      "required": false,
+      "filterable": false
+    },
+    {
+      "name": "roles",
+      "rust_type": "Vec<String>",
+      "description": "Roles to assign to the user",
+      "required": false,
+      "default": "vec![]",
+      "filterable": false
+    }
+  ],
+  "response_fields": [
+    {
+      "name": "user_id",
+      "rust_type": "String",
+      "description": "Unique identifier for the created user"
+    },
+    {
+      "name": "created_at",
+      "rust_type": "String",
+      "description": "Timestamp when the user was created"
+    }
+  ]
+}

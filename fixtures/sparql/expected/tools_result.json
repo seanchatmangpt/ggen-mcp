@@ -1,0 +1,64 @@
+{
+  "description": "Expected results from mcp_tools.sparql query",
+  "query_file": "queries/mcp_tools.sparql",
+  "expected_results": [
+    {
+      "toolName": "read_spreadsheet",
+      "toolDescription": "Read data from a spreadsheet file",
+      "parameters": [
+        {
+          "paramName": "path",
+          "paramType": "string",
+          "paramRequired": true,
+          "paramDescription": "Path to the spreadsheet file"
+        },
+        {
+          "paramName": "sheet",
+          "paramType": "string",
+          "paramRequired": false,
+          "paramDescription": "Sheet name or index"
+        }
+      ]
+    },
+    {
+      "toolName": "write_spreadsheet",
+      "toolDescription": "Write data to a spreadsheet file",
+      "parameters": [
+        {
+          "paramName": "path",
+          "paramType": "string",
+          "paramRequired": true
+        },
+        {
+          "paramName": "data",
+          "paramType": "object",
+          "paramRequired": true
+        }
+      ]
+    },
+    {
+      "toolName": "list_workbooks",
+      "toolDescription": "List all available workbooks"
+    },
+    {
+      "toolName": "analyze_formulas",
+      "toolDescription": "Analyze formulas in a spreadsheet",
+      "parameters": [
+        {
+          "paramName": "path",
+          "paramType": "string",
+          "paramRequired": true
+        }
+      ]
+    }
+  ],
+  "assertions": {
+    "min_count": 1,
+    "variables": ["toolName", "toolDescription"],
+    "categories": {
+      "read": ["read_spreadsheet", "list_workbooks"],
+      "write": ["write_spreadsheet"],
+      "analysis": ["analyze_formulas"]
+    }
+  }
+}

@@ -34,7 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "json"]
 tracing-appender = "0.2"
 opentelemetry = "0.22"
 opentelemetry-otlp = "0.15"
-opentelemetry_sdk = "0.22"
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
 tracing-opentelemetry = "0.23"
 opentelemetry-semantic-conventions = "0.14"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
@@ -55,7 +55,7 @@ syn = { version = "2.0", features = ["full", "parsing"] }
 # sha2 already declared above
 
 async-trait = "0.1"
-uuid = { version = "1.10", features = ["v4"], optional = true }
+uuid = { version = "1.10", features = ["v4"] }
 zip = "0.6"
 quick-xml = { version = "0.31", optional = true }
 xxhash-rust = { version = "0.8", features = ["xxh64"], optional = true }
@@ -64,7 +64,7 @@ prometheus-client = "0.22"
 
 [features]
 default = []
-recalc = ["uuid", "quick-xml", "xxhash-rust", "image", "base64"]
+recalc = ["quick-xml", "xxhash-rust", "image", "base64"]
 docker-tests = []
 
 [dev-dependencies]
@@ -80,6 +80,9 @@ proptest = "1.5"
 test-strategy = "0.3"
 tower = "0.5"
 http-body-util = "0.1"
+toml = "0.8"
+num_cpus = "1.16"
+similar = "2.6"
 
 [[bench]]
 name = "mcp_performance_benchmarks"

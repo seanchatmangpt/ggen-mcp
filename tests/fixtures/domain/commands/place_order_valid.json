@@ -1,0 +1,9 @@
+{
+  "PlaceOrder": {
+    "user_id": "user_123",
+    "items": [
+      ["product_001", 2],
+      ["product_002", 1]
+    ]
+  }
+}

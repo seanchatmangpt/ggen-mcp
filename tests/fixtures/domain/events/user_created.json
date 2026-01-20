@@ -1,0 +1,10 @@
+{
+  "UserCreated": {
+    "user_id": "user_new_001",
+    "email": {
+      "value": "new.user@example.com",
+      "verified": false
+    },
+    "age": 25
+  }
+}

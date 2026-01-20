@@ -115,21 +115,21 @@ pub fn make_short_random_id(prefix: &str, len: usize) -> String {
 use anyhow;
 
 /// Safely get the first element from a slice with a descriptive error message
-pub fn safe_first<T>(slice: &[T], context: &str) -> anyhow::Result<&T> {
+pub fn safe_first<'a, T>(slice: &'a [T], context: &str) -> anyhow::Result<&'a T> {
     slice
         .first()
         .ok_or_else(|| anyhow::anyhow!("Failed to get first element: {}", context))
 }
 
 /// Safely get the last element from a slice with a descriptive error message
-pub fn safe_last<T>(slice: &[T], context: &str) -> anyhow::Result<&T> {
+pub fn safe_last<'a, T>(slice: &'a [T], context: &str) -> anyhow::Result<&'a T> {
     slice
         .last()
         .ok_or_else(|| anyhow::anyhow!("Failed to get last element: {}", context))
 }
 
 /// Safely get an element at an index with a descriptive error message
-pub fn safe_get<T>(slice: &[T], index: usize, context: &str) -> anyhow::Result<&T> {
+pub fn safe_get<'a, T>(slice: &'a [T], index: usize, context: &str) -> anyhow::Result<&'a T> {
     slice.get(index).ok_or_else(|| {
         anyhow::anyhow!(
             "Failed to get element at index {}: {} (slice length: {})",
@@ -220,7 +220,7 @@ where
 }
 
 /// Check if a string is empty and provide context
-pub fn ensure_non_empty_str(s: &str, context: &str) -> anyhow::Result<&str> {
+pub fn ensure_non_empty_str<'a>(s: &'a str, context: &str) -> anyhow::Result<&'a str> {
     if s.trim().is_empty() {
         anyhow::bail!("String is empty: {}", context)
     }

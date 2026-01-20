@@ -1,0 +1,11 @@
+{
+  "id": "product_001",
+  "name": "Premium Wireless Headphones",
+  "price": {
+    "amount": 29999,
+    "currency": "USD"
+  },
+  "stock": 150,
+  "status": "Active",
+  "version": 5
+}

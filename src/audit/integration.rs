@@ -4,8 +4,9 @@
 //! into existing tool handlers, fork operations, and file operations.
 
 use super::{
-    AuditEvent, AuditEventType, AuditScope, audit_checkpoint_span, audit_file_span,
-    audit_fork_span, audit_scope, audit_staged_change_span, audit_tool_span, get_audit_logger,
+    AuditEvent, AuditEventType, AuditScope, audit_checkpoint_span, audit_event,
+    audit_file_span, audit_fork_span, audit_scope, audit_staged_change_span,
+    audit_tool_span, get_audit_logger,
 };
 use serde::Serialize;
 use serde_json::Value as JsonValue;

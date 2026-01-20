@@ -1,0 +1,27 @@
+{
+  "description": "Expected results from aggregates.rq query",
+  "query_file": "queries/aggregates.rq",
+  "expected_results": [
+    {
+      "aggregate": "https://ggen-mcp.dev/domain#OrderAggregate",
+      "label": "Order",
+      "comment": "Order aggregate with line items"
+    },
+    {
+      "aggregate": "https://ggen-mcp.dev/domain#ProductAggregate",
+      "label": "Product",
+      "comment": "Product catalog aggregate"
+    },
+    {
+      "aggregate": "https://ggen-mcp.dev/domain#UserAggregate",
+      "label": "User",
+      "comment": "User aggregate root with profile and authentication"
+    }
+  ],
+  "assertions": {
+    "min_count": 1,
+    "variables": ["aggregate", "label"],
+    "ordered_by": "label",
+    "non_empty": ["label"]
+  }
+}

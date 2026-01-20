@@ -1,0 +1,32 @@
+{
+  "head": {
+    "vars": [
+      "aggregate",
+      "name"
+    ]
+  },
+  "results": {
+    "bindings": [
+      {
+        "aggregate": {
+          "type": "uri",
+          "value": "http://example.org/User"
+        },
+        "name": {
+          "type": "literal",
+          "value": "User"
+        }
+      },
+      {
+        "aggregate": {
+          "type": "uri",
+          "value": "http://example.org/Product"
+        },
+        "name": {
+          "type": "literal",
+          "value": "Product"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+// Generated domain entity: Product
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Product {
+    pub id: Uuid,
+    pub name: String,
+    pub price: Decimal,
+}
+
+impl Product {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        // Validation logic here
+        Ok(())
+    }
+}
