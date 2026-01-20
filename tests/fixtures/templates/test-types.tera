@@ -1,0 +1,21 @@
+// Auto-generated Type Definitions
+// Generated from: test-api.ttl
+
+export interface Entity {
+    type: string;
+    name: string;
+    description: string;
+}
+
+{% for entity in test_entities | unique(attribute="entityName") %}
+export interface {{ entity.entityName }} {
+    {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+    {%- if prop.propertyName %}
+    {{ prop.propertyName }}: {{ prop.propertyType | lower }};
+    {%- endif %}
+    {%- endfor %}
+}
+
+{% endfor %}
+
+export type EntityUnion = {{ test_entities | unique(attribute="entityName") | map(attribute="entityName") | join(sep=" | ") }};

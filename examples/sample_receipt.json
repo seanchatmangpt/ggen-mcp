@@ -1,0 +1,106 @@
+{
+  "version": "1.0.0",
+  "id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "timestamp": "2026-01-20T12:34:56.789Z",
+  "workspace": {
+    "fingerprint": "9f8e7d6c5b4a3210fedcba9876543210abcdef0123456789cafebabe",
+    "root": "/home/user/ggen-mcp"
+  },
+  "inputs": {
+    "config": {
+      "path": "ggen.toml",
+      "hash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    },
+    "ontologies": [
+      {
+        "path": "ontology/mcp-domain.ttl",
+        "hash": "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
+      },
+      {
+        "path": "ontology/base-ontology.ttl",
+        "hash": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+      }
+    ],
+    "queries": [
+      {
+        "path": "queries/extract_tools.rq",
+        "hash": "0fedcba9876543210fedcba9876543210fedcba9876543210fedcba987654321"
+      },
+      {
+        "path": "queries/extract_entities.rq",
+        "hash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+      }
+    ],
+    "templates": [
+      {
+        "path": "templates/tool.rs.tera",
+        "hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+      },
+      {
+        "path": "templates/entity.rs.tera",
+        "hash": "1234567890123456789012345678901234567890123456789012345678901234"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "src/generated/tools.rs",
+      "hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+      "size_bytes": 12345
+    },
+    {
+      "path": "src/generated/entities.rs",
+      "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "size_bytes": 8765
+    },
+    {
+      "path": "src/generated/value_objects.rs",
+      "hash": "9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba",
+      "size_bytes": 5432
+    },
+    {
+      "path": "src/generated/aggregates.rs",
+      "hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "size_bytes": 15678
+    }
+  ],
+  "guards": {
+    "verdicts": [
+      {
+        "guard_name": "syntax_check",
+        "verdict": "pass",
+        "message": "All generated files compile successfully"
+      },
+      {
+        "guard_name": "test_coverage",
+        "verdict": "pass",
+        "message": "Coverage: 87% (target: 80%)"
+      },
+      {
+        "guard_name": "clippy_lint",
+        "verdict": "pass",
+        "message": "No clippy warnings"
+      },
+      {
+        "guard_name": "format_check",
+        "verdict": "pass",
+        "message": "All files formatted with rustfmt"
+      },
+      {
+        "guard_name": "todo_check",
+        "verdict": "pass",
+        "message": "Zero TODOs in generated code"
+      },
+      {
+        "guard_name": "file_size_check",
+        "verdict": "pass",
+        "message": "All files > 100 bytes"
+      }
+    ]
+  },
+  "metadata": {
+    "timestamp": "2026-01-20T12:34:56.789Z",
+    "compiler_version": "6.0.0",
+    "generation_mode": "sync"
+  }
+}

@@ -6,6 +6,7 @@
 //! - Integration workflow testing
 //! - Property-based testing for all input types
 //! - Domain model validation (DDD patterns)
+//! - Ontology generation testing (Load → Query → Render → Validate)
 
 pub mod codegen_pipeline_harness;
 pub mod tera_template_harness;
@@ -15,6 +16,11 @@ pub mod order_processing_workflow;
 pub mod mcp_tool_workflow;
 pub mod property_input_harness;
 pub mod domain_model_harness;
+pub mod ontology_generation_harness;
+pub mod turtle_ontology_harness;
+pub mod toml_config_harness;
+pub mod ggen_integration_harness;
+pub mod fixture_library;
 
 // Re-export main harness components
 pub use codegen_pipeline_harness::{
@@ -72,4 +78,26 @@ pub use domain_model_harness::{
     DomainError,
     // Builders
     UserBuilder, OrderBuilder, ProductBuilder,
+};
+
+pub use ontology_generation_harness::{
+    OntologyGenerationHarness,
+    // Result Types
+    WorkflowResult,
+    QueryResult,
+    RenderedOutput,
+    ValidationReport,
+    ValidationCheck,
+    GoldenFileComparison,
+    FileComparison,
+    CacheTestResult,
+    WorkflowMetrics,
+};
+
+pub use ggen_integration_harness::{
+    GgenIntegrationHarness,
+    GenerationMetrics,
+    GenerationResult,
+    CompilationResult,
+    ValidationResult as GgenValidationResult,
 };

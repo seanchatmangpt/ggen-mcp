@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Spreadsheet MCP API
+  version: 1.0.0
+  description: |
+    MCP server for spreadsheet operations with ontology-driven code generation.
+    Supports Excel (.xlsx, .xlsm) and OpenDocument (.ods) formats.
+
+servers:
+  - url: http://localhost:8079
+    description: Local development server
+
+paths:
+  /workbooks:
+    get:
+      operationId: listWorkbooks
+      summary: List available workbooks
+      parameters:
+        - name: slug_prefix
+          in: query
+          schema:
+            type: string
+          description: Filter by slug prefix
+        - name: folder
+          in: query
+          schema:
+            type: string
+          description: Filter by folder path
+      responses:
+        '200':
+          description: List of workbooks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkbookListResponse'
+
+  /workbooks/{workbook_id}:
+    get:
+      operationId: describeWorkbook
+      summary: Get workbook details
+      parameters:
+        - name: workbook_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Workbook details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkbookDescription'
+        '404':
+          description: Workbook not found
+
+components:
+  schemas:
+    WorkbookListResponse:
+      type: object
+      properties:
+        workbooks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkbookSummary'
+        total_count:
+          type: integer
+
+    WorkbookSummary:
+      type: object
+      required:
+        - id
+        - path
+      properties:
+        id:
+          type: string
+        path:
+          type: string
+        sheet_count:
+          type: integer
+
+    WorkbookDescription:
+      type: object
+      required:
+        - id
+        - path
+        - sheets
+      properties:
+        id:
+          type: string
+        path:
+          type: string
+        sheets:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetSummary'
+
+    SheetSummary:
+      type: object
+      required:
+        - name
+        - index
+      properties:
+        name:
+          type: string
+        index:
+          type: integer
+        row_count:
+          type: integer
+        column_count:
+          type: integer

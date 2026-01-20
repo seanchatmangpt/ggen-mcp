@@ -1,0 +1,24 @@
+{
+  "receipt_id": "receipt-test-002-tampered",
+  "timestamp": "2026-01-20T12:00:00Z",
+  "workspace_fingerprint": "abc123def456",
+  "inputs": {
+    "ontology/domain.ttl": "TAMPERED_HASH_0000000000000000000000000000000000000000000000000",
+    "queries/entities.rq": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "templates/entities.rs.tera": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+  },
+  "outputs": {
+    "src/generated/entities.rs": "7890abcd1234ef567890abcd1234ef567890abcd1234ef567890abcd1234ef56"
+  },
+  "guards": [
+    "path_safety",
+    "output_overlap",
+    "template_compile"
+  ],
+  "performance_ms": 150,
+  "metadata": {
+    "ggen_version": "6.0.0",
+    "rust_version": "1.91.1",
+    "hostname": "test-host"
+  }
+}

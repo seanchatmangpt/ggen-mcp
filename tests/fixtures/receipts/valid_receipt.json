@@ -1,0 +1,28 @@
+{
+  "receipt_id": "receipt-test-001",
+  "timestamp": "2026-01-20T12:00:00Z",
+  "workspace_fingerprint": "abc123def456",
+  "inputs": {
+    "ontology/domain.ttl": "f4d5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5",
+    "queries/entities.rq": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "templates/entities.rs.tera": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+  },
+  "outputs": {
+    "src/generated/entities.rs": "7890abcd1234ef567890abcd1234ef567890abcd1234ef567890abcd1234ef56"
+  },
+  "guards": [
+    "path_safety",
+    "output_overlap",
+    "template_compile",
+    "turtle_parse",
+    "sparql_syntax",
+    "determinism",
+    "bounds_check"
+  ],
+  "performance_ms": 150,
+  "metadata": {
+    "ggen_version": "6.0.0",
+    "rust_version": "1.91.1",
+    "hostname": "test-host"
+  }
+}

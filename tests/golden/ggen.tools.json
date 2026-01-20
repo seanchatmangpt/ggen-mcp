@@ -1,0 +1,88 @@
+{
+  "manifest_version": "1.0.0",
+  "generated_at": "2026-01-20T00:00:00Z",
+  "tools": [
+    {
+      "name": "sync_ggen",
+      "description": "Atomic ontology-driven code generation with preview/apply modes",
+      "parameters": {
+        "workspace_root": {
+          "type": "string",
+          "description": "Path to ggen workspace",
+          "default": "."
+        },
+        "preview": {
+          "type": "boolean",
+          "description": "Preview mode (no file writes)",
+          "default": true
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Force regeneration (ignore cache)",
+          "default": false
+        },
+        "report_format": {
+          "type": "string",
+          "enum": ["markdown", "json"],
+          "description": "Report output format",
+          "default": "markdown"
+        },
+        "emit_receipt": {
+          "type": "boolean",
+          "description": "Generate cryptographic receipt",
+          "default": true
+        },
+        "emit_diff": {
+          "type": "boolean",
+          "description": "Generate file diffs",
+          "default": true
+        }
+      }
+    },
+    {
+      "name": "verify_receipt",
+      "description": "Verify cryptographic receipt integrity",
+      "parameters": {
+        "receipt_path": {
+          "type": "string",
+          "description": "Path to receipt JSON file",
+          "required": true
+        },
+        "workspace_root": {
+          "type": "string",
+          "description": "Path to ggen workspace for hash verification"
+        }
+      }
+    }
+  ],
+  "guards": [
+    {
+      "name": "path_safety",
+      "description": "Prevents path traversal attacks"
+    },
+    {
+      "name": "output_overlap",
+      "description": "Detects duplicate output paths"
+    },
+    {
+      "name": "template_compile",
+      "description": "Validates Tera template syntax"
+    },
+    {
+      "name": "turtle_parse",
+      "description": "Validates RDF/Turtle ontology syntax"
+    },
+    {
+      "name": "sparql_syntax",
+      "description": "Validates SPARQL query syntax"
+    },
+    {
+      "name": "determinism",
+      "description": "Ensures reproducible outputs"
+    },
+    {
+      "name": "bounds_check",
+      "description": "Validates resource limits"
+    }
+  ]
+}

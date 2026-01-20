@@ -74,6 +74,8 @@ pub enum ErrorCode {
     RegionNotFound = -32018,
     /// Formula parse error
     FormulaParseError = -32019,
+    /// Entitlement required for capability
+    EntitlementRequired = -32020,
 }
 
 impl ErrorCode {
@@ -112,6 +114,7 @@ impl ErrorCode {
             ErrorCode::ValidationError | ErrorCode::InvalidRange | ErrorCode::FormulaParseError => {
                 "validation_error"
             }
+            ErrorCode::EntitlementRequired => "entitlement_error",
             ErrorCode::ResourceExhausted | ErrorCode::ResponseTooLarge => "resource_limit",
             ErrorCode::VbaError | ErrorCode::SparqlError | ErrorCode::TemplateError => {
                 "subsystem_error"
@@ -649,6 +652,8 @@ pub fn to_mcp_error(error: anyhow::Error) -> McpError {
         ErrorCode::ToolDisabled
     } else if error_msg.contains("parse") {
         ErrorCode::ParseError
+    } else if error_msg.contains("entitlement") || error_msg.contains("capability") {
+        ErrorCode::EntitlementRequired
     } else {
         ErrorCode::InternalError
     };

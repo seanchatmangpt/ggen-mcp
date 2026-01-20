@@ -402,6 +402,34 @@ impl GeneratedCodeValidator {
         }
     }
 
+    /// Validate TypeScript syntax
+    pub fn validate_typescript_syntax(&self, code: &str, file_name: &str) -> Result<ValidationReport> {
+        use crate::template::multi_format_validator::TypeScriptValidator;
+        let mut validator = TypeScriptValidator::new();
+        validator.validate(code, file_name)
+    }
+
+    /// Validate YAML syntax
+    pub fn validate_yaml_syntax(&self, content: &str, file_name: &str) -> Result<ValidationReport> {
+        use crate::template::multi_format_validator::YamlValidator;
+        let validator = YamlValidator::new();
+        validator.validate(content, file_name)
+    }
+
+    /// Validate JSON syntax
+    pub fn validate_json_syntax(&self, content: &str, file_name: &str) -> Result<ValidationReport> {
+        use crate::template::multi_format_validator::JsonValidator;
+        let validator = JsonValidator::new();
+        validator.validate(content, file_name)
+    }
+
+    /// Validate OpenAPI specification (YAML + OpenAPI schema)
+    pub fn validate_openapi_spec(&self, content: &str, file_name: &str) -> Result<ValidationReport> {
+        use crate::template::multi_format_validator::OpenApiValidator;
+        let validator = OpenApiValidator::new();
+        validator.validate(content, file_name)
+    }
+
     /// Reset tracking state (call between validation runs)
     pub fn reset(&mut self) {
         self.seen_structs.clear();
@@ -984,6 +1012,240 @@ impl SafeCodeWriter {
 impl Default for SafeCodeWriter {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// =============================================================================
+// 6. Multi-Language Validators - Wrappers for multi_format_validator
+// =============================================================================
+
+/// Validate TypeScript/JavaScript code
+pub fn validate_typescript(code: &str, file_name: &str) -> ValidationReport {
+    use crate::template::multi_format_validator::TypeScriptValidator;
+    let mut validator = TypeScriptValidator::new();
+    validator.validate(code, file_name).unwrap_or_else(|e| {
+        let mut report = ValidationReport::new();
+        report.add_error(
+            format!("TypeScript validation failed: {}", e),
+            Some(file_name.to_string()),
+            None,
+        );
+        report
+    })
+}
+
+/// Validate YAML syntax
+pub fn validate_yaml(code: &str, file_name: &str) -> ValidationReport {
+    use crate::template::multi_format_validator::YamlValidator;
+    let validator = YamlValidator::new();
+    validator.validate(code, file_name).unwrap_or_else(|e| {
+        let mut report = ValidationReport::new();
+        report.add_error(
+            format!("YAML validation failed: {}", e),
+            Some(file_name.to_string()),
+            None,
+        );
+        report
+    })
+}
+
+/// Validate JSON syntax
+pub fn validate_json(code: &str, file_name: &str) -> ValidationReport {
+    use crate::template::multi_format_validator::JsonValidator;
+    let validator = JsonValidator::new();
+    validator.validate(code, file_name).unwrap_or_else(|e| {
+        let mut report = ValidationReport::new();
+        report.add_error(
+            format!("JSON validation failed: {}", e),
+            Some(file_name.to_string()),
+            None,
+        );
+        report
+    })
+}
+
+// =============================================================================
+// 7. Golden File Comparison and Diff
+// =============================================================================
+
+/// Diff report for golden file comparison
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffReport {
+    pub golden_file: PathBuf,
+    pub additions: usize,
+    pub deletions: usize,
+    pub changes: usize,
+    pub diff_lines: Vec<DiffLine>,
+    pub is_identical: bool,
+}
+
+/// A single line in a diff
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffLine {
+    pub line_num: usize,
+    pub change_type: DiffChangeType,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DiffChangeType {
+    Added,
+    Deleted,
+    Modified,
+    Context,
+}
+
+/// Compute diff between generated code and golden file
+pub fn compute_diff(generated: &str, golden: &str, golden_path: &Path) -> DiffReport {
+    let gen_lines: Vec<&str> = generated.lines().collect();
+    let gold_lines: Vec<&str> = golden.lines().collect();
+
+    let mut diff_lines = Vec::new();
+    let mut additions = 0;
+    let mut deletions = 0;
+    let mut changes = 0;
+
+    // Simple line-by-line diff
+    let max_len = gen_lines.len().max(gold_lines.len());
+
+    for i in 0..max_len {
+        match (gen_lines.get(i), gold_lines.get(i)) {
+            (Some(gen_line), Some(gold_line)) => {
+                if gen_line != gold_line {
+                    changes += 1;
+                    diff_lines.push(DiffLine {
+                        line_num: i + 1,
+                        change_type: DiffChangeType::Modified,
+                        content: format!("- {}\n+ {}", gold_line, gen_line),
+                    });
+                } else if diff_lines.len() < 20 {
+                    // Include some context lines (first 20)
+                    diff_lines.push(DiffLine {
+                        line_num: i + 1,
+                        change_type: DiffChangeType::Context,
+                        content: gen_line.to_string(),
+                    });
+                }
+            }
+            (Some(gen_line), None) => {
+                additions += 1;
+                if diff_lines.len() < 20 {
+                    diff_lines.push(DiffLine {
+                        line_num: i + 1,
+                        change_type: DiffChangeType::Added,
+                        content: format!("+ {}", gen_line),
+                    });
+                }
+            }
+            (None, Some(gold_line)) => {
+                deletions += 1;
+                if diff_lines.len() < 20 {
+                    diff_lines.push(DiffLine {
+                        line_num: i + 1,
+                        change_type: DiffChangeType::Deleted,
+                        content: format!("- {}", gold_line),
+                    });
+                }
+            }
+            (None, None) => break,
+        }
+    }
+
+    let is_identical = additions == 0 && deletions == 0 && changes == 0;
+
+    DiffReport {
+        golden_file: golden_path.to_path_buf(),
+        additions,
+        deletions,
+        changes,
+        diff_lines,
+        is_identical,
+    }
+}
+
+/// Load golden file if exists
+pub fn load_golden_file(golden_path: &Path) -> Result<Option<String>> {
+    if golden_path.exists() {
+        Ok(Some(fs::read_to_string(golden_path)?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Update golden file with new content
+pub fn update_golden_file(golden_path: &Path, content: &str) -> Result<()> {
+    if let Some(parent) = golden_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(golden_path, content)?;
+    tracing::info!("Updated golden file: {:?}", golden_path);
+    Ok(())
+}
+
+// =============================================================================
+// 8. Unified Validation Report with Golden Diff
+// =============================================================================
+
+/// Complete validation report with golden file diff
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeValidationReport {
+    pub valid: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+    pub suggestions: Vec<String>,
+    pub golden_file_diff: Option<DiffReport>,
+    pub language: String,
+}
+
+impl CodeValidationReport {
+    pub fn new(language: String) -> Self {
+        Self {
+            valid: true,
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            suggestions: Vec::new(),
+            golden_file_diff: None,
+            language,
+        }
+    }
+
+    pub fn from_validation_report(report: ValidationReport, language: String) -> Self {
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        let mut suggestions = Vec::new();
+
+        for issue in report.issues {
+            match issue.severity {
+                ValidationSeverity::Error => {
+                    errors.push(format!("{}: {}",
+                        issue.location.as_deref().unwrap_or("unknown"),
+                        issue.message));
+                }
+                ValidationSeverity::Warning => {
+                    warnings.push(format!("{}: {}",
+                        issue.location.as_deref().unwrap_or("unknown"),
+                        issue.message));
+                }
+                ValidationSeverity::Info => {
+                    if let Some(suggestion) = issue.suggestion {
+                        suggestions.push(suggestion);
+                    }
+                }
+            }
+        }
+
+        Self {
+            valid: !report.has_errors(),
+            errors,
+            warnings,
+            suggestions,
+            golden_file_diff: None,
+            language,
+        }
+    }
+
+    pub fn add_golden_diff(&mut self, diff: DiffReport) {
+        self.golden_file_diff = Some(diff);
     }
 }
 

@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "capabilities": [
+    "preview_mode",
+    "read_only_tools",
+    "apply_mode",
+    "jira_create",
+    "jira_sync"
+  ],
+  "expires_at": "2027-12-31T23:59:59Z",
+  "signature": "example_signature_replace_with_real_crypto",
+  "holder": "Example Company",
+  "license_id": "example-license-001"
+}

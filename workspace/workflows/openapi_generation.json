@@ -1,0 +1,246 @@
+{
+  "name": "openapi-generation",
+  "description": "Complete OpenAPI + TypeScript + Zod generation from RDF ontology",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "load-ontology",
+      "tool": "load_ontology",
+      "description": "Load blog API ontology with schema",
+      "params": {
+        "ontology_path": "workspace/ontology/blog-api.ttl",
+        "schema_path": "workspace/ontology/api-schema.ttl"
+      }
+    },
+    {
+      "id": "query-api-info",
+      "tool": "execute_sparql_query",
+      "description": "Extract API specification metadata",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT ?title ?description ?version ?serverUrl ?serverDescription\nWHERE {\n  ?spec a api:Specification ;\n        api:title ?title ;\n        api:version ?version .\n  OPTIONAL { ?spec api:description ?description }\n  OPTIONAL {\n    ?spec api:server ?server .\n    ?server api:url ?serverUrl .\n    OPTIONAL { ?server api:description ?serverDescription }\n  }\n}\nLIMIT 1"
+      }
+    },
+    {
+      "id": "render-api-info",
+      "tool": "render_template",
+      "description": "Generate OpenAPI info section",
+      "depends_on": ["query-api-info"],
+      "params": {
+        "template_path": "workspace/templates/openapi/openapi-info.tera",
+        "context_key": "sparql_results",
+        "output_path": "openapi/api-info.yaml"
+      }
+    },
+    {
+      "id": "query-schemas",
+      "tool": "execute_sparql_query",
+      "description": "Extract entity schemas with properties",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n\nSELECT ?entityName ?entityDescription ?propertyName ?propertyType\n       ?required ?format ?minLength ?maxLength ?pattern ?example ?refEntity\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName .\n  OPTIONAL { ?entity rdfs:comment ?entityDescription }\n\n  ?entity api:hasProperty ?property .\n  ?property api:name ?propertyName ;\n            api:type ?propertyType .\n  OPTIONAL { ?property api:required ?required }\n  OPTIONAL { ?property api:format ?format }\n  OPTIONAL { ?property api:minLength ?minLength }\n  OPTIONAL { ?property api:maxLength ?maxLength }\n  OPTIONAL { ?property api:pattern ?pattern }\n  OPTIONAL { ?property api:example ?example }\n  OPTIONAL { ?property api:refEntity ?refEntity }\n}\nORDER BY ?entityName ?propertyName"
+      }
+    },
+    {
+      "id": "render-openapi-schemas",
+      "tool": "render_template",
+      "description": "Generate OpenAPI component schemas",
+      "depends_on": ["query-schemas"],
+      "params": {
+        "template_path": "workspace/templates/openapi/openapi-schemas.tera",
+        "context_key": "sparql_results",
+        "output_path": "openapi/schemas.yaml"
+      }
+    },
+    {
+      "id": "query-paths",
+      "tool": "execute_sparql_query",
+      "description": "Extract API endpoints",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT ?entityName ?path ?method ?operationId ?summary ?description\n       ?requestSchema ?responseSchema ?statusCode\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName ;\n          api:hasEndpoint ?endpoint .\n  ?endpoint api:path ?path ;\n            api:method ?method ;\n            api:operationId ?operationId .\n  OPTIONAL { ?endpoint api:summary ?summary }\n  OPTIONAL { ?endpoint api:description ?description }\n  OPTIONAL { ?endpoint api:requestSchema ?requestSchema }\n  OPTIONAL { ?endpoint api:responseSchema ?responseSchema }\n  OPTIONAL { ?endpoint api:statusCode ?statusCode }\n}\nORDER BY ?entityName ?path ?method"
+      }
+    },
+    {
+      "id": "render-openapi-paths",
+      "tool": "render_template",
+      "description": "Generate OpenAPI paths",
+      "depends_on": ["query-paths"],
+      "params": {
+        "template_path": "workspace/templates/openapi/openapi-paths.tera",
+        "context_key": "sparql_results",
+        "output_path": "openapi/paths.yaml"
+      }
+    },
+    {
+      "id": "render-openapi-combined",
+      "tool": "render_template",
+      "description": "Generate combined OpenAPI spec",
+      "depends_on": ["query-api-info"],
+      "params": {
+        "template_path": "workspace/templates/openapi/openapi-combined.tera",
+        "context_key": "sparql_results",
+        "output_path": "openapi/openapi.yaml"
+      }
+    },
+    {
+      "id": "query-interfaces",
+      "tool": "execute_sparql_query",
+      "description": "Extract entity interfaces",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT ?entityName ?entityDescription ?propertyName ?propertyType\n       ?required ?isArray ?refEntity\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName .\n  OPTIONAL { ?entity rdfs:comment ?entityDescription }\n\n  ?entity api:hasProperty ?property .\n  ?property api:name ?propertyName ;\n            api:type ?propertyType .\n  OPTIONAL { ?property api:required ?required }\n  OPTIONAL { ?property api:isArray ?isArray }\n  OPTIONAL { ?property api:refEntity ?refEntity }\n}\nORDER BY ?entityName ?propertyName"
+      }
+    },
+    {
+      "id": "render-typescript-interfaces",
+      "tool": "render_template",
+      "description": "Generate TypeScript JSDoc interfaces",
+      "depends_on": ["query-interfaces"],
+      "params": {
+        "template_path": "workspace/templates/openapi/typescript-interfaces.tera",
+        "context_key": "sparql_results",
+        "output_path": "types/entities.mjs"
+      }
+    },
+    {
+      "id": "query-request-types",
+      "tool": "execute_sparql_query",
+      "description": "Extract API request types",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\n\nSELECT ?entityName ?operationType ?propertyName ?propertyType ?required\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName ;\n          api:hasRequestType ?reqType .\n  ?reqType api:operationType ?operationType ;\n           api:hasProperty ?property .\n  ?property api:name ?propertyName ;\n            api:type ?propertyType .\n  OPTIONAL { ?property api:required ?required }\n}\nORDER BY ?entityName ?operationType ?propertyName"
+      }
+    },
+    {
+      "id": "render-typescript-api-types",
+      "tool": "render_template",
+      "description": "Generate TypeScript API request types",
+      "depends_on": ["query-request-types"],
+      "params": {
+        "template_path": "workspace/templates/openapi/typescript-api-types.tera",
+        "context_key": "sparql_results",
+        "output_path": "types/requests.mjs"
+      }
+    },
+    {
+      "id": "render-zod-schemas",
+      "tool": "render_template",
+      "description": "Generate Zod entity validation schemas",
+      "depends_on": ["query-schemas"],
+      "params": {
+        "template_path": "workspace/templates/openapi/zod-schemas.tera",
+        "context_key": "sparql_results",
+        "output_path": "schemas/entities.mjs"
+      }
+    },
+    {
+      "id": "query-request-schemas",
+      "tool": "execute_sparql_query",
+      "description": "Extract request schema properties",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\n\nSELECT ?entityName ?operationType ?propertyName ?propertyType\n       ?required ?minLength ?maxLength ?pattern\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName ;\n          api:hasRequestType ?reqType .\n  ?reqType api:operationType ?operationType ;\n           api:hasProperty ?property .\n  ?property api:name ?propertyName ;\n            api:type ?propertyType .\n  OPTIONAL { ?property api:required ?required }\n  OPTIONAL { ?property api:minLength ?minLength }\n  OPTIONAL { ?property api:maxLength ?maxLength }\n  OPTIONAL { ?property api:pattern ?pattern }\n}\nORDER BY ?entityName ?operationType ?propertyName"
+      }
+    },
+    {
+      "id": "render-zod-request-schemas",
+      "tool": "render_template",
+      "description": "Generate Zod request validation schemas",
+      "depends_on": ["query-request-schemas"],
+      "params": {
+        "template_path": "workspace/templates/openapi/zod-request-schemas.tera",
+        "context_key": "sparql_results",
+        "output_path": "schemas/requests.mjs"
+      }
+    },
+    {
+      "id": "query-type-guards",
+      "tool": "execute_sparql_query",
+      "description": "Extract entities for type guards",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\n\nSELECT ?entityName ?propertyName ?propertyType ?required ?isArray\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName ;\n          api:hasProperty ?property .\n  ?property api:name ?propertyName ;\n            api:type ?propertyType .\n  OPTIONAL { ?property api:required ?required }\n  OPTIONAL { ?property api:isArray ?isArray }\n}\nORDER BY ?entityName ?propertyName"
+      }
+    },
+    {
+      "id": "render-type-guards",
+      "tool": "render_template",
+      "description": "Generate runtime type guard functions",
+      "depends_on": ["query-type-guards"],
+      "params": {
+        "template_path": "workspace/templates/openapi/type-guards.tera",
+        "context_key": "sparql_results",
+        "output_path": "guards/entities.mjs"
+      }
+    },
+    {
+      "id": "query-entities",
+      "tool": "execute_sparql_query",
+      "description": "Extract entity names for index files",
+      "params": {
+        "query": "PREFIX api: <https://ggen.io/ontology/api#>\n\nSELECT ?entityName\nWHERE {\n  ?entity a api:Entity ;\n          api:name ?entityName .\n}\nORDER BY ?entityName"
+      }
+    },
+    {
+      "id": "render-main-index",
+      "tool": "render_template",
+      "description": "Generate main barrel export index",
+      "depends_on": ["query-entities"],
+      "params": {
+        "template_path": "workspace/templates/openapi/index.tera",
+        "context_key": "sparql_results",
+        "output_path": "index.mjs"
+      }
+    },
+    {
+      "id": "render-schemas-index",
+      "tool": "render_template",
+      "description": "Generate schemas index",
+      "depends_on": ["query-entities"],
+      "params": {
+        "template_path": "workspace/templates/openapi/schemas-index.tera",
+        "context_key": "sparql_results",
+        "output_path": "schemas/index.mjs"
+      }
+    },
+    {
+      "id": "render-types-index",
+      "tool": "render_template",
+      "description": "Generate types index",
+      "depends_on": ["query-entities"],
+      "params": {
+        "template_path": "workspace/templates/openapi/types-index.tera",
+        "context_key": "sparql_results",
+        "output_path": "types/index.mjs"
+      }
+    },
+    {
+      "id": "render-guards-index",
+      "tool": "render_template",
+      "description": "Generate guards index",
+      "depends_on": ["query-entities"],
+      "params": {
+        "template_path": "workspace/templates/openapi/guards-index.tera",
+        "context_key": "sparql_results",
+        "output_path": "guards/index.mjs"
+      }
+    },
+    {
+      "id": "validate-outputs",
+      "tool": "validate_generated_files",
+      "description": "Validate all generated outputs",
+      "depends_on": [
+        "render-api-info",
+        "render-openapi-schemas",
+        "render-openapi-paths",
+        "render-openapi-combined",
+        "render-typescript-interfaces",
+        "render-typescript-api-types",
+        "render-zod-schemas",
+        "render-zod-request-schemas",
+        "render-type-guards",
+        "render-main-index",
+        "render-schemas-index",
+        "render-types-index",
+        "render-guards-index"
+      ],
+      "params": {
+        "output_dir": "lib"
+      }
+    }
+  ]
+}

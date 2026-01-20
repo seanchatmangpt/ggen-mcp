@@ -1,0 +1,80 @@
+// Auto-generated Test Schema
+// Generated from: test-api.ttl
+// Query: test-entities.rq
+// Template: test-schema.tera
+
+use serde::{Deserialize, Serialize};
+
+// =============================================================================
+// ENTITIES
+// =============================================================================
+
+{% for entity in test_entities | unique(attribute="entityName") %}
+/// {{ entity.description }}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{ entity.entityName }} {
+    {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+    {%- if prop.propertyName %}
+    pub {{ prop.propertyName }}: {{ prop.propertyType }},
+    {%- endif %}
+    {%- endfor %}
+}
+
+impl {{ entity.entityName }} {
+    pub fn new(
+        {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+        {%- if prop.propertyName %}
+        {{ prop.propertyName }}: {{ prop.propertyType }},
+        {%- endif %}
+        {%- endfor %}
+    ) -> Self {
+        Self {
+            {%- for prop in test_entities | filter(attribute="entityName", value=entity.entityName) %}
+            {%- if prop.propertyName %}
+            {{ prop.propertyName }},
+            {%- endif %}
+            {%- endfor %}
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        // Validation logic would go here
+        Ok(())
+    }
+}
+
+{% endfor %}
+
+// =============================================================================
+// VALUE OBJECTS
+// =============================================================================
+
+{% for vo in test_valueobjects | unique(attribute="voName") %}
+/// {{ vo.description }}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct {{ vo.voName }} {
+    {%- for prop in test_valueobjects | filter(attribute="voName", value=vo.voName) %}
+    {%- if prop.propertyName %}
+    pub {{ prop.propertyName }}: {{ prop.propertyType }},
+    {%- endif %}
+    {%- endfor %}
+}
+
+{% endfor %}
+
+// =============================================================================
+// COMMANDS
+// =============================================================================
+
+{% for cmd in test_commands | unique(attribute="commandName") %}
+/// {{ cmd.description }}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct {{ cmd.commandName }} {
+    {%- for param in test_commands | filter(attribute="commandName", value=cmd.commandName) %}
+    {%- if param.paramName %}
+    pub {{ param.paramName }}: {{ param.paramType }},
+    {%- endif %}
+    {%- endfor %}
+}
+
+{% endfor %}

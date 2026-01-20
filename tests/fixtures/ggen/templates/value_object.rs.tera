@@ -1,0 +1,66 @@
+// Generated Value Object: {{ value_object_name }}
+// Generated at: {{ generated_timestamp }}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+{% if with_serde %}
+#[derive(serde::Serialize, serde::Deserialize)]
+{% endif %}
+pub struct {{ value_object_name }}(pub {{ inner_type }});
+
+impl {{ value_object_name }} {
+    /// Create a new {{ value_object_name }}
+    pub fn new(value: {{ inner_type }}) -> Result<Self, String> {
+        {% if has_validation %}
+        Self::validate(&value)?;
+        {% endif %}
+        Ok(Self(value))
+    }
+
+    /// Get the inner value
+    pub fn value(&self) -> &{{ inner_type }} {
+        &self.0
+    }
+
+    {% if has_validation %}
+    /// Validate the value
+    fn validate(value: &{{ inner_type }}) -> Result<(), String> {
+        {% for validation in validations %}
+        {{ validation.code }}
+        {% endfor %}
+        Ok(())
+    }
+    {% endif %}
+}
+
+impl From<{{ value_object_name }}> for {{ inner_type }} {
+    fn from(vo: {{ value_object_name }}) -> Self {
+        vo.0
+    }
+}
+
+{% if inner_type == "String" %}
+impl AsRef<str> for {{ value_object_name }} {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+{% endif %}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_{{ value_object_name | lower }}_creation() {
+        let result = {{ value_object_name }}::new({{ test_value }});
+        assert!(result.is_ok());
+    }
+
+    {% if has_validation %}
+    #[test]
+    fn test_{{ value_object_name | lower }}_validation() {
+        let invalid_result = {{ value_object_name }}::new({{ invalid_test_value }});
+        assert!(invalid_result.is_err());
+    }
+    {% endif %}
+}

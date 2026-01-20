@@ -181,3 +181,16 @@ cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
 description = "Install ggen from submodule"
 script = ["cd ggen && cargo install --path crates/ggen-cli"]
 cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+# ============================================================================
+# Manifest Verification Tasks
+# ============================================================================
+
+[tasks.verify-manifest]
+description = "Verify tool manifest schema stability (breaking change detection)"
+script = ["./scripts/verify_manifest.sh"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.generate-manifest]
+description = "Generate tool manifest with pretty-printing"
+command = "cargo"
+args = ["run", "--bin", "generate_manifest", "--", "--pretty"]

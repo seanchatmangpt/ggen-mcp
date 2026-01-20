@@ -48,10 +48,12 @@
 //! let schema_report = validator.validate_all();
 //! ```
 
+pub mod cache;
 pub mod consistency;
 pub mod graph_integrity;
 pub mod shacl;
 
+pub use cache::{CacheStats, OntologyCache, QueryCache};
 pub use consistency::{
     ConsistencyChecker, ConsistencyReport, HashVerifier, MergeResult, NamespaceManager,
     OntologyMerger, SchemaValidator, ValidationError, ValidationResult,

@@ -1,0 +1,101 @@
+# =============================================================================
+# ggen.toml - Example with Jira Integration
+# =============================================================================
+#
+# This example shows how to configure Jira integration as an optional
+# compiler stage in the ggen sync pipeline.
+#
+# Jira integration runs after code generation (stage 14) and can:
+# - Generate ticket plans (dry-run mode)
+# - Create Jira tickets from generated files
+# - Bidirectionally sync with spreadsheet
+
+[project]
+name = "ggen-mcp"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/mcp-domain.ttl"
+base_uri = "https://ggen-mcp.dev/domain#"
+
+# =============================================================================
+# Jira Integration Configuration (Optional Stage 14)
+# =============================================================================
+
+[jira]
+# Enable/disable Jira integration
+enabled = true
+
+# Operating mode:
+# - "dry_run": Generate plan only, no API calls (default)
+# - "create": Create Jira tickets from generated files
+# - "sync": Bidirectional sync with spreadsheet
+mode = "dry_run"
+
+# Jira project key for ticket creation
+project_key = "GGEN"
+
+# Jira instance base URL
+base_url = "https://company.atlassian.net"
+
+# Environment variable containing Jira auth token
+# Set via: export JIRA_TOKEN="your-token-here"
+auth_token_env = "JIRA_TOKEN"
+
+# Column mapping for ticket creation/sync
+[jira.mapping]
+summary_column = "B"       # Ticket summary
+status_column = "C"        # Status (Open, In Progress, Done)
+assignee_column = "D"      # Assignee email or username
+description_column = "E"   # Optional: detailed description
+
+# =============================================================================
+# Example Usage
+# =============================================================================
+#
+# 1. Dry-run mode (generate plan):
+#    export JIRA_TOKEN="your-token"
+#    ggen sync
+#    # Output: "14 tickets planned for project GGEN"
+#
+# 2. Create tickets:
+#    [jira]
+#    mode = "create"
+#    # ggen sync creates actual Jira tickets
+#
+# 3. Sync with spreadsheet:
+#    [jira]
+#    mode = "sync"
+#    # Bidirectional sync: Jira ↔ Spreadsheet
+#
+# =============================================================================
+# Integration Points
+# =============================================================================
+#
+# Stage 14 (Jira Integration) delegates to existing tools:
+# - jira_unified::manage_jira_integration for all operations
+# - Reuses JiraClient, ConflictResolution, etc.
+# - Zero code duplication
+#
+# Poka-yoke (error-proofing):
+# - Validates auth token from environment
+# - Validates Jira URL format
+# - Falls back gracefully if config missing
+# - Dry-run mode by default (safe)
+#
+# =============================================================================
+
+[ontology.prefixes]
+mcp = "https://ggen-mcp.dev/mcp#"
+ggen = "https://ggen-mcp.dev/domain#"
+rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+xsd = "http://www.w3.org/2001/XMLSchema#"
+
+[[generation.rules]]
+name = "mcp-tools"
+description = "Generate MCP tool handler methods from ontology"
+query = { file = "queries/mcp_tools.rq" }
+template = { file = "templates/mcp_tools.rs.tera" }
+output_file = "src/generated/mcp_tools.rs"
+mode = "Overwrite"

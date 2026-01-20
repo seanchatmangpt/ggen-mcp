@@ -1,0 +1,32 @@
+{
+  "workspace_hash": "7f83b165",
+  "timestamp": "2026-01-20T16:30:00Z",
+  "mode": "apply",
+  "status": "Success",
+  "sections": [
+    {
+      "title": "Inputs Discovered",
+      "content": "- Config: ggen.toml (31 rules)\n- Ontologies: ontology/mcp-domain.ttl (42KB)\n- Queries: 14 files (queries/*.rq)\n- Templates: 21 files (templates/*.rs.tera)\n"
+    },
+    {
+      "title": "Guard Verdicts",
+      "content": "✅ G1: Path safety (no traversal)\n✅ G2: Output overlap (no conflicts)\n✅ G3: Template compilation (21/21 valid)\n✅ G4: Turtle parse (valid RDF)\n✅ G5: SPARQL execution (14/14 pass)\n✅ G6: Determinism (hash stable)\n✅ G7: Size/time bounds (within limits)\n"
+    },
+    {
+      "title": "Changes",
+      "content": "- Files added: 13\n- Files modified: 0\n- Files deleted: 0\n- Total LOC: 3,420\n"
+    },
+    {
+      "title": "Validation",
+      "content": "✅ Rust: 8 files (0 errors)\n✅ TypeScript: 3 files (0 errors)\n✅ YAML: 2 files (0 errors)\n"
+    },
+    {
+      "title": "Performance",
+      "content": "- Discovery: 45ms\n- SPARQL: 230ms (14 queries, 80% cache hit)\n- Render: 180ms (21 templates, 60% cache hit)\n- Validate: 95ms\n- **Total**: 550ms\n"
+    },
+    {
+      "title": "Receipts",
+      "content": "- Report: ./ggen.out/reports/20260120-163000.md\n- Receipt: ./ggen.out/receipts/sync-20260120-163000.json\n- Diff: ./ggen.out/diffs/sync-20260120-163000.patch\n"
+    }
+  ]
+}

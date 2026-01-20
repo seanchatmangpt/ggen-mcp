@@ -1,0 +1,15 @@
+[ggen]
+version = "6.0.0"
+context = "test"
+
+[[generation_rules]]
+name = "entities"
+query = "queries/entities.rq"
+template = "templates/entities.rs.tera"
+output = "src/generated/entities.rs"
+
+[[generation_rules]]
+name = "commands"
+query = "queries/commands.rq"
+template = "templates/commands.rs.tera"
+output = "src/generated/commands.rs"
