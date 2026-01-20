@@ -1,0 +1,18 @@
+// Services generated from ontology
+use crate::domain::*;
+
+{% for service in services %}
+pub struct {{ service.name }}<R> {
+    repository: R,
+}
+
+impl<R> {{ service.name }}<R> {
+    pub fn new(repository: R) -> Self {
+        Self { repository }
+    }
+    
+    {% for method in service.methods %}
+    pub fn {{ method.name }}(&self) {}
+    {% endfor %}
+}
+{% endfor %}

@@ -1,0 +1,16 @@
+// Handlers generated from ontology
+use crate::domain::*;
+
+{% for handler in handlers %}
+pub struct {{ handler.name }} {}
+
+impl {{ handler.name }} {
+    pub fn new() -> Self {
+        Self {}
+    }
+    
+    pub fn handle(&self) -> {{ handler.emits_event }} {
+        todo!()
+    }
+}
+{% endfor %}

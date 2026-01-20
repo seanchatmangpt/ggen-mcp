@@ -1,0 +1,16 @@
+// Policies generated from ontology
+use crate::domain::*;
+
+{% for policy in policies %}
+pub trait {{ policy.name }} {
+    fn validate(&self) -> bool;
+}
+
+pub struct Strict{{ policy.name }};
+
+impl {{ policy.name }} for Strict{{ policy.name }} {
+    fn validate(&self) -> bool {
+        true
+    }
+}
+{% endfor %}

@@ -1,0 +1,18 @@
+// Domain module - auto-generated from ontology
+pub mod aggregates;
+pub mod commands;
+pub mod events;
+pub mod value_objects;
+pub mod repositories;
+pub mod services;
+pub mod handlers;
+pub mod policies;
+
+pub use aggregates::*;
+pub use commands::*;
+pub use events::*;
+pub use value_objects::*;
+pub use repositories::*;
+pub use services::*;
+pub use handlers::*;
+pub use policies::*;

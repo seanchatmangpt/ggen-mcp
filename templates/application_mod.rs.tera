@@ -1,0 +1,18 @@
+// Application state - generated from ontology
+use crate::domain::*;
+
+pub struct ApplicationState {
+    {% for service in services %}
+    pub {{ service.name|snake_case }}: {{ service.name }}<InMemory{{ service.repository }}>,
+    {% endfor %}
+}
+
+impl ApplicationState {
+    pub fn new() -> Self {
+        Self {
+            {% for service in services %}
+            {{ service.name|snake_case }}: {{ service.name }}::new(InMemory{{ service.repository }}::new()),
+            {% endfor %}
+        }
+    }
+}

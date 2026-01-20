@@ -94,3 +94,125 @@ ggen:CodeGenerated a ddd:DomainEvent ;
     rdfs:label "Code Generated" ;
     ddd:hasProperty ggen:receiptId ;
     ddd:hasProperty ggen:path .
+
+# Value Object Definitions
+ggen:OntologyId a ddd:ValueObject ;
+    rdfs:label "OntologyId" ;
+    rdfs:comment "Unique identifier for ontology" ;
+    ddd:hasProperty ggen:id ;
+    ddd:hasInvariant [
+        rdfs:label "Must be non-empty" ;
+        ddd:check "!self.id.is_empty()" ;
+        ddd:message "OntologyId cannot be empty"
+    ] .
+
+ggen:ReceiptId a ddd:ValueObject ;
+    rdfs:label "ReceiptId" ;
+    rdfs:comment "Receipt identifier with provenance" ;
+    ddd:hasProperty ggen:receiptId ;
+    ddd:hasInvariant [
+        rdfs:label "Must be non-empty" ;
+        ddd:check "!self.receipt_id.is_empty()" ;
+        ddd:message "ReceiptId cannot be empty"
+    ] .
+
+ggen:SPARQLQuery a ddd:ValueObject ;
+    rdfs:label "SPARQLQuery" ;
+    rdfs:comment "SPARQL query string with validation" ;
+    ddd:hasProperty [
+        rdfs:label "query_text" ;
+        ddd:type "String"
+    ] ;
+    ddd:hasInvariant [
+        rdfs:label "Must be valid SPARQL" ;
+        ddd:check "self.query_text.starts_with(\"SELECT\") || self.query_text.starts_with(\"CONSTRUCT\")" ;
+        ddd:message "SPARQLQuery must start with SELECT or CONSTRUCT"
+    ] .
+
+ggen:Template a ddd:ValueObject ;
+    rdfs:label "Template" ;
+    rdfs:comment "Tera template content" ;
+    ddd:hasProperty [
+        rdfs:label "template_content" ;
+        ddd:type "String"
+    ] ;
+    ddd:hasInvariant [
+        rdfs:label "Must contain template markers" ;
+        ddd:check "self.template_content.contains(\"{{\")" ;
+        ddd:message "Template must contain template markers {{}}"
+    ] .
+
+# Repository Trait
+ggen:OntologyRepository a ddd:Repository ;
+    rdfs:label "OntologyRepository" ;
+    ddd:forAggregate ggen:Ontology ;
+    ddd:hasMethod [ rdfs:label "find_by_id"; ddd:returns "Option<Ontology>" ] ;
+    ddd:hasMethod [ rdfs:label "save"; ddd:param "ontology: Ontology" ] ;
+    ddd:hasMethod [ rdfs:label "delete"; ddd:param "id: &str" ] .
+
+ggen:ReceiptRepository a ddd:Repository ;
+    rdfs:label "ReceiptRepository" ;
+    ddd:forAggregate ggen:Receipt ;
+    ddd:hasMethod [ rdfs:label "find_by_id"; ddd:returns "Option<Receipt>" ] ;
+    ddd:hasMethod [ rdfs:label "save"; ddd:param "receipt: Receipt" ] ;
+    ddd:hasMethod [ rdfs:label "all"; ddd:returns "Vec<Receipt>" ] .
+
+# Service
+ggen:OntologyService a ddd:Service ;
+    rdfs:label "OntologyService" ;
+    ddd:uses ggen:OntologyRepository ;
+    ddd:hasMethod [ rdfs:label "load_ontology"; ddd:returns "Ontology" ] ;
+    ddd:hasMethod [ rdfs:label "get_ontology"; ddd:returns "Option<Ontology>" ] .
+
+ggen:GenerationService a ddd:Service ;
+    rdfs:label "GenerationService" ;
+    ddd:uses ggen:ReceiptRepository ;
+    ddd:hasMethod [ rdfs:label "generate_code"; ddd:returns "Receipt" ] ;
+    ddd:hasMethod [ rdfs:label "get_receipts"; ddd:returns "Vec<Receipt>" ] .
+
+# Handlers
+ggen:LoadOntologyHandler a ddd:Handler ;
+    rdfs:label "LoadOntologyHandler" ;
+    ddd:handles ggen:LoadOntologyCommand ;
+    ddd:emits ggen:OntologyLoaded .
+
+ggen:GenerateCodeHandler a ddd:Handler ;
+    rdfs:label "GenerateCodeHandler" ;
+    ddd:handles ggen:GenerateCodeCommand ;
+    ddd:emits ggen:CodeGenerated .
+
+# Policies
+ggen:CompletenessPolicy a ddd:Policy ;
+    rdfs:label "CompletenessPolicy" ;
+    ddd:validates ggen:Ontology ;
+    ddd:validates ggen:Receipt .
+
+ggen:DeterminismPolicy a ddd:Policy ;
+    rdfs:label "DeterminismPolicy" ;
+    ddd:ensures "deterministic_generation" ;
+    ddd:verifies "hash_integrity" .
+
+# Test Definitions
+ggen:OntologyLoadTest a ddd:Test ;
+    rdfs:label "OntologyLoadTest" ;
+    rdfs:comment "Test ontology loading and validation" ;
+    ddd:tests ggen:OntologyLoaded ;
+    ddd:hasArrange "let ontology = Ontology::new(\"ont-test123\".into(), \"path/to/onto.ttl\".into())" ;
+    ddd:hasAct "ontology.validate()" ;
+    ddd:hasAssert "assert!(!ontology.id.is_empty())" .
+
+ggen:ReceiptGenerationTest a ddd:Test ;
+    rdfs:label "ReceiptGenerationTest" ;
+    rdfs:comment "Test code generation receipt creation" ;
+    ddd:tests ggen:CodeGenerated ;
+    ddd:hasArrange "let receipt = Receipt::new(\"receipt-123\".into(), \"h1\".into(), \"h2\".into(), \"h3\".into())" ;
+    ddd:hasAct "receipt.validate()" ;
+    ddd:hasAssert "assert_eq!(receipt.receipt_id, \"receipt-123\")" .
+
+ggen:RepositoryPersistenceTest a ddd:Test ;
+    rdfs:label "RepositoryPersistenceTest" ;
+    rdfs:comment "Test repository save/retrieve" ;
+    ddd:tests ggen:OntologyRepository ;
+    ddd:hasArrange "let mut repo = InMemoryOntologyRepository::new(); let ont = Ontology::new(\"ont-x\".into(), \"path\".into())" ;
+    ddd:hasAct "repo.save(ont.clone()); let retrieved = repo.find_by_id(\"ont-x\")" ;
+    ddd:hasAssert "assert_eq!(retrieved, Some(ont))" .

@@ -1,0 +1,56 @@
+// Trait and In-Memory Repositories
+{% for repo in repositories %}
+pub trait {{ repo.name }} {
+  {% for method in repo.methods %}
+  fn {{ method.name }}(&{% if method.param %}mut {% endif %}self{% if method.param %}, {{ method.param }}{% endif %}) -> {{ method.returns }};
+  {% endfor %}
+}
+
+{% endfor %}
+// In-memory implementations
+use std::collections::HashMap;
+use crate::domain::*;
+
+pub struct InMemoryOntologyRepository {
+    ontologies: HashMap<String, Ontology>,
+}
+
+impl InMemoryOntologyRepository {
+    pub fn new() -> Self {
+        Self { ontologies: HashMap::new() }
+    }
+}
+
+impl OntologyRepository for InMemoryOntologyRepository {
+    fn find_by_id(&self, id: &str) -> Option<Ontology> {
+        self.ontologies.get(id).cloned()
+    }
+    fn save(&mut self, ontology: Ontology) {
+        self.ontologies.insert(ontology.id.clone(), ontology);
+    }
+    fn delete(&mut self, id: &str) {
+        self.ontologies.remove(id);
+    }
+}
+
+pub struct InMemoryReceiptRepository {
+    receipts: HashMap<String, Receipt>,
+}
+
+impl InMemoryReceiptRepository {
+    pub fn new() -> Self {
+        Self { receipts: HashMap::new() }
+    }
+}
+
+impl ReceiptRepository for InMemoryReceiptRepository {
+    fn find_by_id(&self, id: &str) -> Option<Receipt> {
+        self.receipts.get(id).cloned()
+    }
+    fn save(&mut self, receipt: Receipt) {
+        self.receipts.insert(receipt.receipt_id.clone(), receipt);
+    }
+    fn all(&self) -> Vec<Receipt> {
+        self.receipts.values().cloned().collect()
+    }
+}

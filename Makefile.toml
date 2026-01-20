@@ -1,0 +1,26 @@
+[config]
+default_to_workspace = false
+
+[tasks.sync]
+description = "Generate domain code from ontology (ggen sync)"
+command = "ggen"
+args = ["sync", "--manifest", "ggen.toml"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
+[tasks.gen]
+description = "Generate domain code and run tests"
+dependencies = ["sync", "test"]
+
+[tasks.test]
+description = "Run all tests (unit + generated)"
+command = "cargo"
+args = ["test", "--lib", "--test", "domain_tests"]
+
+[tasks.check]
+description = "Check compilation"
+command = "cargo"
+args = ["check"]
+
+[tasks.pre-commit]
+description = "Sync, check, test before commit"
+dependencies = ["sync", "check", "test"]

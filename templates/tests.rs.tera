@@ -1,0 +1,18 @@
+#[cfg(test)]
+mod tests {
+    use chicago_tdd_tools::prelude::*;
+    use crate::domain::*;
+
+    {% for test in tests %}
+    test!({{ test.name|snake_case }}, {
+        // Arrange
+        {{ test.arrange_code }}
+        
+        // Act
+        {{ test.act_code }};
+        
+        // Assert
+        {{ test.assert_code }};
+    });
+    {% endfor %}
+}

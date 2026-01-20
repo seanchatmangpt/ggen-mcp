@@ -1,0 +1,33 @@
+// Generated ValueObject: {{ vo_name }}
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct {{ vo_name }} {
+    {% for field in properties %}
+    pub {{ field.name }}: {{ field.type }},
+    {% endfor %}
+}
+
+impl {{ vo_name }} {
+    pub fn new({% for field in properties %}{{ field.name }}: {{ field.type }}{% if not loop.last %}, {% endif %}{% endfor %}) -> Self {
+        let instance = Self {
+            {% for field in properties %}
+            {{ field.name }},
+            {% endfor %}
+        };
+        instance.validate();
+        instance
+    }
+
+    pub fn validate(&self) {
+        {% for check in invariants %}
+        assert!({{ check.code }}, "{{ check.message }}");
+        {% endfor %}
+    }
+}
+
+impl fmt::Display for {{ vo_name }} {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
