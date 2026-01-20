@@ -1,0 +1,241 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ggen-mcp.io/schemas/receipt.json",
+  "title": "ggen Compilation Receipt",
+  "description": "Cryptographic receipt for proof-carrying code generation",
+  "type": "object",
+  "required": ["version", "workspace", "inputs", "guards", "outputs", "metadata"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Receipt schema version"
+    },
+    "workspace": {
+      "type": "object",
+      "required": ["root", "fingerprint"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "description": "Absolute path to workspace root"
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 hash of workspace root path"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["config", "ontologies", "queries", "templates"],
+      "properties": {
+        "config": {
+          "type": "object",
+          "required": ["path", "hash", "rules_count"],
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path to ggen.toml config file"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "SHA-256 hash of config file content"
+            },
+            "rules_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of generation rules"
+            }
+          }
+        },
+        "ontologies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "hash", "triple_count"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path to ontology file"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "SHA-256 hash of ontology content"
+              },
+              "triple_count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Number of RDF triples loaded"
+              }
+            }
+          }
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "hash"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path to SPARQL query file"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "SHA-256 hash of query content"
+              }
+            }
+          }
+        },
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "hash"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Path to Tera template file"
+              },
+              "hash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "SHA-256 hash of template content"
+              }
+            }
+          }
+        }
+      }
+    },
+    "guards": {
+      "type": "object",
+      "required": ["kernel_version", "verdicts"],
+      "properties": {
+        "kernel_version": {
+          "type": "string",
+          "description": "Version of guard kernel"
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "verdict", "diagnostic"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Guard name identifier"
+              },
+              "verdict": {
+                "type": "string",
+                "enum": ["pass", "fail"],
+                "description": "Guard execution verdict"
+              },
+              "diagnostic": {
+                "type": "string",
+                "description": "Human-readable diagnostic message"
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Additional guard-specific metadata"
+              }
+            }
+          }
+        }
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "hash", "size", "language"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to generated output file"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 hash of generated content"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "File size in bytes"
+          },
+          "language": {
+            "type": "string",
+            "description": "Output language (rust, typescript, yaml, etc.)"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["timestamp", "compiler_version", "mode", "status"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO-8601 timestamp of generation"
+        },
+        "compiler_version": {
+          "type": "string",
+          "description": "ggen-mcp version"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["preview", "apply"],
+          "description": "Execution mode"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail"],
+          "description": "Overall compilation status"
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "total_duration_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Total execution time in milliseconds"
+            },
+            "discovery_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Resource discovery time"
+            },
+            "guards_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Guard execution time"
+            },
+            "sparql_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "SPARQL query execution time"
+            },
+            "render_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Template rendering time"
+            },
+            "validate_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Code validation time"
+            }
+          }
+        }
+      }
+    }
+  }
+}

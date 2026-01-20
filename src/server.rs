@@ -864,6 +864,25 @@ impl SpreadsheetServer {
         .map_err(to_mcp_error)
     }
 
+    #[tool(
+        name = "verify_receipt",
+        description = "Verify cryptographic integrity of ggen generation receipt (7 checks: schema, workspace, inputs, outputs, guards, metadata, receipt ID)"
+    )]
+    pub async fn verify_receipt_tool(
+        &self,
+        Parameters(params): Parameters<tools::verify_receipt::VerifyReceiptParams>,
+    ) -> Result<Json<tools::verify_receipt::VerifyReceiptResponse>, McpError> {
+        self.ensure_tool_enabled("verify_receipt")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "verify_receipt",
+            tools::verify_receipt::verify_receipt(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
     // ========================================================================
     // Tera Template Authoring Tools
     // ========================================================================

@@ -1,7 +1,7 @@
 # CLAUDE.md - ggen-mcp SPR Protocol
 
-**Version**: 2.0.0 (Token-Optimized 60→24 Tools)
-**Project**: ggen-mcp (spreadsheet-mcp) | MCP Server | Rust | Ontology-Driven | TPS-Based
+**Version**: 2.1.0 (Proof-First Compiler Edition)
+**Project**: ggen-mcp (spreadsheet-mcp) | MCP Server | Rust | Ontology-Driven | TPS-Based | Proof-Carrying Code
 
 ---
 
@@ -131,27 +131,101 @@ Prometheus metrics (11 families). OpenTelemetry tracing. Health checks (/health,
 
 ## Code Generation Workflow
 
-### ggen Commands
+### ggen Commands (Preview-by-Default)
 ```bash
-cargo make sync           # Generate from ontology
-cargo make sync-validate  # Check without writing
-cargo make sync-dry-run   # Preview changes
-cargo make sync-force     # Regenerate all
+cargo make sync                    # Preview changes (safe, default)
+cargo make sync --preview=false    # Apply changes (write files)
+cargo make sync-validate           # Validate without preview
+cargo make sync-force              # Regenerate all (preview mode)
 ```
+
+**Default Behavior**: Preview mode (no writes). Set `preview=false` to apply changes.
 
 ### Generation Chain
 1. Update ontology (`.ttl`)
 2. Create/update SPARQL query (`.rq`)
 3. Create/update Tera template (`.rs.tera`)
 4. Add generation rule to `ggen.toml`
-5. Run `ggen sync`
-6. Verify: no TODOs, compiles, tests pass
+5. Run `ggen sync` (preview)
+6. Review report: `./ggen.out/reports/latest.md`
+7. Apply if satisfied: `ggen sync --preview=false`
+8. Verify: no TODOs, compiles, tests pass
 
 ### Quality Gates
 - Zero TODOs in generated code
 - Zero compile errors
 - All `validate()` functions implemented
 - File size > 100 bytes (detect empty generation)
+
+---
+
+## Proof-First Compiler (v2.1)
+
+### Core Principle
+Every compilation = cryptographic receipt + guard verdicts + First Light report. Preview by default.
+
+### 10-Stage Pipeline
+```
+Discovery → Guards (G1-G7) → SPARQL → Rendering → Validation
+  → Report → Receipt → Diff → Jira (opt) → Writes (apply mode)
+```
+
+### Key Features
+
+**Preview by Default**: Prevents accidental overwrites. Explicit `preview: false` for writes.
+
+**Guard Kernel**: 7 safety checks (G1-G7) run before generation. Fail-fast by default.
+- G1: Path Safety (no traversal)
+- G2: Output Overlap (no duplicates)
+- G3: Template Compilation (valid Tera)
+- G4: Turtle Parse (valid RDF)
+- G5: SPARQL Execution (valid queries)
+- G6: Determinism (same inputs → same outputs)
+- G7: Bounds (size/time limits)
+
+**Cryptographic Receipts**: SHA-256 hashes of workspace + inputs + outputs. Verify with `verify_receipt`.
+
+**First Light Report**: 1-page markdown/JSON summary. Sections: inputs, guards, changes, validation, performance, receipts.
+
+**Output Directory**:
+```
+./ggen.out/
+├── reports/latest.md       # First Light Report
+├── receipts/latest.json    # Cryptographic receipt
+└── diffs/latest.patch      # Unified diff
+```
+
+**Jira Integration** (optional): Create/sync tickets during compilation (dry_run/create/sync modes).
+
+**Entitlement Provider** (optional): Capability-based licensing (free/paid/enterprise tiers).
+
+### Usage
+
+**Preview** (default):
+```bash
+cargo make sync           # Preview only, no writes
+cat ./ggen.out/reports/latest.md
+```
+
+**Apply** (explicit):
+```bash
+cargo make sync --no-preview  # Write files after guards pass
+cargo make verify-receipt     # Verify cryptographic receipt
+```
+
+**Verification**:
+```bash
+ggen verify ./ggen.out/receipts/latest.json
+# 7 checks: V1-V7 (schema, workspace, inputs, outputs, guards, metadata, signature)
+```
+
+### Documentation
+- **Comprehensive**: [docs/PROOF_FIRST_COMPILER.md](docs/PROOF_FIRST_COMPILER.md) (~2,000 LOC)
+- **Guard Kernel**: [docs/GUARD_KERNEL.md](docs/GUARD_KERNEL.md) (7 guards explained)
+- **First Light Report**: [docs/FIRST_LIGHT_REPORT.md](docs/FIRST_LIGHT_REPORT.md) (format reference)
+- **Receipt Verification**: [docs/RECEIPT_VERIFICATION.md](docs/RECEIPT_VERIFICATION.md) (7 checks)
+- **Entitlement Provider**: [docs/ENTITLEMENT_PROVIDER.md](docs/ENTITLEMENT_PROVIDER.md) (licensing)
+- **Migration Guide**: [MIGRATION_GUIDE_V2.1.md](MIGRATION_GUIDE_V2.1.md) (v2.0 → v2.1)
 
 ---
 
@@ -303,15 +377,17 @@ Cache metrics: Atomic counters (hits/misses/ops)
 
 ## Essential Commands
 
-### Code Generation (cargo make)
+### Code Generation (cargo make) - Preview-by-Default
 ```bash
-cargo make sync              # Generate from ontology
-cargo make sync-validate     # Check without writing
-cargo make sync-dry-run      # Preview changes
-cargo make sync-force        # Regenerate all
+cargo make sync              # Preview changes (safe, default behavior)
+cargo make sync-validate     # Validate without writing
+cargo make sync-dry-run      # Extended preview with detailed report
+cargo make sync-force        # Regenerate all (preview mode, use --no-preview to apply)
 cargo make test-traceability # Verify ontology→code
 cargo make test-determinism  # Code generation consistency
 ```
+
+**Default Behavior**: Preview mode (no file writes). Explicitly set preview=false to apply changes.
 
 ### MCP Tools (Token-Optimized v2.0)
 
@@ -332,12 +408,21 @@ manage_ggen_resource {
   mode: "default"  # minimal/default/full
 }
 
-# Example: Sync pipeline with validation
+# Example: Sync pipeline with preview (default)
 manage_ggen_resource {
   action: "pipeline.sync",
   resource: "ggen.toml",
   validate: true,
-  dry_run: true,
+  preview: true,    # DEFAULT - no file writes
+  mode: "default"
+}
+
+# Example: Sync pipeline to apply changes (explicitly opt-out of preview)
+manage_ggen_resource {
+  action: "pipeline.sync",
+  resource: "ggen.toml",
+  validate: true,
+  preview: false,   # Explicitly apply changes (writes files)
   mode: "default"
 }
 
@@ -540,6 +625,7 @@ A: You can't. It's checked 5+ times. Mandatory. Non-negotiable.
 ---
 
 **Version History**:
+- 2.1.0 (2026-01-20): **Proof-first compiler release** - Preview by default, Guard Kernel (7 checks: G1-G7), cryptographic receipts (SHA-256), First Light reports, receipt verification (7 checks: V1-V7), Jira compiler stage (optional), entitlement provider (free/paid/enterprise). Breaking: default preview mode. See docs/PROOF_FIRST_COMPILER.md, MIGRATION_GUIDE_V2.1.md.
 - 2.0.0 (2026-01-20): **Token optimization release** - 60 → 24 tools (60% reduction), 70% token savings, unified interfaces (manage_ggen_resource, manage_jira_integration), smart defaults, tiered responses, multi-layer caching. See TOKEN_OPTIMIZATION_STRATEGY.md, MIGRATION_GUIDE.md.
 - 1.3.0 (2026-01-20): 80/20 gap analysis update - Added 23-directory structure, observability stack, system limits, 31 Makefile tasks, 7 scripts, architecture layers (recovery/audit/SPARQL), production docs
 - 1.2.0 (2026-01-20): SPR-optimized 80/20 distillation (200 LOC)

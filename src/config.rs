@@ -67,6 +67,8 @@ pub struct ServerConfig {
     pub ontology_cache_ttl_secs: u64,
     pub query_cache_size: usize,
     pub query_cache_ttl_secs: u64,
+    pub entitlement_enabled: bool,
+    pub entitlement_config: crate::entitlement::EntitlementConfig,
 }
 
 impl ServerConfig {
@@ -91,6 +93,9 @@ impl ServerConfig {
             ontology_cache_ttl_secs: cli_ontology_cache_ttl_secs,
             query_cache_size: cli_query_cache_size,
             query_cache_ttl_secs: cli_query_cache_ttl_secs,
+            entitlement_enabled: cli_entitlement_enabled,
+            entitlement_provider: cli_entitlement_provider,
+            entitlement_license_path: cli_entitlement_license_path,
         } = args;
 
         let file_config = if let Some(path) = config.as_ref() {
@@ -118,6 +123,9 @@ impl ServerConfig {
             ontology_cache_ttl_secs: file_ontology_cache_ttl_secs,
             query_cache_size: file_query_cache_size,
             query_cache_ttl_secs: file_query_cache_ttl_secs,
+            entitlement_enabled: file_entitlement_enabled,
+            entitlement_provider: file_entitlement_provider,
+            entitlement_license_path: file_entitlement_license_path,
         } = file_config;
 
         let single_workbook = cli_single_workbook.or(file_single_workbook);
@@ -267,6 +275,18 @@ impl ServerConfig {
             .unwrap_or(DEFAULT_QUERY_CACHE_TTL_SECS)
             .max(1);
 
+        let entitlement_enabled = cli_entitlement_enabled || file_entitlement_enabled.unwrap_or(false);
+
+        let entitlement_config = crate::entitlement::EntitlementConfig {
+            provider_type: cli_entitlement_provider
+                .or(file_entitlement_provider)
+                .unwrap_or_else(|| "disabled".to_string()),
+            local_path: cli_entitlement_license_path
+                .or(file_entitlement_license_path)
+                .unwrap_or_else(|| ".ggen_license".to_string()),
+            gcp_config: crate::entitlement::GcpConfig::default(),
+        };
+
         Ok(Self {
             workspace_root,
             cache_capacity,
@@ -286,6 +306,8 @@ impl ServerConfig {
             ontology_cache_ttl_secs,
             query_cache_size,
             query_cache_ttl_secs,
+            entitlement_enabled,
+            entitlement_config,
         })
     }
 
@@ -666,6 +688,29 @@ pub struct CliArgs {
         value_parser = clap::value_parser!(u64)
     )]
     pub query_cache_ttl_secs: Option<u64>,
+
+    #[arg(
+        long,
+        env = "SPREADSHEET_MCP_ENTITLEMENT_ENABLED",
+        help = "Enable entitlement checking for monetization"
+    )]
+    pub entitlement_enabled: bool,
+
+    #[arg(
+        long,
+        env = "SPREADSHEET_MCP_ENTITLEMENT_PROVIDER",
+        value_name = "PROVIDER",
+        help = "Entitlement provider: local, env, gcp, disabled (default: disabled)"
+    )]
+    pub entitlement_provider: Option<String>,
+
+    #[arg(
+        long,
+        env = "SPREADSHEET_MCP_ENTITLEMENT_LICENSE_PATH",
+        value_name = "PATH",
+        help = "Path to license file for local provider (default: .ggen_license)"
+    )]
+    pub entitlement_license_path: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -688,6 +733,9 @@ struct PartialConfig {
     ontology_cache_ttl_secs: Option<u64>,
     query_cache_size: Option<usize>,
     query_cache_ttl_secs: Option<u64>,
+    entitlement_enabled: Option<bool>,
+    entitlement_provider: Option<String>,
+    entitlement_license_path: Option<String>,
 }
 
 fn load_config_file(path: &Path) -> Result<PartialConfig> {

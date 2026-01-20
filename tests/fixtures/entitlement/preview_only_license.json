@@ -1,0 +1,8 @@
+{
+  "id": "lic-preview-001",
+  "organization": "Startup Inc",
+  "capabilities": [
+    "preview_mode"
+  ],
+  "expires_at": "2026-12-31T23:59:59Z"
+}

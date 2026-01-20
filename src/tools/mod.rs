@@ -8,6 +8,7 @@ pub mod ggen_unified;
 pub mod jira_export;
 pub mod jira_integration;
 pub mod jira_unified;
+pub mod manifest;
 pub mod ontology_generation;
 pub mod ontology_sparql;
 pub mod sparql_safety;
@@ -15,6 +16,7 @@ pub mod template_safety;
 pub mod tera_authoring;
 pub mod turtle_authoring;
 pub mod vba;
+pub mod verify_receipt;
 
 use crate::analysis::{formula::FormulaGraph, stats};
 use crate::model::*;

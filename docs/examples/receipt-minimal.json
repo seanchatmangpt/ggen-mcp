@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "workspace": {
+    "root": "/example/workspace",
+    "fingerprint": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+  },
+  "inputs": {
+    "config": {
+      "path": "ggen.toml",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rules_count": 1
+    },
+    "ontologies": [
+      {
+        "path": "ontology/domain.ttl",
+        "hash": "3f79bb7b435b05321651daefd374cdc681dc06faa65e374e38337b88ca046dea",
+        "triple_count": 42
+      }
+    ],
+    "queries": [
+      {
+        "path": "queries/extract.rq",
+        "hash": "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
+      }
+    ],
+    "templates": [
+      {
+        "path": "templates/output.rs.tera",
+        "hash": "c0535e4be2b79ffd93291305436bf889314e4a3faec05ecffcbb7df31ad9e51a"
+      }
+    ]
+  },
+  "guards": {
+    "kernel_version": "1.0.0",
+    "verdicts": [
+      {
+        "name": "syntax_check",
+        "verdict": "pass",
+        "diagnostic": "Syntax validation passed"
+      }
+    ]
+  },
+  "outputs": [
+    {
+      "path": "src/generated/output.rs",
+      "hash": "9b871512327c09ce91dd649b3f96a63b7408ef267c8cc5710114e629730cb61f",
+      "size": 1024,
+      "language": "rust"
+    }
+  ],
+  "metadata": {
+    "timestamp": "2026-01-20T20:00:00Z",
+    "compiler_version": "0.1.0",
+    "mode": "preview",
+    "status": "pass",
+    "performance": {
+      "total_duration_ms": 500
+    }
+  }
+}

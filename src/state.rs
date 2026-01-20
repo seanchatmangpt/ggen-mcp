@@ -55,6 +55,8 @@ pub struct AppState {
     recalc_semaphore: Option<GlobalRecalcLock>,
     #[cfg(feature = "recalc")]
     screenshot_semaphore: Option<GlobalScreenshotLock>,
+    /// Entitlement gate for capability checking
+    entitlement_gate: Arc<crate::entitlement::EntitlementGate>,
 }
 
 /// Cache warming configuration
@@ -99,6 +101,18 @@ impl AppState {
             max_memory_bytes: 100 * 1024 * 1024, // 100 MB
         };
         let query_cache_advanced = Arc::new(QueryResultCache::new(query_cache_config));
+
+        // Initialize entitlement gate
+        let entitlement_gate = if config.entitlement_enabled {
+            crate::entitlement::EntitlementGate::from_config(&config.entitlement_config)
+                .unwrap_or_else(|e| {
+                    tracing::warn!("Failed to init entitlement gate: {}. Using disabled gate.", e);
+                    crate::entitlement::EntitlementGate::disabled()
+                })
+        } else {
+            crate::entitlement::EntitlementGate::disabled()
+        };
+        let entitlement_gate = Arc::new(entitlement_gate);
 
         #[cfg(feature = "recalc")]
         let (fork_registry, recalc_backend, recalc_semaphore, screenshot_semaphore) =
@@ -154,6 +168,7 @@ impl AppState {
             recalc_semaphore,
             #[cfg(feature = "recalc")]
             screenshot_semaphore,
+            entitlement_gate,
         }
     }
 
@@ -194,6 +209,11 @@ impl AppState {
     /// Get advanced query result cache (with TTL)
     pub fn query_cache_advanced(&self) -> &Arc<QueryResultCache> {
         &self.query_cache_advanced
+    }
+
+    /// Get entitlement gate
+    pub fn entitlement_gate(&self) -> &Arc<crate::entitlement::EntitlementGate> {
+        &self.entitlement_gate
     }
 
     /// Get cache statistics

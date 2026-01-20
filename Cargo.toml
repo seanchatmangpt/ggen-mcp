@@ -54,6 +54,8 @@ tera = "1"
 syn = { version = "2.0", features = ["full", "parsing"] }
 toml = "0.8"
 toml_edit = "0.22"
+rayon = "1.10"
+prettyplease = "0.2"
 # sha2 already declared above
 
 async-trait = "0.1"

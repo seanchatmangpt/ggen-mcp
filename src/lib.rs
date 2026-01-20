@@ -6,11 +6,13 @@ pub mod config;
 #[cfg(feature = "recalc")]
 pub mod diff;
 pub mod domain;
+pub mod entitlement;
 pub mod error;
 #[cfg(feature = "recalc")]
 pub mod fork;
 pub mod formula;
 pub mod generated;
+pub mod guards;
 pub mod health;
 pub mod logging;
 pub mod metrics;

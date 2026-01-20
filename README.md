@@ -198,9 +198,61 @@ The agent now knows column types, cardinality, and value distributions—without
 
 Spreadsheets often contain multiple logical tables, parameter blocks, and output areas on a single sheet. The server detects these automatically:
 
+## Proof-First Code Generation (v2.1)
+
+**NEW**: ggen v2.1 introduces **proof-first compiler**: cryptographic receipts, guard kernel, and preview-by-default workflow.
+
+### Key Features
+
+- **Preview by Default**: No writes without explicit approval (`preview: false`)
+- **Guard Kernel**: 7 safety checks (G1-G7) run before generation
+  - G1: Path Safety | G2: Output Overlap | G3: Template Compilation
+  - G4: Turtle Parse | G5: SPARQL Execution | G6: Determinism | G7: Bounds
+- **Cryptographic Receipts**: SHA-256 hashes for audit compliance (SOC2, ISO 27001)
+- **First Light Reports**: 1-page markdown/JSON summaries of every compilation
+- **Receipt Verification**: Standalone tool with 7 verification checks (V1-V7)
+- **Jira Integration**: Optional compiler stage (dry_run/create/sync modes)
+- **Entitlement Provider**: Capability-based licensing (free/paid/enterprise)
+
+### Quick Start (Proof-First)
+
+```bash
+# Preview (default) - no writes
+sync_ggen { workspace_root: "." }
+
+# Review report
+cat ./ggen.out/reports/latest.md
+
+# Apply if satisfied
+sync_ggen { workspace_root: ".", preview: false }
+
+# Verify receipt (7 checks)
+verify_receipt { receipt_path: "./ggen.out/receipts/latest.json" }
+```
+
+### Output Structure
+
+```
+./ggen.out/
+├── reports/latest.md       # First Light Report (human-readable)
+├── receipts/latest.json    # Cryptographic receipt (SHA-256 hashes)
+└── diffs/latest.patch      # Unified diff (preview mode)
+```
+
+### Documentation (v2.1)
+
+- **[Proof-First Compiler](docs/PROOF_FIRST_COMPILER.md)** (~2,000 LOC) - Complete guide
+- **[Guard Kernel](docs/GUARD_KERNEL.md)** (~900 LOC) - 7 safety checks explained
+- **[First Light Report](docs/FIRST_LIGHT_REPORT.md)** (~800 LOC) - Report format reference
+- **[Receipt Verification](docs/RECEIPT_VERIFICATION.md)** (~700 LOC) - 7 verification checks
+- **[Entitlement Provider](docs/ENTITLEMENT_PROVIDER.md)** (~600 LOC) - Licensing system
+- **[Migration Guide v2.1](MIGRATION_GUIDE_V2.1.md)** (~1,500 LOC) - v2.0 → v2.1 upgrade
+
+---
+
 ## Ontology Generation (ggen Integration)
 
-**NEW**: This MCP server now includes ontology-driven code generation capabilities powered by [ggen](https://github.com/seanchatmangpt/ggen). Generate type-safe Rust code from RDF ontologies, Zod schemas, or OpenAPI specifications.
+**UPDATED**: This MCP server includes ontology-driven code generation capabilities powered by [ggen](https://github.com/seanchatmangpt/ggen). Generate type-safe Rust code from RDF ontologies, Zod schemas, or OpenAPI specifications.
 
 ### Quick Start
 

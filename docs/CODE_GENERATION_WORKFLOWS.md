@@ -1,6 +1,6 @@
 # Code Generation Workflows - Real Examples
 
-**Version**: 1.0.0 | Using Actual Tools | Production-Ready Patterns
+**Version**: 2.0.0 | Preview-by-Default | Production-Ready Patterns
 
 ---
 
@@ -9,6 +9,48 @@
 Practical workflows using 5 ontology tools: load_ontology → execute_sparql_query → render_template → validate_generated_code → write_generated_artifact.
 
 **All examples tested and working**.
+
+**NEW**: Preview-by-default behavior ensures safety. Always review before applying changes.
+
+---
+
+## Preview-First Workflow (Recommended)
+
+**Pattern**: Observe → Review → Apply → Verify
+
+### Step 1: Preview Changes (Default)
+```bash
+# No files are written; safe to run
+cargo make sync
+# OR
+manage_ggen_resource { action: "pipeline.sync", preview: true }
+```
+
+**Output**:
+- `./ggen.out/reports/latest.md` - Generation report
+- `./ggen.out/receipts/sync-*.json` - Audit receipt
+- Console output showing proposed changes
+
+### Step 2: Review Report
+```bash
+cat ./ggen.out/reports/latest.md
+# Check: guard verdicts, files to be created, validation results
+```
+
+### Step 3: Apply Changes (Explicit Opt-In)
+```bash
+# Only when satisfied with preview
+cargo make sync-apply  # Alternative: set preview=false
+# OR
+manage_ggen_resource { action: "pipeline.sync", preview: false }
+```
+
+### Step 4: Verify
+```bash
+verify_receipt { receipt_path: "./ggen.out/receipts/sync-*.json" }
+# Verify: no TODOs, compiles, tests pass
+cargo test
+```
 
 ---
 

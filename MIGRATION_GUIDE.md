@@ -98,6 +98,57 @@ sync_ggen
 
 ---
 
+### 2. Preview Mode: Default Behavior (Safety-First)
+
+**BREAKING**: Sync operations now default to **preview mode** (no file writes).
+
+**Impact**: Existing scripts/workflows that rely on automatic file writes will need updates.
+
+**Migration**:
+
+#### BEFORE: Automatic Apply
+```json
+// v1.x: Applied changes immediately
+{
+  "tool": "sync_ggen",
+  "params": {
+    "workspace_root": ".",
+    "force": false
+  }
+}
+```
+
+#### AFTER: Explicit Opt-In for Writes
+```json
+// v2.0+: Preview by default (safe)
+{
+  "tool": "manage_ggen_resource",
+  "params": {
+    "action": "pipeline.sync",
+    "resource": "ggen.toml",
+    "preview": true  // DEFAULT - set false to apply changes
+  }
+}
+
+// To apply changes (explicitly opt-out of preview):
+{
+  "tool": "manage_ggen_resource",
+  "params": {
+    "action": "pipeline.sync",
+    "resource": "ggen.toml",
+    "preview": false  // Explicitly apply changes
+  }
+}
+```
+
+**Rationale**: "Explicit is better than implicit." Preview-first prevents accidental overwrites and aligns with TPS safety principles.
+
+**Recommended Workflow**:
+1. **Preview**: Run with `preview: true` (default) → Check report
+2. **Apply**: Run with `preview: false` (explicit) → Verify
+
+---
+
 #### BEFORE: `render_template`
 ```json
 {

@@ -8,7 +8,7 @@
 //! - Multi-language validation
 //! - Atomic file writes with rollback
 //!
-//! ## 13-Stage Pipeline
+//! ## 14-Stage Pipeline (with optional Jira integration)
 //! 1. Load ggen.toml configuration
 //! 2. Discover ontology files
 //! 3. Load RDF stores (Oxigraph)
@@ -21,7 +21,13 @@
 //! 10. Atomic write with backup
 //! 11. SHA-256 audit receipts
 //! 12. Verify determinism
-//! 13. Return comprehensive report
+//! 13. Collect statistics
+//! 14. Jira integration (optional)
+//! 15. First Light Report generation (markdown/JSON)
+
+pub mod jira_stage;
+pub mod receipt;
+pub mod report;
 
 use crate::audit::integration::audit_tool;
 use crate::codegen::validation::{
@@ -89,18 +95,40 @@ pub struct SyncGgenParams {
     pub workspace_root: String,
 
     /// Preview mode - dry-run without writing files
-    /// Default: false
-    #[serde(default)]
+    /// Default: true (preview-first safety-by-default)
+    #[serde(default = "default_preview_true")]
     pub preview: bool,
 
     /// Force regeneration (ignore cache)
     /// Default: false
     #[serde(default)]
     pub force: bool,
+
+    /// Report format: markdown (default), json, or none
+    #[serde(default)]
+    pub report_format: report::ReportFormat,
+
+    /// Emit cryptographic receipt to ./ggen.out/receipts/
+    /// Default: true
+    #[serde(default = "default_true")]
+    pub emit_receipt: bool,
+
+    /// Emit unified diff to ./ggen.out/diffs/
+    /// Default: true
+    #[serde(default = "default_true")]
+    pub emit_diff: bool,
 }
 
 fn default_workspace_root() -> String {
     DEFAULT_WORKSPACE_ROOT.to_string()
+}
+
+fn default_preview_true() -> bool {
+    true
+}
+
+fn default_true() -> bool {
+    true
 }
 
 // ============================================================================
@@ -139,6 +167,9 @@ pub struct SyncGgenResponse {
 
     /// Preview mode indicator
     pub preview: bool,
+
+    /// Jira integration result (optional stage 14)
+    pub jira_result: Option<jira_stage::JiraStageResult>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -679,7 +710,9 @@ impl PipelineExecutor {
         stages.push(stage10);
 
         // Stage 11: Generate audit receipts
-        let (audit_receipt, stage11) = self.stage_generate_receipt(&sync_id, &resources, &formatted_files);
+        let total_duration_so_far = start_time.elapsed().as_millis() as u64;
+        let (audit_receipt, comprehensive_receipt, stage11) =
+            self.stage_generate_receipt(&sync_id, &resources, &formatted_files, total_duration_so_far);
         stages.push(stage11);
 
         // Stage 12: Verify determinism (hash check)
@@ -702,8 +735,11 @@ impl PipelineExecutor {
         };
         stages.push(stage13);
 
+        // Stage 14: Jira Integration (optional)
+        let jira_result = self.stage_jira_integration(workspace, &formatted_files).await;
+
         // Build response
-        let files_generated = formatted_files
+        let files_generated: Vec<GeneratedFileInfo> = formatted_files
             .into_iter()
             .map(|(name, content, query, template)| {
                 let hash = compute_string_hash(&content);
@@ -722,30 +758,49 @@ impl PipelineExecutor {
             .map(|f| f.size_bytes / 80) // Rough estimate
             .sum();
 
+        let statistics = SyncStatistics {
+            total_duration_ms: start_time.elapsed().as_millis() as u64,
+            files_generated: files_generated.len(),
+            lines_of_code,
+            sparql_queries_executed: resources.queries.len(),
+            templates_rendered: resources.templates.len(),
+            cache_hits,
+            cache_misses,
+        };
+
+        let validation = ValidationSummary {
+            ontology_valid: true,
+            queries_valid: true,
+            templates_valid: true,
+            generated_code_valid: true,
+        };
+
+        // Stage 15: Generate First Light Report
+        let stage15 = self.stage_generate_report(
+            &sync_id,
+            &resources,
+            &files_generated,
+            &stages,
+            &validation,
+            &statistics,
+            &audit_receipt,
+        );
+        if let Some(stage) = stage15 {
+            stages.push(stage);
+        }
+
         Ok(SyncGgenResponse {
             sync_id,
             timestamp: chrono::Utc::now().to_rfc3339(),
             status: SyncStatus::Success,
             stages,
             files_generated,
-            validation: ValidationSummary {
-                ontology_valid: true,
-                queries_valid: true,
-                templates_valid: true,
-                generated_code_valid: true,
-            },
+            validation,
             audit_receipt,
-            statistics: SyncStatistics {
-                total_duration_ms: start_time.elapsed().as_millis() as u64,
-                files_generated: files_generated.len(),
-                lines_of_code,
-                sparql_queries_executed: resources.queries.len(),
-                templates_rendered: resources.templates.len(),
-                cache_hits,
-                cache_misses,
-            },
+            statistics,
             errors,
             preview: self.params.preview,
+            jira_result,
         })
     }
 
@@ -1056,10 +1111,11 @@ impl PipelineExecutor {
         sync_id: &str,
         resources: &ResourceDiscovery,
         files: &[(String, String, String, String)],
-    ) -> (Option<AuditReceipt>, StageResult) {
+        total_duration_ms: u64,
+    ) -> (Option<AuditReceipt>, Option<receipt::Receipt>, StageResult) {
         let start = Instant::now();
 
-        // Compute hashes
+        // Legacy audit receipt (simple hash-based)
         let ontology_hash = resources
             .ontologies
             .iter()
@@ -1076,7 +1132,7 @@ impl PipelineExecutor {
             .collect::<Vec<_>>()
             .join(",");
 
-        let receipt = AuditReceipt {
+        let audit_receipt = AuditReceipt {
             receipt_id: format!("{}-receipt", sync_id),
             ontology_hash,
             config_hash: "ggen.toml".to_string(),
@@ -1084,14 +1140,76 @@ impl PipelineExecutor {
             receipt_path: format!(".ggen/receipts/{}.json", sync_id),
         };
 
+        // Comprehensive cryptographic receipt (if enabled)
+        let comprehensive_receipt = if self.params.emit_receipt {
+            let workspace_root = &self.params.workspace_root;
+            let workspace = Path::new(workspace_root);
+            let config_path = workspace.join("ggen.toml");
+            let config_path_opt = if config_path.exists() {
+                Some(config_path.as_path())
+            } else {
+                None
+            };
+
+            // Build query and template path lists
+            let query_paths: Vec<PathBuf> = resources.queries.values().cloned().collect();
+            let template_paths: Vec<PathBuf> = resources.templates.values().cloned().collect();
+
+            // Build output file list (path, content)
+            let output_files: Vec<(String, String)> = files
+                .iter()
+                .map(|(name, content, _, _)| {
+                    (format!("src/generated/{}.rs", name), content.clone())
+                })
+                .collect();
+
+            match receipt::ReceiptGenerator::generate(
+                workspace_root,
+                config_path_opt,
+                &resources.ontologies,
+                &query_paths,
+                &template_paths,
+                &output_files,
+                self.params.preview,
+                total_duration_ms,
+            ) {
+                Ok(receipt_obj) => {
+                    // Save to file
+                    let receipt_dir = workspace.join(".ggen/receipts");
+                    let receipt_path = receipt_dir.join(format!("{}.json", sync_id));
+
+                    if let Err(e) = receipt::ReceiptGenerator::save(&receipt_obj, &receipt_path) {
+                        tracing::warn!("Failed to save comprehensive receipt: {}", e);
+                        None
+                    } else {
+                        tracing::info!("Comprehensive receipt saved to {}", receipt_path.display());
+                        Some(receipt_obj)
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to generate comprehensive receipt: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        let has_comprehensive = comprehensive_receipt.is_some();
+
         (
-            Some(receipt),
+            Some(audit_receipt),
+            comprehensive_receipt,
             StageResult {
                 stage_number: 11,
                 stage_name: "Generate Receipt".to_string(),
                 status: StageStatus::Completed,
                 duration_ms: start.elapsed().as_millis() as u64,
-                details: "Audit receipt generated".to_string(),
+                details: if has_comprehensive {
+                    "Comprehensive cryptographic receipt generated".to_string()
+                } else {
+                    "Audit receipt generated".to_string()
+                },
             },
         )
     }
@@ -1123,6 +1241,130 @@ impl PipelineExecutor {
                 "No determinism issues detected".to_string()
             },
         }
+    }
+
+    fn stage_generate_report(
+        &self,
+        sync_id: &str,
+        resources: &ResourceDiscovery,
+        files: &[GeneratedFileInfo],
+        stages: &[StageResult],
+        validation: &ValidationSummary,
+        statistics: &SyncStatistics,
+        audit_receipt: &Option<AuditReceipt>,
+    ) -> Option<StageResult> {
+        use report::{ReportWriter, ReportFormat, InputDiscovery, OntologyInfo};
+
+        // Skip if report format is None
+        if matches!(self.params.report_format, ReportFormat::None) {
+            return None;
+        }
+
+        let start = Instant::now();
+
+        // Create report writer
+        let mut writer = ReportWriter::new(&self.params.workspace_root, self.params.preview);
+
+        // Add input discovery
+        let discovery = InputDiscovery {
+            config_path: "ggen.toml".to_string(),
+            config_rules: 0, // TODO: Extract from actual config
+            ontologies: resources.ontologies.iter().map(|p| {
+                let size = std::fs::metadata(p).map(|m| m.len() as usize).unwrap_or(0);
+                OntologyInfo {
+                    path: p.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    size_bytes: size,
+                }
+            }).collect(),
+            queries: resources.queries.len(),
+            templates: resources.templates.len(),
+        };
+        writer.add_input_discovery(&discovery);
+
+        // Add guard verdicts
+        let guards = report::extract_guard_results(stages);
+        writer.add_guard_verdicts(&guards);
+
+        // Add changes
+        let changeset = report::Changeset::from(files);
+        writer.add_changes(&changeset);
+
+        // Add validation
+        let validation_results = report::ValidationResults::from(validation);
+        writer.add_validation(&validation_results);
+
+        // Add performance
+        let mut metrics = report::PerformanceMetrics::from(statistics);
+        // Extract timing from stages
+        for stage in stages {
+            match stage.stage_name.as_str() {
+                "Discover Resources" => metrics.discovery_ms = stage.duration_ms,
+                "Execute Queries" => metrics.sparql_ms = stage.duration_ms,
+                "Render Templates" => metrics.render_ms = stage.duration_ms,
+                "Validate Syntax" => metrics.validate_ms = stage.duration_ms,
+                _ => {}
+            }
+        }
+        writer.add_performance(&metrics);
+
+        // Generate report paths
+        let timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+        let report_ext = match self.params.report_format {
+            ReportFormat::Markdown => "md",
+            ReportFormat::Json => "json",
+            ReportFormat::None => return None,
+        };
+        let report_path = format!("./ggen.out/reports/{}.{}", timestamp, report_ext);
+        let receipt_path = format!("./ggen.out/receipts/{}.json", sync_id);
+        let diff_path = format!("./ggen.out/diffs/{}.patch", sync_id);
+
+        writer.add_receipts(&report_path, &receipt_path, &diff_path);
+
+        // Write report
+        let write_result = match self.params.report_format {
+            ReportFormat::Markdown => writer.write_markdown(Path::new(&report_path)),
+            ReportFormat::Json => writer.write_json(Path::new(&report_path)),
+            ReportFormat::None => return None,
+        };
+
+        let (status, details) = match write_result {
+            Ok(_) => (StageStatus::Completed, format!("Report written to {}", report_path)),
+            Err(e) => (StageStatus::Failed, format!("Failed to write report: {}", e)),
+        };
+
+        // Optionally emit receipt and diff
+        if self.params.emit_receipt && audit_receipt.is_some() {
+            if let Some(receipt) = audit_receipt {
+                let receipt_json = serde_json::to_string_pretty(receipt).unwrap_or_default();
+                let _ = std::fs::create_dir_all("./ggen.out/receipts");
+                let _ = std::fs::write(&receipt_path, receipt_json);
+            }
+        }
+
+        if self.params.emit_diff {
+            // Generate unified diff (placeholder - would need actual implementation)
+            let _ = std::fs::create_dir_all("./ggen.out/diffs");
+            let diff_content = format!("# Diff for sync {}\n# {} files changed\n", sync_id, files.len());
+            let _ = std::fs::write(&diff_path, diff_content);
+        }
+
+        Some(StageResult {
+            stage_number: 15,
+            stage_name: "Generate Report".to_string(),
+            status,
+            duration_ms: start.elapsed().as_millis() as u64,
+            details,
+        })
+    }
+
+    async fn stage_jira_integration(
+        &self,
+        _workspace: &Path,
+        _files: &[(String, String, String, String)],
+    ) -> Option<()> {
+        // Jira integration is optional and delegated to jira_stage module
+        // Stubbed for now to allow compilation
+        None
     }
 
     fn generate_sync_id() -> String {
@@ -1161,6 +1403,7 @@ impl PipelineExecutor {
             },
             errors,
             preview,
+            jira_result: None,
         }
     }
 }
@@ -1179,13 +1422,36 @@ mod tests {
     fn test_default_params() {
         let params = SyncGgenParams {
             workspace_root: default_workspace_root(),
-            preview: false,
+            preview: default_preview_true(),
             force: false,
+            report_format: report::ReportFormat::default(),
+            emit_receipt: default_true(),
+            emit_diff: default_true(),
         };
 
         assert_eq!(params.workspace_root, DEFAULT_WORKSPACE_ROOT);
-        assert!(!params.preview);
+        assert!(params.preview);  // Preview is now true by default
         assert!(!params.force);
+        assert!(matches!(params.report_format, report::ReportFormat::Markdown));
+        assert!(params.emit_receipt);
+        assert!(params.emit_diff);
+    }
+
+    #[test]
+    fn test_explicit_override_preview_false() {
+        let params = SyncGgenParams {
+            workspace_root: default_workspace_root(),
+            preview: false,  // Explicitly opt-out of preview
+            force: false,
+            report_format: report::ReportFormat::Json,
+            emit_receipt: false,
+            emit_diff: false,
+        };
+
+        assert!(!params.preview);  // Can still explicitly set to false
+        assert!(matches!(params.report_format, report::ReportFormat::Json));
+        assert!(!params.emit_receipt);
+        assert!(!params.emit_diff);
     }
 
     #[test]
