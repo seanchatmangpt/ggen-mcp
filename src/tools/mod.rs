@@ -1,10 +1,17 @@
 pub mod filters;
 #[cfg(feature = "recalc")]
 pub mod fork;
+pub mod ggen_config;
+pub mod ggen_init;
+pub mod ggen_sync;
+pub mod jira_export;
+pub mod jira_integration;
 pub mod ontology_generation;
 pub mod ontology_sparql;
 pub mod sparql_safety;
 pub mod template_safety;
+pub mod tera_authoring;
+pub mod turtle_authoring;
 pub mod vba;
 
 use crate::analysis::{formula::FormulaGraph, stats};

@@ -1,0 +1,19 @@
+[project]
+name = "test-project"
+version = "0.1.0"
+description = "Minimal test configuration"
+
+[ontology]
+source = "ontology/domain.ttl"
+base_uri = "http://test.example.org/"
+format = "turtle"
+
+[ontology.prefixes]
+test = "http://test.example.org/"
+ddd = "http://ggen-mcp.dev/ontology/ddd#"
+rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+owl = "http://www.w3.org/2002/07/owl#"
+
+[cache]
+enabled = false

@@ -17,6 +17,10 @@ pub mod mcp_tool_workflow;
 pub mod property_input_harness;
 pub mod domain_model_harness;
 pub mod ontology_generation_harness;
+pub mod turtle_ontology_harness;
+pub mod toml_config_harness;
+pub mod ggen_integration_harness;
+pub mod fixture_library;
 
 // Re-export main harness components
 pub use codegen_pipeline_harness::{
@@ -88,4 +92,12 @@ pub use ontology_generation_harness::{
     FileComparison,
     CacheTestResult,
     WorkflowMetrics,
+};
+
+pub use ggen_integration_harness::{
+    GgenIntegrationHarness,
+    GenerationMetrics,
+    GenerationResult,
+    CompilationResult,
+    ValidationResult as GgenValidationResult,
 };

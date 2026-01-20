@@ -314,52 +314,57 @@ cargo make test-determinism  # Code generation consistency
 ```
 
 ### Ontology Generation (MCP Tools)
+
+**5 tools for RDF/SPARQL-driven code generation**:
 ```bash
-# Validate RDF ontology (SHACL conformance)
-validate_ontology {
-  ontology_path: "ontology/mcp-domain.ttl",
-  strict_mode: true,
-  resolve_imports: true
+# 1. Load RDF/Turtle ontology
+load_ontology {
+  path: "ontology/mcp-domain.ttl",
+  validate: true,
+  base_iri: "http://example.org/mcp#"
 }
+# Returns: ontology_id (use for SPARQL queries)
 
-# Generate entity from Zod/JSON schema
-generate_from_schema {
-  schema_type: "zod",
-  schema_content: "z.object({ id: z.string().uuid(), name: z.string() })",
-  entity_name: "Product",
-  features: ["serde", "validation", "builder"]
+# 2. Query loaded ontology with SPARQL
+execute_sparql_query {
+  ontology_id: "sha256:7f83b165...",
+  query: "SELECT ?tool WHERE { ?tool a mcp:Tool }",
+  cache_ttl: 600
 }
+# Returns: JSON results
 
-# Generate API from OpenAPI 3.x spec
-generate_from_openapi {
-  openapi_spec: "openapi/api.yaml",
-  generation_target: "full",
-  framework: "rmcp",
-  validation_strategy: "strict"
+# 3. Render Tera template with context
+render_template {
+  template: "entity.rs.tera",
+  context: { entity_name: "User", fields: [...] },
+  output_format: "rust",
+  validate_syntax: true
 }
+# Returns: rendered code
 
-# Preview changes before generation (dry-run, no file writes)
-preview_generation {
-  generation_config: {
-    tool: "generate_from_schema",
-    arguments: { schema_content: "...", entity_name: "User" }
-  },
-  show_diffs: true
+# 4. Validate generated code (multi-language)
+validate_generated_code {
+  code: "pub struct User { ... }",
+  language: "rust",
+  file_name: "user.rs",
+  golden_file_path: "tests/golden/user.rs"
 }
+# Returns: validation status + golden file diff
 
-# Full ontology sync (13-step pipeline: validate → extract → generate → audit)
-sync_ontology {
-  ontology_path: "ontology/",
-  audit_trail: true,
-  validation_level: "strict",
-  parallel_generation: true
+# 5. Write artifact with audit trail
+write_generated_artifact {
+  content: "pub struct User { ... }",
+  output_path: "src/generated/user.rs",
+  create_backup: true,
+  ontology_hash: "sha256:...",
+  template_hash: "sha256:..."
 }
+# Returns: receipt_id (provenance tracking)
 
 # Documentation
-# See: docs/MCP_TOOL_USAGE.md for complete tool reference
-# See: docs/WORKFLOW_EXAMPLES.md for 5 real-world workflows
-# See: docs/VALIDATION_GUIDE.md for 4-layer validation guide
-# Run: cargo run --example ontology_generation_example
+# See: docs/ONTOLOGY_TOOLS_REFERENCE.md - Complete tool reference
+# See: docs/CODE_GENERATION_WORKFLOWS.md - 6 real-world workflows
+# See: docs/MCP_TOOLS_GAP_ANALYSIS.md - Implementation status
 ```
 
 ### Testing (cargo make)

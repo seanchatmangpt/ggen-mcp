@@ -1,0 +1,71 @@
+// Generated from ontology: {{ ontology_source }}
+// Aggregate: {{ aggregate_name }}
+// Generated at: {{ generated_timestamp }}
+
+#[derive(Debug, Clone, PartialEq)]
+{% if with_serde %}
+#[derive(serde::Serialize, serde::Deserialize)]
+{% endif %}
+pub struct {{ aggregate_name }} {
+    {% for field in fields %}
+    {% if field.required %}
+    pub {{ field.name }}: {{ field.rust_type }},
+    {% else %}
+    pub {{ field.name }}: Option<{{ field.rust_type }}>,
+    {% endif %}
+    {% endfor %}
+}
+
+impl {{ aggregate_name }} {
+    /// Create a new {{ aggregate_name }}
+    pub fn new(
+        {% for field in fields %}
+        {% if field.required %}
+        {{ field.name }}: {{ field.rust_type }},
+        {% endif %}
+        {% endfor %}
+    ) -> Self {
+        Self {
+            {% for field in fields %}
+            {% if field.required %}
+            {{ field.name }},
+            {% else %}
+            {{ field.name }}: None,
+            {% endif %}
+            {% endfor %}
+        }
+    }
+
+    {% for field in fields %}
+    /// Get {{ field.name }}
+    pub fn {{ field.name }}(&self) -> {% if field.required %}&{{ field.rust_type }}{% else %}Option<&{{ field.rust_type }}>{% endif %} {
+        {% if field.required %}
+        &self.{{ field.name }}
+        {% else %}
+        self.{{ field.name }}.as_ref()
+        {% endif %}
+    }
+    {% endfor %}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_{{ aggregate_name | lower }}_creation() {
+        let entity = {{ aggregate_name }}::new(
+            {% for field in fields %}
+            {% if field.required %}
+            {{ field.test_value }},
+            {% endif %}
+            {% endfor %}
+        );
+
+        {% for field in fields %}
+        {% if field.required %}
+        assert_eq!(entity.{{ field.name }}(), &{{ field.test_value }});
+        {% endif %}
+        {% endfor %}
+    }
+}

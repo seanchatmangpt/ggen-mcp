@@ -1,0 +1,46 @@
+[project]
+name = "complete-test-project"
+version = "1.0.0"
+description = "Complete test configuration with all features"
+authors = ["Test Author"]
+
+[ontology]
+source = "ontology/domain.ttl"
+base_uri = "http://test.example.org/"
+format = "turtle"
+imports = ["base-ontology.ttl"]
+
+[ontology.prefixes]
+test = "http://test.example.org/"
+ddd = "http://ggen-mcp.dev/ontology/ddd#"
+rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+owl = "http://www.w3.org/2002/07/owl#"
+xsd = "http://www.w3.org/2001/XMLSchema#"
+
+[[generation]]
+name = "user_aggregate"
+query = "queries/user.rq"
+template = "templates/aggregate.rs.tera"
+output = "src/generated/user.rs"
+
+[[generation]]
+name = "order_aggregate"
+query = "queries/order.rq"
+template = "templates/aggregate.rs.tera"
+output = "src/generated/order.rs"
+
+[[generation]]
+name = "value_objects"
+query = "queries/value_objects.rq"
+template = "templates/value_object.rs.tera"
+output = "src/generated/value_objects.rs"
+
+[cache]
+enabled = true
+ttl_seconds = 3600
+max_entries = 100
+
+[validation]
+strict_mode = true
+allow_warnings = false

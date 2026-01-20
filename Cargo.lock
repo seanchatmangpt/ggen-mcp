@@ -3805,6 +3805,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
+ "toml_edit",
  "tower 0.5.2",
  "tracing",
  "tracing-appender",

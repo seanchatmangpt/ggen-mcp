@@ -52,6 +52,8 @@ base64 = { version = "0.22", optional = true }
 oxigraph = "0.4"
 tera = "1"
 syn = { version = "2.0", features = ["full", "parsing"] }
+toml = "0.8"
+toml_edit = "0.22"
 # sha2 already declared above
 
 async-trait = "0.1"
@@ -61,6 +63,7 @@ quick-xml = { version = "0.31", optional = true }
 xxhash-rust = { version = "0.8", features = ["xxh64"], optional = true }
 tempfile = "3.10"
 prometheus-client = "0.22"
+reqwest = { version = "0.12", features = ["json"] }
 
 [features]
 default = []

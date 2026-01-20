@@ -730,6 +730,238 @@ impl SpreadsheetServer {
         .map(Json)
         .map_err(to_mcp_error)
     }
+
+    #[tool(
+        name = "init_ggen_project",
+        description = "Initialize a new ggen project with template scaffolding (rust-mcp-server, api-server, domain-model)"
+    )]
+    pub async fn init_ggen_project(
+        &self,
+        Parameters(params): Parameters<tools::ggen_init::InitGgenProjectParams>,
+    ) -> Result<Json<tools::ggen_init::InitGgenProjectResponse>, McpError> {
+        self.ensure_tool_enabled("init_ggen_project")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "init_ggen_project",
+            tools::ggen_init::init_ggen_project(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "read_ggen_config",
+        description = "Read and parse ggen.toml configuration, returning structured JSON"
+    )]
+    pub async fn read_ggen_config(
+        &self,
+        Parameters(params): Parameters<tools::ggen_config::ReadGgenConfigParams>,
+    ) -> Result<Json<tools::ggen_config::ReadGgenConfigResponse>, McpError> {
+        self.ensure_tool_enabled("read_ggen_config")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "read_ggen_config",
+            tools::ggen_config::read_ggen_config(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "validate_ggen_config",
+        description = "Validate ggen.toml configuration (syntax, file refs, circular deps, path overlaps)"
+    )]
+    pub async fn validate_ggen_config(
+        &self,
+        Parameters(params): Parameters<tools::ggen_config::ValidateGgenConfigParams>,
+    ) -> Result<Json<tools::ggen_config::ValidateGgenConfigResponse>, McpError> {
+        self.ensure_tool_enabled("validate_ggen_config")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "validate_ggen_config",
+            tools::ggen_config::validate_ggen_config(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "add_generation_rule",
+        description = "Add new generation rule to ggen.toml atomically with backup"
+    )]
+    pub async fn add_generation_rule(
+        &self,
+        Parameters(params): Parameters<tools::ggen_config::AddGenerationRuleParams>,
+    ) -> Result<Json<tools::ggen_config::AddGenerationRuleResponse>, McpError> {
+        self.ensure_tool_enabled("add_generation_rule")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "add_generation_rule",
+            tools::ggen_config::add_generation_rule(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "update_generation_rule",
+        description = "Update existing generation rule in ggen.toml by name"
+    )]
+    pub async fn update_generation_rule(
+        &self,
+        Parameters(params): Parameters<tools::ggen_config::UpdateGenerationRuleParams>,
+    ) -> Result<Json<tools::ggen_config::UpdateGenerationRuleResponse>, McpError> {
+        self.ensure_tool_enabled("update_generation_rule")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "update_generation_rule",
+            tools::ggen_config::update_generation_rule(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "remove_generation_rule",
+        description = "Remove generation rule from ggen.toml by name"
+    )]
+    pub async fn remove_generation_rule(
+        &self,
+        Parameters(params): Parameters<tools::ggen_config::RemoveGenerationRuleParams>,
+    ) -> Result<Json<tools::ggen_config::RemoveGenerationRuleResponse>, McpError> {
+        self.ensure_tool_enabled("remove_generation_rule")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "remove_generation_rule",
+            tools::ggen_config::remove_generation_rule(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "sync_ggen",
+        description = "Atomic ontology-driven code generation - 13-stage pipeline (discover → query → render → validate → write)"
+    )]
+    pub async fn sync_ggen_tool(
+        &self,
+        Parameters(params): Parameters<tools::ggen_sync::SyncGgenParams>,
+    ) -> Result<Json<tools::ggen_sync::SyncGgenResponse>, McpError> {
+        self.ensure_tool_enabled("sync_ggen")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "sync_ggen",
+            tools::ggen_sync::sync_ggen(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    // ========================================================================
+    // Tera Template Authoring Tools
+    // ========================================================================
+
+    #[tool(
+        name = "read_tera_template",
+        description = "Read and analyze Tera template (variables, filters, control structures, blocks, macros)"
+    )]
+    pub async fn read_tera_template(
+        &self,
+        Parameters(params): Parameters<tools::tera_authoring::ReadTeraTemplateParams>,
+    ) -> Result<Json<tools::tera_authoring::ReadTeraTemplateResponse>, McpError> {
+        self.ensure_tool_enabled("read_tera_template")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "read_tera_template",
+            tools::tera_authoring::read_tera_template(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "validate_tera_template",
+        description = "Validate Tera template syntax, variables, filters, and balanced blocks"
+    )]
+    pub async fn validate_tera_template(
+        &self,
+        Parameters(params): Parameters<tools::tera_authoring::ValidateTeraParams>,
+    ) -> Result<Json<tools::tera_authoring::ValidateTeraResponse>, McpError> {
+        self.ensure_tool_enabled("validate_tera_template")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "validate_tera_template",
+            tools::tera_authoring::validate_tera_template(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "test_tera_template",
+        description = "Test Tera template rendering with sample context (shows errors, performance metrics)"
+    )]
+    pub async fn test_tera_template(
+        &self,
+        Parameters(params): Parameters<tools::tera_authoring::TestTeraParams>,
+    ) -> Result<Json<tools::tera_authoring::TestTeraResponse>, McpError> {
+        self.ensure_tool_enabled("test_tera_template")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "test_tera_template",
+            tools::tera_authoring::test_tera_template(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "create_tera_template",
+        description = "Scaffold Tera template from pattern (struct, endpoint, schema, interface)"
+    )]
+    pub async fn create_tera_template(
+        &self,
+        Parameters(params): Parameters<tools::tera_authoring::CreateTeraParams>,
+    ) -> Result<Json<tools::tera_authoring::CreateTeraResponse>, McpError> {
+        self.ensure_tool_enabled("create_tera_template")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "create_tera_template",
+            tools::tera_authoring::create_tera_template(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
+    #[tool(
+        name = "list_template_variables",
+        description = "Extract all variables from Tera template (usage count, filters, type hints)"
+    )]
+    pub async fn list_template_variables(
+        &self,
+        Parameters(params): Parameters<tools::tera_authoring::ListTemplateVariablesParams>,
+    ) -> Result<Json<tools::tera_authoring::ListTemplateVariablesResponse>, McpError> {
+        self.ensure_tool_enabled("list_template_variables")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "list_template_variables",
+            tools::tera_authoring::list_template_variables(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
 }
 
 #[cfg(feature = "recalc")]
@@ -1170,6 +1402,60 @@ Supports: Rust, TypeScript, YAML, JSON. Returns detailed errors, warnings, and s
         self.run_tool_with_timeout(
             "validate_generated_code",
             tools::ontology_generation::validate_generated_code(params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+}
+
+// =============================================================================
+// Jira Integration Tools
+// =============================================================================
+
+#[tool_router(router = jira_tool_router)]
+impl SpreadsheetServer {
+    #[tool(
+        name = "sync_jira_to_spreadsheet",
+        description = "Sync Jira tickets to spreadsheet rows (Jira → Spreadsheet). Query tickets via JQL, update fork. Timestamp-based conflict resolution."
+    )]
+    pub async fn sync_jira_to_spreadsheet(
+        &self,
+        Parameters(params): Parameters<tools::jira_integration::SyncJiraToSpreadsheetParams>,
+    ) -> Result<Json<tools::jira_integration::SyncJiraToSpreadsheetResponse>, McpError> {
+        // Requires fork feature (atomic transactions)
+        #[cfg(not(feature = "recalc"))]
+        {
+            return Err(to_mcp_error(anyhow::anyhow!(
+                "Jira sync requires fork support (enable recalc feature)"
+            )));
+        }
+
+        #[cfg(feature = "recalc")]
+        {
+            self.ensure_recalc_enabled("sync_jira_to_spreadsheet")
+                .map_err(to_mcp_error)?;
+            self.run_tool_with_timeout(
+                "sync_jira_to_spreadsheet",
+                tools::jira_integration::sync_jira_to_spreadsheet(self.state.clone(), params),
+            )
+            .await
+            .map(Json)
+            .map_err(to_mcp_error)
+        }
+    }
+
+    #[tool(
+        name = "sync_spreadsheet_to_jira",
+        description = "Sync spreadsheet rows to Jira tickets (Spreadsheet → Jira). Create/update tickets. Timestamp-based conflict resolution."
+    )]
+    pub async fn sync_spreadsheet_to_jira(
+        &self,
+        Parameters(params): Parameters<tools::jira_integration::SyncSpreadsheetToJiraParams>,
+    ) -> Result<Json<tools::jira_integration::SyncSpreadsheetToJiraResponse>, McpError> {
+        self.run_tool_with_timeout(
+            "sync_spreadsheet_to_jira",
+            tools::jira_integration::sync_spreadsheet_to_jira(self.state.clone(), params),
         )
         .await
         .map(Json)
