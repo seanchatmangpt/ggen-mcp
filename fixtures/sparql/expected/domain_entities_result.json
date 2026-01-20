@@ -1,0 +1,69 @@
+{
+  "description": "Expected results from domain_entities.sparql query",
+  "query_file": "queries/domain_entities.sparql",
+  "queries": [
+    {
+      "query_index": 1,
+      "description": "Extract Aggregate Roots with properties and invariants",
+      "expected_aggregates": [
+        {
+          "aggregateName": "User",
+          "properties": ["id", "email", "name"],
+          "invariants": ["EmailMustBeUnique"]
+        },
+        {
+          "aggregateName": "Order",
+          "properties": ["id", "userId", "total"],
+          "invariants": ["TotalMustBePositive"]
+        },
+        {
+          "aggregateName": "Product",
+          "properties": ["sku", "name", "price"],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "query_index": 2,
+      "description": "Extract Value Objects with validation rules",
+      "expected_value_objects": [
+        {
+          "voName": "Email",
+          "properties": ["address"],
+          "invariants": ["ValidEmailFormat"]
+        },
+        {
+          "voName": "UserId",
+          "properties": ["value"],
+          "invariants": []
+        }
+      ]
+    },
+    {
+      "query_index": 6,
+      "description": "Extract Repository interfaces",
+      "expected_repositories": [
+        {
+          "repoName": "UserRepository",
+          "aggregateRef": "User",
+          "methods": ["find_by_id", "save"]
+        },
+        {
+          "repoName": "ProductRepository",
+          "aggregateRef": "Product",
+          "methods": []
+        }
+      ]
+    }
+  ],
+  "assertions": {
+    "aggregate_count_min": 1,
+    "value_object_count_min": 1,
+    "repository_count_min": 1,
+    "required_variables": {
+      "query_1": ["aggregateName", "propertyLabel"],
+      "query_2": ["voName"],
+      "query_6": ["repoName", "aggregateRef"]
+    }
+  }
+}

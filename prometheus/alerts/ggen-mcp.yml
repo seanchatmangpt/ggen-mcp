@@ -1,0 +1,386 @@
+# Prometheus Alert Rules for GGEN MCP Server
+# Organized by severity: critical, warning, info
+
+groups:
+  # ============================================================================
+  # CRITICAL ALERTS - Page immediately, immediate action required
+  # ============================================================================
+  - name: ggen_mcp_critical
+    interval: 30s
+    rules:
+      - alert: GgenMcpServiceDown
+        expr: up{job="ggen-mcp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+          team: platform
+        annotations:
+          summary: "GGEN MCP service is down"
+          description: "The GGEN MCP service has been unreachable for 1 minute. No /health endpoint response."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/service-down"
+          impact: "All MCP tools are unavailable. Users cannot perform any operations."
+
+      - alert: GgenMcpHighErrorRate
+        expr: |
+          (
+            sum(rate(ggen_mcp_errors_total[5m]))
+            /
+            sum(rate(ggen_mcp_requests_total[5m]))
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: errors
+          team: platform
+        annotations:
+          summary: "GGEN MCP error rate above 5%"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%). This indicates a systemic issue."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/high-error-rate"
+          impact: "Users are experiencing frequent failures. Service quality severely degraded."
+
+      - alert: GgenMcpHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_request_duration_seconds_bucket[5m])
+          ) > 10
+        for: 5m
+        labels:
+          severity: critical
+          component: performance
+          team: platform
+        annotations:
+          summary: "GGEN MCP P95 latency above 10 seconds"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 10s). Service is critically slow."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/high-latency"
+          impact: "Users experiencing severe delays. Timeouts likely occurring."
+
+      - alert: GgenMcpMemoryCritical
+        expr: |
+          (
+            process_resident_memory_bytes{job="ggen-mcp"}
+            /
+            (1024 * 1024 * 1024)
+          ) > 3.6
+        for: 5m
+        labels:
+          severity: critical
+          component: memory
+          team: platform
+        annotations:
+          summary: "GGEN MCP memory usage above 90%"
+          description: "Memory usage is {{ $value | humanize }}GB (90% of 4GB limit). OOM kill imminent."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/memory-critical"
+          impact: "Service may crash due to out-of-memory. Immediate action required."
+
+      - alert: GgenMcpNoSuccessfulRequests
+        expr: |
+          sum(rate(ggen_mcp_requests_total[10m])) == 0
+          and
+          sum(rate(ggen_mcp_requests_total[1h] offset 1h)) > 0
+        for: 10m
+        labels:
+          severity: critical
+          component: traffic
+          team: platform
+        annotations:
+          summary: "No successful requests for 10 minutes"
+          description: "Service received no requests for 10 minutes, but was active 1 hour ago."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/no-traffic"
+          impact: "Complete service outage or network partition detected."
+
+  # ============================================================================
+  # WARNING ALERTS - Notify team, action needed soon
+  # ============================================================================
+  - name: ggen_mcp_warning
+    interval: 1m
+    rules:
+      - alert: GgenMcpElevatedErrorRate
+        expr: |
+          (
+            sum(rate(ggen_mcp_errors_total[5m]))
+            /
+            sum(rate(ggen_mcp_requests_total[5m]))
+          ) * 100 > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: errors
+          team: platform
+        annotations:
+          summary: "GGEN MCP error rate above 1%"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%). Higher than normal."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/elevated-errors"
+
+      - alert: GgenMcpElevatedLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_request_duration_seconds_bucket[5m])
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: performance
+          team: platform
+        annotations:
+          summary: "GGEN MCP P95 latency above 5 seconds"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 5s). Performance degraded."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/elevated-latency"
+
+      - alert: GgenMcpLowCacheHitRate
+        expr: |
+          (
+            rate(ggen_mcp_cache_hits_total[10m])
+            /
+            (rate(ggen_mcp_cache_hits_total[10m]) + rate(ggen_mcp_cache_misses_total[10m]))
+          ) * 100 < 50
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+          team: platform
+        annotations:
+          summary: "Cache hit rate below 50%"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (target: >60%). Cache may be thrashing."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-cache"
+          runbook: "https://docs.example.com/runbooks/low-cache-hit-rate"
+
+      - alert: GgenMcpHighLibreOfficeProcessCount
+        expr: ggen_mcp_libreoffice_processes > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: resources
+          team: platform
+        annotations:
+          summary: "High number of LibreOffice processes"
+          description: "{{ $value }} LibreOffice processes running (threshold: 10). Possible process leak."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/libreoffice-leak"
+
+      - alert: GgenMcpHighDiskUsage
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="node-exporter",mountpoint="/"}
+            /
+            node_filesystem_size_bytes{job="node-exporter",mountpoint="/"}
+          ) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          component: disk
+          team: platform
+        annotations:
+          summary: "Disk usage above 80%"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining. Cleanup needed."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/high-disk-usage"
+
+      - alert: GgenMcpElevatedMemoryUsage
+        expr: |
+          (
+            process_resident_memory_bytes{job="ggen-mcp"}
+            /
+            (1024 * 1024 * 1024)
+          ) > 2.8
+        for: 10m
+        labels:
+          severity: warning
+          component: memory
+          team: platform
+        annotations:
+          summary: "Memory usage above 70%"
+          description: "Memory usage is {{ $value | humanize }}GB (70% of 4GB limit). Monitor for leaks."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/elevated-memory"
+
+      - alert: GgenMcpHighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="ggen-mcp"}[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: cpu
+          team: platform
+        annotations:
+          summary: "CPU usage above 80%"
+          description: "CPU usage is {{ $value | humanizePercentage }}. Service may be CPU-bound."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/high-cpu"
+
+      - alert: GgenMcpHighActiveForks
+        expr: ggen_mcp_active_forks > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: resources
+          team: platform
+        annotations:
+          summary: "High number of active forks"
+          description: "{{ $value }} active forks (threshold: 10). Check for fork leaks."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/high-forks"
+
+  # ============================================================================
+  # INFO ALERTS - Log and track, investigation may be needed
+  # ============================================================================
+  - name: ggen_mcp_info
+    interval: 2m
+    rules:
+      - alert: GgenMcpCacheEvictionRateIncreased
+        expr: |
+          rate(ggen_mcp_cache_evictions_total[5m]) > 0.1
+          and
+          rate(ggen_mcp_cache_evictions_total[5m])
+          >
+          1.5 * rate(ggen_mcp_cache_evictions_total[1h] offset 1h)
+        for: 10m
+        labels:
+          severity: info
+          component: cache
+          team: platform
+        annotations:
+          summary: "Cache eviction rate increased"
+          description: "Cache eviction rate is {{ $value | humanize }}/sec, 50% higher than 1 hour ago."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-cache"
+
+      - alert: GgenMcpSlowQueryDetected
+        expr: ggen_mcp_slow_queries_total{duration=">10s"} > 0
+        for: 1m
+        labels:
+          severity: info
+          component: performance
+          team: platform
+        annotations:
+          summary: "Slow query detected (>10s)"
+          description: "Query took longer than 10 seconds. Check query performance."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+
+      - alert: GgenMcpDeploymentCompleted
+        expr: |
+          changes(process_start_time_seconds{job="ggen-mcp"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: info
+          component: deployment
+          team: platform
+        annotations:
+          summary: "GGEN MCP deployment completed"
+          description: "Service restarted at {{ $value | humanizeTimestamp }}. Monitor for errors."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+
+      - alert: GgenMcpHighRecalcDuration
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_recalc_duration_seconds_bucket[5m])
+          ) > 5
+        for: 10m
+        labels:
+          severity: info
+          component: performance
+          team: platform
+        annotations:
+          summary: "Recalculation duration above 5 seconds"
+          description: "P95 recalc duration is {{ $value | humanizeDuration }}. Complex spreadsheets detected."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+
+      - alert: GgenMcpHighScreenshotDuration
+        expr: |
+          histogram_quantile(0.95,
+            rate(ggen_mcp_screenshot_duration_seconds_bucket[5m])
+          ) > 10
+        for: 10m
+        labels:
+          severity: info
+          component: performance
+          team: platform
+        annotations:
+          summary: "Screenshot generation above 10 seconds"
+          description: "P95 screenshot duration is {{ $value | humanizeDuration }}. LibreOffice may be slow."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+
+      - alert: GgenMcpIncreasingHeapUsage
+        expr: |
+          deriv(nodejs_heap_size_used_bytes{job="ggen-mcp"}[30m]) > 1048576
+        for: 30m
+        labels:
+          severity: info
+          component: memory
+          team: platform
+        annotations:
+          summary: "Heap usage increasing steadily"
+          description: "Heap usage increasing by {{ $value | humanize }}B/sec. Possible memory leak."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+
+  # ============================================================================
+  # SLO VIOLATION ALERTS - Service Level Objective monitoring
+  # ============================================================================
+  - name: ggen_mcp_slo
+    interval: 1m
+    rules:
+      - alert: GgenMcpAvailabilitySLOViolation
+        expr: |
+          (
+            sum(rate(ggen_mcp_requests_total[1h]))
+            -
+            sum(rate(ggen_mcp_errors_total{error_type=~"5xx|unavailable"}[1h]))
+          )
+          /
+          sum(rate(ggen_mcp_requests_total[1h]))
+          < 0.999
+        for: 5m
+        labels:
+          severity: warning
+          component: slo
+          team: platform
+          slo: availability
+        annotations:
+          summary: "Availability SLO violation (target: 99.9%)"
+          description: "Availability is {{ $value | humanizePercentage }} over the last hour (SLO: 99.9%)."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/slo-availability"
+
+      - alert: GgenMcpLatencySLOViolation
+        expr: |
+          (
+            sum(rate(ggen_mcp_request_duration_seconds_bucket{le="5"}[1h]))
+            /
+            sum(rate(ggen_mcp_request_duration_seconds_count[1h]))
+          ) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+          component: slo
+          team: platform
+          slo: latency
+        annotations:
+          summary: "Latency SLO violation (target: 95% < 5s)"
+          description: "Only {{ $value | humanizePercentage }} of requests completed under 5s (SLO: 95%)."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/slo-latency"
+
+      - alert: GgenMcpErrorRateSLOViolation
+        expr: |
+          (
+            sum(rate(ggen_mcp_errors_total[1h]))
+            /
+            sum(rate(ggen_mcp_requests_total[1h]))
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: warning
+          component: slo
+          team: platform
+          slo: error_rate
+        annotations:
+          summary: "Error rate SLO violation (target: < 0.1%)"
+          description: "Error rate is {{ $value | humanizePercentage }} (SLO: <0.1%)."
+          dashboard: "https://grafana.example.com/d/ggen-mcp-prod"
+          runbook: "https://docs.example.com/runbooks/slo-error-rate"

@@ -12,8 +12,12 @@ pub struct SheetStats {
     pub density: f32,
 }
 
+/// Compute statistics for a worksheet
+/// Returns empty stats if sheet has no data (max_col or max_row is 0)
 pub fn compute_sheet_statistics(sheet: &Worksheet, _sample_rows: usize) -> SheetStats {
     let (max_col, max_row) = sheet.get_highest_column_and_row();
+
+    // Guard against empty sheets
     if max_col == 0 || max_row == 0 {
         return SheetStats {
             numeric_columns: Vec::new(),
@@ -77,6 +81,7 @@ pub fn compute_sheet_statistics(sheet: &Worksheet, _sample_rows: usize) -> Sheet
             header: header.map(cell_value_to_string),
             column: column_name.clone(),
             samples,
+            // Guard against empty numeric_values collection before computing stats
             min: if numeric_values.is_empty() {
                 None
             } else {
@@ -102,6 +107,7 @@ pub fn compute_sheet_statistics(sheet: &Worksheet, _sample_rows: usize) -> Sheet
     }
 
     let total_cells = (max_col * max_row) as f32;
+    // Guard against division by zero when computing density
     let density = if total_cells == 0.0 {
         0.0
     } else {

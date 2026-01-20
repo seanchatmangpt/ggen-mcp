@@ -1,0 +1,111 @@
+# Grafana datasources configuration for GGEN MCP monitoring
+# This file is automatically loaded when Grafana starts
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Metrics
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 5s
+      queryTimeout: 60s
+      httpMethod: POST
+    editable: false
+    version: 1
+
+  # Loki - Logs
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        # Extract trace IDs from logs and link to Jaeger
+        - datasourceUid: jaeger
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+    editable: false
+    version: 1
+
+  # Jaeger - Distributed Tracing
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    jsonData:
+      tracesToLogs:
+        # Link traces to logs in Loki
+        datasourceUid: loki
+        filterBySpanID: true
+        filterByTraceID: true
+        mapTagNamesEnabled: true
+        tags:
+          - key: service.name
+            value: service
+          - key: job
+      nodeGraph:
+        enabled: true
+    editable: false
+    version: 1
+
+  # Tempo - Alternative tracing backend (optional)
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki
+        filterBySpanID: true
+        filterByTraceID: true
+        mapTagNamesEnabled: true
+        tags:
+          - service.name
+          - job
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanEndTimeShift: 1m
+        spanStartTimeShift: -1m
+        tags:
+          - key: service.name
+            value: service
+          - key: operation
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: loki
+    editable: false
+    version: 1
+
+  # PostgreSQL - Application Database (optional, for business metrics)
+  # Uncomment if you want to query application data directly
+  # - name: PostgreSQL
+  #   type: postgres
+  #   access: proxy
+  #   url: postgres:5432
+  #   database: ggen_mcp
+  #   user: ${POSTGRES_USER}
+  #   secureJsonData:
+  #     password: ${POSTGRES_PASSWORD}
+  #   jsonData:
+  #     sslmode: disable
+  #     maxOpenConns: 10
+  #     maxIdleConns: 5
+  #     connMaxLifetime: 14400
+  #   editable: false
+  #   version: 1
+
+# Delete datasources that are not defined above
+deleteDatasources:
+  - name: TestData DB
+    orgId: 1

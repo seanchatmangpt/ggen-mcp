@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # Main MCP Server
+  ggen-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ggen-mcp
+    ports:
+      - "8079:8079"
+    environment:
+      # Logging configuration
+      - LOG_FORMAT=json
+      - LOG_OUTPUT=stderr
+      - ENVIRONMENT=development
+
+      # OpenTelemetry configuration
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      - OTEL_SAMPLING_RATE=1.0  # 100% sampling in development
+      - OTEL_SERVICE_NAME=ggen-mcp
+      - OTEL_ENVIRONMENT=development
+
+      # MCP Server configuration
+      - SPREADSHEET_MCP_WORKSPACE=/data
+      - SPREADSHEET_MCP_RECALC_ENABLED=true
+      - SPREADSHEET_MCP_VBA_ENABLED=true
+      - SPREADSHEET_MCP_TRANSPORT=http
+      - SPREADSHEET_MCP_HTTP_BIND=0.0.0.0:8079
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+    depends_on:
+      - jaeger
+      - prometheus
+    networks:
+      - observability
+
+  # Jaeger - Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: jaeger
+    ports:
+      - "5775:5775/udp"   # Zipkin compact thrift
+      - "6831:6831/udp"   # Jaeger compact thrift
+      - "6832:6832/udp"   # Jaeger binary thrift
+      - "5778:5778"       # Config server
+      - "16686:16686"     # Web UI
+      - "14268:14268"     # Jaeger HTTP collector
+      - "14250:14250"     # gRPC
+      - "4317:4317"       # OTLP gRPC
+      - "4318:4318"       # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - METRICS_STORAGE_TYPE=prometheus
+      - PROMETHEUS_SERVER_URL=http://prometheus:9090
+    networks:
+      - observability
+    volumes:
+      - jaeger-data:/badger
+
+  # Prometheus - Metrics Collection
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+
+  # Grafana Loki - Log Aggregation
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./observability/loki.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - observability
+
+  # Promtail - Log Shipper for Loki
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/config.yml
+      - ./logs:/var/log/ggen-mcp:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - observability
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    volumes:
+      - ./observability/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+    networks:
+      - observability
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  jaeger-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:

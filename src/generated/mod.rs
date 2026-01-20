@@ -68,8 +68,8 @@
 //! - `ggen sync --force true` - Force regeneration (respects frozen sections)
 //! - `ggen sync --audit true` - Generate with audit trail
 
-pub mod domain;
 pub mod commands;
+pub mod domain;
 pub mod queries;
 pub mod repositories;
 
@@ -78,13 +78,7 @@ pub mod mcp_tool_params;
 pub mod mcp_tools;
 
 // Re-export commonly used types for convenience
-pub use domain::{
-    entities,
-    value_objects,
-    aggregates,
-    events,
-    services,
-};
+pub use domain::{aggregates, entities, events, services, value_objects};
 
 // Re-export MCP tool types
 pub use mcp_tool_params::*;
@@ -92,10 +86,10 @@ pub use mcp_tools::*;
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use super::domain::entities::*;
-    pub use super::domain::value_objects::*;
-    pub use super::domain::aggregates::*;
-    pub use super::domain::events::*;
     pub use super::commands::*;
+    pub use super::domain::aggregates::*;
+    pub use super::domain::entities::*;
+    pub use super::domain::events::*;
+    pub use super::domain::value_objects::*;
     pub use super::queries::*;
 }

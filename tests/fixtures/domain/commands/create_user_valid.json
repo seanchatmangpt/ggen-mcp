@@ -1,0 +1,6 @@
+{
+  "CreateUser": {
+    "email": "jane.smith@example.com",
+    "age": 28
+  }
+}

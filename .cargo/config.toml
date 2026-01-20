@@ -1,0 +1,34 @@
+# Cargo configuration for coverage tracking
+# This file configures coverage-specific settings for cargo-llvm-cov
+
+[build]
+# Enable coverage instrumentation by default when using cargo-llvm-cov
+rustflags = []
+
+[target.x86_64-unknown-linux-gnu]
+# Linux-specific coverage settings
+rustflags = []
+
+[target.x86_64-apple-darwin]
+# macOS-specific coverage settings
+rustflags = []
+
+[target.aarch64-apple-darwin]
+# macOS ARM-specific coverage settings
+rustflags = []
+
+# Coverage-specific environment variables
+[env]
+# Set coverage-friendly test settings
+RUST_TEST_THREADS = "1"  # Run tests sequentially for more accurate coverage
+RUST_BACKTRACE = "1"      # Enable backtraces for debugging test failures
+
+# Profile for coverage builds - optimized for accurate coverage measurement
+[profile.coverage]
+inherits = "test"
+opt-level = 0              # No optimization for accurate line coverage
+debug = true               # Include debug info for coverage mapping
+overflow-checks = true     # Detect overflow errors
+lto = false                # No LTO for faster builds
+codegen-units = 256        # More codegen units for faster compilation
+incremental = false        # Disable incremental for accurate coverage

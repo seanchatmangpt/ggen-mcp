@@ -1,0 +1,10 @@
+# Invalid: missing required project fields
+
+[project]
+# Missing name
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+# Missing base_uri
+format = "turtle"

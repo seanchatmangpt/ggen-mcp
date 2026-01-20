@@ -15,9 +15,9 @@
 //! - #[serde(alias = "...")] for parameter aliases
 //! - #[serde(default)] for optional parameters
 
+use crate::model::WorkbookId;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use crate::model::WorkbookId;
 
 /// Parameters for the `list_workbooks` tool
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -177,9 +177,11 @@ impl From<TableProfileParams> for crate::tools::TableProfileParams {
     fn from(p: TableProfileParams) -> Self {
         Self {
             workbook_or_fork_id: p.workbook_or_fork_id,
-            sheet_name: p.sheet_name,
+            sheet_name: Some(p.sheet_name),
             range: p.range,
-            region_id: p.region_id,
+            region_id: p.region_id.and_then(|s| s.parse().ok()),
+            table_name: None,
+            sample_mode: None,
         }
     }
 }

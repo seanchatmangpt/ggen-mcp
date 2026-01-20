@@ -1,0 +1,163 @@
+# Complete configuration with all fields specified
+
+[project]
+name = "complete-test"
+version = "1.0.0"
+description = "Complete test configuration"
+authors = ["Test Author"]
+license = "MIT"
+repository = "https://github.com/test/complete"
+
+[ontology]
+source = "ontology/complete.ttl"
+base_uri = "https://complete.dev/domain#"
+format = "turtle"
+imports = ["base.ttl", "extensions.ttl"]
+
+[ontology.prefixes]
+mcp = "https://complete.dev/mcp#"
+ggen = "https://complete.dev/domain#"
+ddd = "https://ddd-patterns.dev/schema#"
+rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+xsd = "http://www.w3.org/2001/XMLSchema#"
+owl = "http://www.w3.org/2002/07/owl#"
+sh = "http://www.w3.org/ns/shacl#"
+
+[rdf]
+base_uri = "https://complete.dev/"
+default_format = "turtle"
+cache_queries = true
+store_path = ".test/rdf-store"
+
+[rdf.prefixes]
+mcp = "https://complete.dev/mcp#"
+ggen = "https://complete.dev/domain#"
+rdfs = "http://www.w3.org/2000/01/rdf-schema#"
+
+[sparql]
+timeout = 60
+max_results = 10000
+cache_enabled = true
+cache_ttl = 7200
+
+[[inference.rules]]
+name = "test-rule"
+description = "Test inference rule"
+construct = """
+PREFIX test: <https://test.dev/#>
+CONSTRUCT { ?s test:derived true }
+WHERE { ?s a test:Entity }
+"""
+
+[inference]
+enabled = true
+materialize_results = true
+cache_intermediate = true
+fail_on_error = false
+log_statistics = true
+rule_order = ["test-rule"]
+
+[generation]
+output_dir = "./output"
+require_audit_trail = true
+protected_paths = ["src/main.rs"]
+regenerate_paths = ["src/generated/**"]
+generated_header = "// AUTO-GENERATED"
+
+[[generation.rules]]
+name = "test-gen"
+description = "Test generation rule"
+query = { file = "queries/test.rq" }
+template = { file = "templates/test.tera" }
+output_file = "src/generated/test.rs"
+mode = "Overwrite"
+
+[generation.poka_yoke]
+warning_headers = true
+gitignore_generated = false
+gitattributes_generated = true
+validate_imports = true
+
+[validation]
+validate_syntax = true
+no_unsafe = true
+require_doc_comments = true
+max_line_length = 120
+
+[validation.shacl]
+enabled = true
+shapes_file = "ontology/shapes.ttl"
+fail_on_violation = true
+fail_on_warning = false
+fail_on_info = false
+report_format = "text"
+
+[lifecycle]
+enabled = true
+config_file = "Makefile.toml"
+cache_directory = ".test/cache"
+state_file = ".test/state.json"
+
+[lifecycle.phases]
+default = ["validate", "generate"]
+development = ["generate"]
+production = ["validate", "generate", "test"]
+
+[lifecycle.phases.pre_generate]
+scripts = ["scripts/pre.sh"]
+
+[lifecycle.phases.post_generate]
+scripts = ["scripts/post.sh"]
+
+[security]
+allowed_domains = ["test.dev", "w3.org"]
+max_file_size = 5242880
+validate_ssl = true
+path_traversal_protection = true
+shell_injection_protection = true
+template_sandboxing = true
+
+[performance]
+parallel_execution = true
+max_workers = 4
+cache_templates = true
+incremental_build = true
+memory_limit_mb = 256
+
+[logging]
+level = "debug"
+format = "json"
+output = "stdout"
+
+[templates]
+directory = "templates"
+output_directory = "generated"
+backup_enabled = true
+idempotent = true
+
+[templates.rust]
+style = "core-team"
+error_handling = "anyhow"
+logging = "tracing"
+async_runtime = "tokio"
+
+[env.development]
+"logging.level" = "trace"
+"performance.max_workers" = 2
+
+[env.ci]
+"logging.level" = "warn"
+"logging.format" = "json"
+
+[env.production]
+"logging.level" = "error"
+"security.validate_ssl" = true
+
+[features]
+sparql_queries = true
+inference_rules = true
+lifecycle_management = true
+template_validation = true
+audit_trails = true
+deterministic_outputs = true

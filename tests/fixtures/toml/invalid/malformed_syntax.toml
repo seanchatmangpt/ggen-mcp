@@ -1,0 +1,10 @@
+# Invalid: malformed TOML syntax
+
+[project
+name = "test"  # Missing closing bracket above
+version = "0.1.0"
+
+[ontology]
+source = ontology/test.ttl  # Missing quotes
+base_uri = "https://test.dev/domain#
+format = "turtle"  # Unclosed string above

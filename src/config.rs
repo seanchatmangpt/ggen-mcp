@@ -13,6 +13,17 @@ const DEFAULT_EXTENSIONS: &[&str] = &["xlsx", "xlsm", "xls", "xlsb"];
 const DEFAULT_HTTP_BIND: &str = "127.0.0.1:8079";
 const DEFAULT_TOOL_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_MAX_RESPONSE_BYTES: u64 = 1_000_000;
+const DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS: u64 = 45;
+
+const MAX_CACHE_CAPACITY: usize = 1000;
+const MIN_CACHE_CAPACITY: usize = 1;
+// Validation constraints
+const MAX_CONCURRENT_RECALCS: usize = 100;
+const MIN_CONCURRENT_RECALCS: usize = 1;
+const MIN_TOOL_TIMEOUT_MS: u64 = 100;
+const MAX_TOOL_TIMEOUT_MS: u64 = 600_000; // 10 minutes
+const MIN_MAX_RESPONSE_BYTES: u64 = 1024; // 1 KB
+const MAX_MAX_RESPONSE_BYTES: u64 = 100_000_000; // 100 MB
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -47,6 +58,7 @@ pub struct ServerConfig {
     pub tool_timeout_ms: Option<u64>,
     pub max_response_bytes: Option<u64>,
     pub allow_overwrite: bool,
+    pub graceful_shutdown_timeout_secs: u64,
 }
 
 impl ServerConfig {
@@ -66,6 +78,7 @@ impl ServerConfig {
             tool_timeout_ms: cli_tool_timeout_ms,
             max_response_bytes: cli_max_response_bytes,
             allow_overwrite: cli_allow_overwrite,
+            graceful_shutdown_timeout_secs: cli_graceful_shutdown_timeout_secs,
         } = args;
 
         let file_config = if let Some(path) = config.as_ref() {
@@ -88,6 +101,7 @@ impl ServerConfig {
             tool_timeout_ms: file_tool_timeout_ms,
             max_response_bytes: file_max_response_bytes,
             allow_overwrite: file_allow_overwrite,
+            graceful_shutdown_timeout_secs: file_graceful_shutdown_timeout_secs,
         } = file_config;
 
         let single_workbook = cli_single_workbook.or(file_single_workbook);
@@ -213,6 +227,10 @@ impl ServerConfig {
 
         let allow_overwrite = cli_allow_overwrite || file_allow_overwrite.unwrap_or(false);
 
+        let graceful_shutdown_timeout_secs = cli_graceful_shutdown_timeout_secs
+            .or(file_graceful_shutdown_timeout_secs)
+            .unwrap_or(DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT_SECS);
+
         Ok(Self {
             workspace_root,
             cache_capacity,
@@ -227,7 +245,157 @@ impl ServerConfig {
             tool_timeout_ms,
             max_response_bytes,
             allow_overwrite,
+            graceful_shutdown_timeout_secs,
         })
+    }
+
+    /// Validates the configuration comprehensively before server startup.
+    /// This method performs fail-fast validation to catch configuration errors early.
+    pub fn validate(&self) -> Result<()> {
+        // 1. Validate workspace_root exists and is readable
+        anyhow::ensure!(
+            self.workspace_root.exists(),
+            "workspace root {:?} does not exist",
+            self.workspace_root
+        );
+        anyhow::ensure!(
+            self.workspace_root.is_dir(),
+            "workspace root {:?} is not a directory",
+            self.workspace_root
+        );
+
+        // Test that workspace_root is readable
+        fs::read_dir(&self.workspace_root).with_context(|| {
+            format!(
+                "workspace root {:?} exists but is not readable (permission denied)",
+                self.workspace_root
+            )
+        })?;
+
+        // 2. Validate single_workbook if specified
+        if let Some(workbook) = self.single_workbook.as_ref() {
+            anyhow::ensure!(
+                workbook.exists(),
+                "configured workbook {:?} does not exist",
+                workbook
+            );
+            anyhow::ensure!(
+                workbook.is_file(),
+                "configured workbook {:?} is not a file",
+                workbook
+            );
+
+            // Test that workbook is readable
+            fs::File::open(workbook).with_context(|| {
+                format!(
+                    "configured workbook {:?} exists but is not readable (permission denied)",
+                    workbook
+                )
+            })?;
+        }
+
+        // 3. Check extensions list is not empty
+        anyhow::ensure!(
+            !self.supported_extensions.is_empty(),
+            "at least one file extension must be configured"
+        );
+
+        // 4. Verify cache_capacity is reasonable
+        anyhow::ensure!(
+            self.cache_capacity >= MIN_CACHE_CAPACITY,
+            "cache_capacity must be at least {} (got {})",
+            MIN_CACHE_CAPACITY,
+            self.cache_capacity
+        );
+        anyhow::ensure!(
+            self.cache_capacity <= MAX_CACHE_CAPACITY,
+            "cache_capacity must not exceed {} (got {})",
+            MAX_CACHE_CAPACITY,
+            self.cache_capacity
+        );
+
+        // 5. Validate recalc settings if enabled
+        if self.recalc_enabled {
+            anyhow::ensure!(
+                self.max_concurrent_recalcs >= MIN_CONCURRENT_RECALCS,
+                "max_concurrent_recalcs must be at least {} (got {})",
+                MIN_CONCURRENT_RECALCS,
+                self.max_concurrent_recalcs
+            );
+            anyhow::ensure!(
+                self.max_concurrent_recalcs <= MAX_CONCURRENT_RECALCS,
+                "max_concurrent_recalcs must not exceed {} (got {})",
+                MAX_CONCURRENT_RECALCS,
+                self.max_concurrent_recalcs
+            );
+
+            // Warn if recalc is enabled but cache is small
+            if self.cache_capacity < self.max_concurrent_recalcs {
+                tracing::warn!(
+                    cache_capacity = self.cache_capacity,
+                    max_concurrent_recalcs = self.max_concurrent_recalcs,
+                    "cache_capacity is smaller than max_concurrent_recalcs; \
+                     this may cause workbooks to be evicted during recalculation"
+                );
+            }
+        }
+
+        // 6. Check tool timeout is sane (if set)
+        if let Some(timeout_ms) = self.tool_timeout_ms {
+            anyhow::ensure!(
+                timeout_ms >= MIN_TOOL_TIMEOUT_MS,
+                "tool_timeout_ms must be at least {}ms or 0 to disable (got {}ms)",
+                MIN_TOOL_TIMEOUT_MS,
+                timeout_ms
+            );
+            anyhow::ensure!(
+                timeout_ms <= MAX_TOOL_TIMEOUT_MS,
+                "tool_timeout_ms must not exceed {}ms (got {}ms)",
+                MAX_TOOL_TIMEOUT_MS,
+                timeout_ms
+            );
+        }
+
+        // 7. Check max response size is sane (if set)
+        if let Some(max_bytes) = self.max_response_bytes {
+            anyhow::ensure!(
+                max_bytes >= MIN_MAX_RESPONSE_BYTES,
+                "max_response_bytes must be at least {} bytes or 0 to disable (got {} bytes)",
+                MIN_MAX_RESPONSE_BYTES,
+                max_bytes
+            );
+            anyhow::ensure!(
+                max_bytes <= MAX_MAX_RESPONSE_BYTES,
+                "max_response_bytes must not exceed {} bytes (got {} bytes)",
+                MAX_MAX_RESPONSE_BYTES,
+                max_bytes
+            );
+        }
+
+        // 8. Validate HTTP bind address for HTTP transport
+        if self.transport == TransportKind::Http {
+            // The bind address is already validated by clap/serde as SocketAddr,
+            // but we can check for reserved ports or common issues
+            let port = self.http_bind_address.port();
+            if port < 1024 {
+                tracing::warn!(
+                    port = port,
+                    "HTTP bind port is in privileged range (< 1024); \
+                     this may require elevated permissions"
+                );
+            }
+        }
+
+        // 9. Validate enabled_tools if specified
+        if let Some(tools) = &self.enabled_tools {
+            anyhow::ensure!(
+                !tools.is_empty(),
+                "enabled_tools is specified but empty; \
+                 either specify at least one tool or remove the restriction"
+            );
+        }
+
+        Ok(())
     }
 
     pub fn ensure_workspace_root(&self) -> Result<()> {
@@ -413,6 +581,15 @@ pub struct CliArgs {
         help = "Allow save_fork to overwrite original workbook files"
     )]
     pub allow_overwrite: bool,
+
+    #[arg(
+        long,
+        env = "SPREADSHEET_MCP_GRACEFUL_SHUTDOWN_TIMEOUT_SECS",
+        value_name = "SECS",
+        help = "Graceful shutdown timeout in seconds (default: 45)",
+        value_parser = clap::value_parser!(u64)
+    )]
+    pub graceful_shutdown_timeout_secs: Option<u64>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -430,6 +607,7 @@ struct PartialConfig {
     tool_timeout_ms: Option<u64>,
     max_response_bytes: Option<u64>,
     allow_overwrite: Option<bool>,
+    graceful_shutdown_timeout_secs: Option<u64>,
 }
 
 fn load_config_file(path: &Path) -> Result<PartialConfig> {

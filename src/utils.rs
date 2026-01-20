@@ -107,3 +107,136 @@ pub fn make_short_random_id(prefix: &str, len: usize) -> String {
 
     out
 }
+
+// =============================================================================
+// Safe Unwrapping Utilities (Poka-Yoke Pattern)
+// =============================================================================
+
+use anyhow;
+
+/// Safely get the first element from a slice with a descriptive error message
+pub fn safe_first<'a, T>(slice: &'a [T], context: &str) -> anyhow::Result<&'a T> {
+    slice
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get first element: {}", context))
+}
+
+/// Safely get the last element from a slice with a descriptive error message
+pub fn safe_last<'a, T>(slice: &'a [T], context: &str) -> anyhow::Result<&'a T> {
+    slice
+        .last()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get last element: {}", context))
+}
+
+/// Safely get an element at an index with a descriptive error message
+pub fn safe_get<'a, T>(slice: &'a [T], index: usize, context: &str) -> anyhow::Result<&'a T> {
+    slice.get(index).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to get element at index {}: {} (slice length: {})",
+            index,
+            context,
+            slice.len()
+        )
+    })
+}
+
+/// Unwrap an Option with a meaningful error message
+pub fn expect_some<T>(option: Option<T>, message: &str) -> anyhow::Result<T> {
+    option.ok_or_else(|| anyhow::anyhow!("Expected Some value: {}", message))
+}
+
+/// Check if a collection is empty before processing
+pub fn ensure_not_empty<T>(slice: &[T], context: &str) -> anyhow::Result<()> {
+    if slice.is_empty() {
+        anyhow::bail!("Collection is empty: {}", context)
+    }
+    Ok(())
+}
+
+/// Safely extract a string from a JSON value
+pub fn safe_json_str<'a>(
+    value: &'a serde_json::Value,
+    key: &str,
+    context: &str,
+) -> anyhow::Result<&'a str> {
+    value.get(key).and_then(|v| v.as_str()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract string value for key '{}': {}",
+            key,
+            context
+        )
+    })
+}
+
+/// Safely extract an array from a JSON value
+pub fn safe_json_array<'a>(
+    value: &'a serde_json::Value,
+    key: &str,
+    context: &str,
+) -> anyhow::Result<&'a Vec<serde_json::Value>> {
+    value.get(key).and_then(|v| v.as_array()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract array value for key '{}': {}",
+            key,
+            context
+        )
+    })
+}
+
+/// Safely extract an object from a JSON value
+pub fn safe_json_object<'a>(
+    value: &'a serde_json::Value,
+    key: &str,
+    context: &str,
+) -> anyhow::Result<&'a serde_json::Map<String, serde_json::Value>> {
+    value.get(key).and_then(|v| v.as_object()).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to extract object value for key '{}': {}",
+            key,
+            context
+        )
+    })
+}
+
+/// Safely strip a prefix from a string
+pub fn safe_strip_prefix<'a>(s: &'a str, prefix: &str, context: &str) -> anyhow::Result<&'a str> {
+    s.strip_prefix(prefix).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Failed to strip prefix '{}' from string '{}': {}",
+            prefix,
+            s,
+            context
+        )
+    })
+}
+
+/// Safely parse a string to a number
+pub fn safe_parse<T: std::str::FromStr>(s: &str, context: &str) -> anyhow::Result<T>
+where
+    T::Err: std::fmt::Display,
+{
+    s.parse::<T>()
+        .map_err(|e| anyhow::anyhow!("Failed to parse '{}': {} - {}", s, context, e))
+}
+
+/// Check if a string is empty and provide context
+pub fn ensure_non_empty_str<'a>(s: &'a str, context: &str) -> anyhow::Result<&'a str> {
+    if s.trim().is_empty() {
+        anyhow::bail!("String is empty: {}", context)
+    }
+    Ok(s)
+}
+
+/// Safely unwrap with a fallback value and log the issue
+pub fn unwrap_or_default_with_warning<T: Default + std::fmt::Debug>(
+    option: Option<T>,
+    context: &str,
+) -> T {
+    match option {
+        Some(value) => value,
+        None => {
+            eprintln!("Warning: Using default value for {}", context);
+            T::default()
+        }
+    }
+}

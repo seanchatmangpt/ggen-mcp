@@ -1,0 +1,41 @@
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+/// User aggregate root
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAggregate {
+    pub id: Uuid,
+    pub name: String,
+    pub email: Email,
+    pub roles: Vec<Role>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl UserAggregate {
+    pub fn new(name: String, email: Email) -> Self {
+        let now = chrono::Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            name,
+            email,
+            roles: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    pub fn add_role(&mut self, role: Role) {
+        if !self.roles.contains(&role) {
+            self.roles.push(role);
+            self.updated_at = chrono::Utc::now();
+        }
+    }
+
+    pub fn remove_role(&mut self, role: &Role) {
+        if let Some(pos) = self.roles.iter().position(|r| r == role) {
+            self.roles.remove(pos);
+            self.updated_at = chrono::Utc::now();
+        }
+    }
+}

@@ -137,6 +137,7 @@ fn shift_reference(
             end_col,
         } => {
             let ref_part = strip_sheet_prefix(original);
+            // Safely split range reference, defaulting to the same for both if no colon found
             let (start_str, end_str) = ref_part.split_once(':').unwrap_or((ref_part, ref_part));
             let mut start_flags = coord_abs_flags(start_str);
             let mut end_flags = coord_abs_flags(end_str);
@@ -196,6 +197,8 @@ fn shift_opt_u32(value: Option<u32>, abs: bool, delta: i32) -> Result<Option<u32
     }
 }
 
+/// Safely strip sheet prefix from a cell reference
+/// Returns the reference part after '!' or the original string if no prefix exists
 fn strip_sheet_prefix(original: &str) -> &str {
     original
         .rsplit_once('!')
@@ -204,9 +207,20 @@ fn strip_sheet_prefix(original: &str) -> &str {
         .trim()
 }
 
+/// Parse absolute/relative flags from a cell coordinate (e.g., "$A$1", "A1", "$A1", "A$1")
+/// Returns CoordFlags indicating which parts are absolute references
 fn coord_abs_flags(coord: &str) -> CoordFlags {
     let bytes = coord.as_bytes();
     let len = bytes.len();
+
+    // Guard against empty coordinate
+    if len == 0 {
+        return CoordFlags {
+            abs_col: false,
+            abs_row: false,
+        };
+    }
+
     let mut i = 0;
     let leading_dollar = i < len && bytes[i] == b'$';
     if leading_dollar {
@@ -286,11 +300,14 @@ fn format_sheet_prefix(sheet: &Option<String>) -> String {
     }
 }
 
+/// Check if a sheet name needs quoting based on Excel rules
+/// Returns true if the name contains special characters or starts with a digit
 fn sheet_name_needs_quoting(name: &str) -> bool {
     if name.is_empty() {
         return false;
     }
     let bytes = name.as_bytes();
+    // Check first character - already validated name is not empty
     if bytes[0].is_ascii_digit() {
         return true;
     }

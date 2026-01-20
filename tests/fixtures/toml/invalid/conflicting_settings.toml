@@ -1,0 +1,40 @@
+# Invalid: conflicting or incompatible settings
+
+[project]
+name = "test"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+base_uri = "https://test.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://test.dev/"
+default_format = "turtle"
+
+[inference]
+enabled = false
+# But we define rules anyway (conflict)
+[[inference.rules]]
+name = "conflicting-rule"
+description = "This conflicts with inference.enabled = false"
+construct = "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
+
+[validation]
+validate_syntax = true
+no_unsafe = false  # Conflicts with safe-by-default principle
+
+[generation]
+output_dir = "."
+# Protected and regenerate paths overlap (conflict)
+protected_paths = ["src/generated/mod.rs"]
+regenerate_paths = ["src/generated/**"]
+
+[lifecycle]
+enabled = true
+# Missing required config_file when enabled
+
+[validation.shacl]
+enabled = true
+# Missing shapes_file when enabled

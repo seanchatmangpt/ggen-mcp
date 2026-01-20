@@ -1,0 +1,21 @@
+# Invalid: invalid enum values
+
+[project]
+name = "test"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+base_uri = "https://test.dev/domain#"
+format = "invalid_format"  # Should be turtle, rdf/xml, etc.
+
+[rdf]
+base_uri = "https://test.dev/"
+default_format = "yaml"  # Invalid RDF format
+
+[logging]
+level = "super-debug"  # Invalid log level
+format = "markdown"    # Invalid log format
+
+[validation.shacl]
+report_format = "pdf"  # Invalid report format

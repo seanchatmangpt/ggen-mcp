@@ -3,6 +3,10 @@ use crate::formula::pattern::{RelativeMode, parse_base_formula, shift_formula_as
 use crate::model::{StylePatch, WorkbookId};
 use crate::state::AppState;
 use crate::utils::make_short_random_id;
+use crate::validation::{
+    DEFAULT_MAX_PNG_AREA_PX, DEFAULT_MAX_PNG_DIM_PX, MAX_SCREENSHOT_COLS, MAX_SCREENSHOT_ROWS,
+    validate_pagination,
+};
 use anyhow::{Result, anyhow, bail};
 use chrono::Utc;
 use formualizer_parse::tokenizer::Tokenizer;
@@ -2748,6 +2752,11 @@ pub async fn get_changeset(
 
     let limit = params.limit.clamp(1, 2000) as usize;
     let offset = params.offset as usize;
+
+    // Validate pagination parameters to prevent overflow
+    validate_pagination(offset, limit)
+        .map_err(|e| anyhow!("pagination validation failed: {}", e))?;
+
     let total = filtered.len();
 
     let (returned_changes, changes, truncated, next_offset) = if params.summary_only {
@@ -3342,11 +3351,8 @@ pub async fn discard_staged_change(
     })
 }
 
-const MAX_SCREENSHOT_ROWS: u32 = 100;
-const MAX_SCREENSHOT_COLS: u32 = 30;
+// Screenshot constants are now imported from crate::validation
 const DEFAULT_SCREENSHOT_RANGE: &str = "A1:M40";
-const DEFAULT_MAX_PNG_DIM_PX: u32 = 4096;
-const DEFAULT_MAX_PNG_AREA_PX: u64 = 12_000_000;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ScreenshotSheetParams {

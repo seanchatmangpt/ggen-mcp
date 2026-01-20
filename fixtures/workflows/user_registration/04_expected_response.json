@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "User created successfully"
+      }
+    ],
+    "isError": false,
+    "structured_content": {
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "john_doe",
+      "email": "john@example.com",
+      "full_name": "John Doe",
+      "created_at": "2024-01-20T12:00:00Z"
+    }
+  }
+}

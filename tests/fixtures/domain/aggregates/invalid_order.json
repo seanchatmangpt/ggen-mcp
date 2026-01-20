@@ -1,0 +1,12 @@
+{
+  "id": "order_999",
+  "user_id": "user_123",
+  "items": [],
+  "total": {
+    "amount": 0,
+    "currency": "USD"
+  },
+  "status": "Pending",
+  "payment_status": "Pending",
+  "version": 0
+}

@@ -1,0 +1,12 @@
+{
+  "id": "user_456",
+  "email": {
+    "value": "invalid-email",
+    "verified": false
+  },
+  "age": 16,
+  "address": null,
+  "phone": null,
+  "status": "Pending",
+  "version": 0
+}

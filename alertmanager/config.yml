@@ -1,0 +1,297 @@
+# Alertmanager Configuration for GGEN MCP Server
+# Routes alerts based on severity and manages notification channels
+
+global:
+  # Default settings
+  resolve_timeout: 5m
+
+  # Slack webhook URL (set via environment variable)
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+  # SMTP settings for email notifications
+  smtp_from: 'alerts@example.com'
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Templates for alert messages
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Main routing tree
+route:
+  # Default receiver for unmatched alerts
+  receiver: 'default'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'cluster', 'service']
+
+  # Wait this long to buffer alerts of the same group before sending
+  group_wait: 30s
+
+  # How long to wait before sending a notification about new alerts added to a group
+  group_interval: 5m
+
+  # How long to wait before re-sending a notification
+  repeat_interval: 4h
+
+  # Child routes
+  routes:
+    # CRITICAL ALERTS - Page immediately via PagerDuty
+    - match:
+        severity: critical
+      receiver: 'pagerduty-critical'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 30m
+      continue: true  # Also send to other receivers
+
+    # CRITICAL ALERTS - Also send to Slack critical channel
+    - match:
+        severity: critical
+      receiver: 'slack-critical'
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 30m
+
+    # WARNING ALERTS - Send to Slack warnings channel
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 2h
+
+    # INFO ALERTS - Log only, send to Slack info channel
+    - match:
+        severity: info
+      receiver: 'slack-info'
+      group_wait: 5m
+      group_interval: 10m
+      repeat_interval: 12h
+
+    # SLO ALERTS - Send to dedicated SLO channel
+    - match:
+        component: slo
+      receiver: 'slack-slo'
+      group_wait: 2m
+      group_interval: 10m
+      repeat_interval: 4h
+
+    # DEPLOYMENT ALERTS - Send to deployment channel
+    - match:
+        component: deployment
+      receiver: 'slack-deployments'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 24h
+
+# Alert receivers
+receivers:
+  # Default receiver (fallback)
+  - name: 'default'
+    slack_configs:
+      - channel: '#ggen-mcp-alerts'
+        title: 'GGEN MCP Alert'
+        text: |-
+          {{ range .Alerts }}
+          *Alert:* {{ .Labels.alertname }}
+          *Severity:* {{ .Labels.severity }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.dashboard }}*Dashboard:* {{ .Annotations.dashboard }}{{ end }}
+          {{ end }}
+        send_resolved: true
+
+  # PagerDuty for critical alerts
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
+        details:
+          summary: '{{ .CommonAnnotations.summary }}'
+          description: '{{ .CommonAnnotations.description }}'
+          severity: '{{ .GroupLabels.severity }}'
+          component: '{{ .GroupLabels.component }}'
+          dashboard: '{{ .CommonAnnotations.dashboard }}'
+          runbook: '{{ .CommonAnnotations.runbook }}'
+          impact: '{{ .CommonAnnotations.impact }}'
+        client: 'Alertmanager'
+        client_url: '{{ .ExternalURL }}'
+
+  # Slack - Critical alerts channel
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#ggen-mcp-critical'
+        color: 'danger'
+        title: ':rotating_light: CRITICAL: {{ .GroupLabels.alertname }}'
+        title_link: '{{ .CommonAnnotations.dashboard }}'
+        text: |-
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+          {{ if .CommonAnnotations.impact }}*Impact:* {{ .CommonAnnotations.impact }}{{ end }}
+          {{ if .CommonAnnotations.runbook }}*Runbook:* {{ .CommonAnnotations.runbook }}{{ end }}
+
+          *Firing Alerts:*
+          {{ range .Alerts.Firing }}
+          • {{ .Labels.alertname }} on {{ .Labels.instance }}
+            Started: {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+          {{ end }}
+        send_resolved: true
+        actions:
+          - type: button
+            text: 'View Dashboard'
+            url: '{{ .CommonAnnotations.dashboard }}'
+          - type: button
+            text: 'Runbook'
+            url: '{{ .CommonAnnotations.runbook }}'
+          - type: button
+            text: 'Silence'
+            url: '{{ .ExternalURL }}/#/silences/new?filter=%7B{{ range .CommonLabels.SortedPairs }}{{ .Name }}%3D%22{{ .Value }}%22{{ end }}%7D'
+
+  # Slack - Warning alerts channel
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#ggen-mcp-warnings'
+        color: 'warning'
+        title: ':warning: WARNING: {{ .GroupLabels.alertname }}'
+        title_link: '{{ .CommonAnnotations.dashboard }}'
+        text: |-
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+          {{ if .CommonAnnotations.runbook }}*Runbook:* {{ .CommonAnnotations.runbook }}{{ end }}
+
+          *Firing Alerts:*
+          {{ range .Alerts.Firing }}
+          • {{ .Labels.alertname }} - {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  # Slack - Info alerts channel
+  - name: 'slack-info'
+    slack_configs:
+      - channel: '#ggen-mcp-info'
+        color: 'good'
+        title: ':information_source: INFO: {{ .GroupLabels.alertname }}'
+        title_link: '{{ .CommonAnnotations.dashboard }}'
+        text: |-
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+
+          {{ range .Alerts.Firing }}
+          • {{ .Labels.alertname }} - {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  # Slack - SLO violations channel
+  - name: 'slack-slo'
+    slack_configs:
+      - channel: '#ggen-mcp-slo'
+        color: 'warning'
+        title: ':chart_with_downwards_trend: SLO VIOLATION: {{ .GroupLabels.alertname }}'
+        title_link: '{{ .CommonAnnotations.dashboard }}'
+        text: |-
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+          *SLO:* {{ .GroupLabels.slo }}
+          {{ if .CommonAnnotations.runbook }}*Runbook:* {{ .CommonAnnotations.runbook }}{{ end }}
+
+          {{ range .Alerts.Firing }}
+          • {{ .Labels.slo }} SLO violated - {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+
+  # Slack - Deployment notifications
+  - name: 'slack-deployments'
+    slack_configs:
+      - channel: '#ggen-mcp-deployments'
+        color: 'good'
+        title: ':rocket: DEPLOYMENT: {{ .GroupLabels.alertname }}'
+        text: |-
+          *Summary:* {{ .CommonAnnotations.summary }}
+          *Description:* {{ .CommonAnnotations.description }}
+
+          {{ range .Alerts }}
+          • Deployment detected at {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
+          {{ end }}
+        send_resolved: false
+
+  # Email notifications for critical alerts
+  - name: 'email-oncall'
+    email_configs:
+      - to: '${ONCALL_EMAIL}'
+        from: 'alerts@example.com'
+        headers:
+          Subject: '[CRITICAL] GGEN MCP: {{ .GroupLabels.alertname }}'
+        html: |-
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; }
+              .alert { padding: 20px; margin: 10px 0; border-left: 5px solid #d32f2f; background: #ffebee; }
+              .warning { border-left-color: #f57c00; background: #fff3e0; }
+              .info { border-left-color: #388e3c; background: #e8f5e9; }
+              h2 { margin: 0 0 10px 0; color: #d32f2f; }
+              .detail { margin: 5px 0; }
+              .label { font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h1>GGEN MCP Alert Notification</h1>
+            {{ range .Alerts }}
+            <div class="alert {{ .Labels.severity }}">
+              <h2>{{ .Labels.alertname }}</h2>
+              <div class="detail"><span class="label">Severity:</span> {{ .Labels.severity }}</div>
+              <div class="detail"><span class="label">Summary:</span> {{ .Annotations.summary }}</div>
+              <div class="detail"><span class="label">Description:</span> {{ .Annotations.description }}</div>
+              {{ if .Annotations.impact }}<div class="detail"><span class="label">Impact:</span> {{ .Annotations.impact }}</div>{{ end }}
+              {{ if .Annotations.dashboard }}<div class="detail"><span class="label">Dashboard:</span> <a href="{{ .Annotations.dashboard }}">View Dashboard</a></div>{{ end }}
+              {{ if .Annotations.runbook }}<div class="detail"><span class="label">Runbook:</span> <a href="{{ .Annotations.runbook }}">View Runbook</a></div>{{ end }}
+              <div class="detail"><span class="label">Started:</span> {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}</div>
+            </div>
+            {{ end }}
+          </body>
+          </html>
+
+# Inhibition rules - suppress notifications for certain alert combinations
+inhibit_rules:
+  # If service is down, suppress all other alerts for that service
+  - source_match:
+      alertname: 'GgenMcpServiceDown'
+    target_match_re:
+      alertname: 'Ggen.*'
+    equal: ['job', 'instance']
+
+  # If there's a critical alert, suppress warnings for the same component
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['component', 'alertname']
+
+  # If availability SLO is violated, suppress error rate alerts
+  - source_match:
+      alertname: 'GgenMcpAvailabilitySLOViolation'
+    target_match:
+      alertname: 'GgenMcpHighErrorRate'
+    equal: ['job']
+
+  # If latency SLO is violated, suppress high latency warning
+  - source_match:
+      alertname: 'GgenMcpLatencySLOViolation'
+    target_match:
+      alertname: 'GgenMcpElevatedLatency'
+    equal: ['job']
+
+  # If memory is critical, suppress elevated memory warning
+  - source_match:
+      alertname: 'GgenMcpMemoryCritical'
+    target_match:
+      alertname: 'GgenMcpElevatedMemoryUsage'
+    equal: ['instance']
+
+# Silence management
+# Silences can be configured via Alertmanager UI or amtool CLI
+# Example: amtool silence add alertname=GgenMcpDeploymentCompleted --duration=1h --comment="Planned deployment"

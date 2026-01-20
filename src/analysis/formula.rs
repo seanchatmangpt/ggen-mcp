@@ -6,18 +6,28 @@ use formualizer_parse::{
     parser::{BatchParser, CollectPolicy, ReferenceType},
     pretty::canonical_formula,
 };
+use lru::LruCache;
 use parking_lot::{Mutex, RwLock};
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use umya_spreadsheet::{CellFormulaValues, Worksheet};
 
 const RANGE_EXPANSION_LIMIT: usize = 500;
+/// Default maximum number of cached formula patterns
+/// This prevents unbounded memory growth with many unique formulas
+const DEFAULT_FORMULA_CACHE_CAPACITY: usize = 10_000;
 
 #[derive(Clone)]
 pub struct FormulaAtlas {
     parser: Arc<Mutex<BatchParser>>,
-    cache: Arc<RwLock<HashMap<String, Arc<ParsedFormula>>>>,
+    cache: Arc<RwLock<LruCache<String, Arc<ParsedFormula>>>>,
     _volatility: Arc<Vec<String>>,
+    /// Cache statistics for monitoring
+    cache_hits: Arc<AtomicU64>,
+    cache_misses: Arc<AtomicU64>,
+    cache_evictions: Arc<AtomicU64>,
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +40,11 @@ pub struct ParsedFormula {
 
 impl FormulaAtlas {
     pub fn new(volatility_functions: Vec<String>) -> Self {
+        Self::with_capacity(volatility_functions, DEFAULT_FORMULA_CACHE_CAPACITY)
+    }
+
+    /// Create a FormulaAtlas with a custom cache capacity
+    pub fn with_capacity(volatility_functions: Vec<String>, capacity: usize) -> Self {
         let normalized: Vec<String> = volatility_functions
             .into_iter()
             .map(|s| s.to_ascii_uppercase())
@@ -42,18 +57,33 @@ impl FormulaAtlas {
                 closure_lookup.iter().any(|entry| entry == &upper)
             })
             .build();
+
+        let cache_capacity = NonZeroUsize::new(capacity.max(1)).unwrap();
+
         Self {
             parser: Arc::new(Mutex::new(parser)),
-            cache: Arc::new(RwLock::new(HashMap::new())),
+            cache: Arc::new(RwLock::new(LruCache::new(cache_capacity))),
             _volatility: lookup,
+            cache_hits: Arc::new(AtomicU64::new(0)),
+            cache_misses: Arc::new(AtomicU64::new(0)),
+            cache_evictions: Arc::new(AtomicU64::new(0)),
         }
     }
 
+    #[inline]
     pub fn parse(&self, formula: &str) -> Result<Arc<ParsedFormula>> {
-        if let Some(existing) = self.cache.read().get(formula) {
-            return Ok(existing.clone());
+        // Fast path: check cache with read lock
+        {
+            let mut cache = self.cache.write();
+            if let Some(existing) = cache.get(formula) {
+                self.cache_hits.fetch_add(1, Ordering::Relaxed);
+                return Ok(existing.clone());
+            }
         }
 
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+
+        // Parse formula (outside of locks to avoid blocking)
         let ast = {
             let mut parser = self.parser.lock();
             parser
@@ -62,10 +92,44 @@ impl FormulaAtlas {
         };
         let parsed = Arc::new(parsed_from_ast(&ast));
 
-        self.cache
-            .write()
-            .insert(formula.to_string(), parsed.clone());
+        // Insert into cache with write lock
+        {
+            let mut cache = self.cache.write();
+            if let Some(_evicted) = cache.push(formula.to_string(), parsed.clone()) {
+                self.cache_evictions.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
         Ok(parsed)
+    }
+
+    /// Get cache statistics for monitoring
+    pub fn cache_stats(&self) -> FormulaCacheStats {
+        let cache = self.cache.read();
+        let hits = self.cache_hits.load(Ordering::Relaxed);
+        let misses = self.cache_misses.load(Ordering::Relaxed);
+        let total = hits + misses;
+        let hit_rate = if total > 0 {
+            hits as f64 / total as f64
+        } else {
+            0.0
+        };
+
+        FormulaCacheStats {
+            size: cache.len(),
+            capacity: cache.cap().get(),
+            hits,
+            misses,
+            evictions: self.cache_evictions.load(Ordering::Relaxed),
+            hit_rate,
+        }
+    }
+
+    /// Clear cache statistics (for testing/monitoring)
+    pub fn clear_stats(&self) {
+        self.cache_hits.store(0, Ordering::Relaxed);
+        self.cache_misses.store(0, Ordering::Relaxed);
+        self.cache_evictions.store(0, Ordering::Relaxed);
     }
 }
 
@@ -441,6 +505,17 @@ fn reference_to_string(reference: &ReferenceType) -> String {
 
 pub fn normalize_cell_reference(sheet_name: &str, row: u32, col: u32) -> String {
     format!("{}!{}{}", sheet_name, column_number_to_name(col), row)
+}
+
+/// Cache statistics for monitoring formula cache performance
+#[derive(Debug, Clone)]
+pub struct FormulaCacheStats {
+    pub size: usize,
+    pub capacity: usize,
+    pub hits: u64,
+    pub misses: u64,
+    pub evictions: u64,
+    pub hit_rate: f64,
 }
 
 fn default_volatility_functions() -> Vec<String> {

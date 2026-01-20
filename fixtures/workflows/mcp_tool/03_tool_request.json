@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "process_data",
+    "arguments": {
+      "input": "test data for processing",
+      "options": {
+        "validate": true,
+        "format": "text",
+        "async": false
+      }
+    }
+  }
+}

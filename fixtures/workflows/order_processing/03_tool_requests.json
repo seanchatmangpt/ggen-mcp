@@ -1,0 +1,85 @@
+[
+  {
+    "step": "create_order",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "method": "tools/call",
+      "params": {
+        "name": "create_order",
+        "arguments": {
+          "customer_id": "cust_456"
+        }
+      }
+    }
+  },
+  {
+    "step": "add_item_1",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "add_item",
+        "arguments": {
+          "order_id": "order_789",
+          "product_id": "prod_1",
+          "name": "Widget A",
+          "quantity": 2,
+          "unit_price": 29.99
+        }
+      }
+    }
+  },
+  {
+    "step": "add_item_2",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 3,
+      "method": "tools/call",
+      "params": {
+        "name": "add_item",
+        "arguments": {
+          "order_id": "order_789",
+          "product_id": "prod_2",
+          "name": "Widget B",
+          "quantity": 1,
+          "unit_price": 49.99
+        }
+      }
+    }
+  },
+  {
+    "step": "calculate_total",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "method": "tools/call",
+      "params": {
+        "name": "calculate_total",
+        "arguments": {
+          "order_id": "order_789",
+          "tax_rate": 0.08
+        }
+      }
+    }
+  },
+  {
+    "step": "process_payment",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 5,
+      "method": "tools/call",
+      "params": {
+        "name": "process_payment",
+        "arguments": {
+          "order_id": "order_789",
+          "payment_method": {
+            "type": "credit_card",
+            "last_four": "4242"
+          }
+        }
+      }
+    }
+  }
+]

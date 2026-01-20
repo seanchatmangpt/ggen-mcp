@@ -1,0 +1,14 @@
+# Minimal valid configuration with only required fields
+
+[project]
+name = "test-project"
+version = "0.1.0"
+
+[ontology]
+source = "ontology/test.ttl"
+base_uri = "https://test.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://test.dev/"
+default_format = "turtle"

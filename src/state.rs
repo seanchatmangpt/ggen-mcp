@@ -18,14 +18,27 @@ use std::fs;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 use tokio::task;
+use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
+/// Application state with enhanced concurrency protection
 pub struct AppState {
     config: Arc<ServerConfig>,
+    /// Workbook cache with RwLock for concurrent read access
     cache: RwLock<LruCache<WorkbookId, Arc<WorkbookContext>>>,
+    /// Workbook ID to path index with RwLock for concurrent reads
     index: RwLock<HashMap<WorkbookId, PathBuf>>,
+    /// Alias to workbook ID mapping with RwLock for concurrent reads
     alias_index: RwLock<HashMap<String, WorkbookId>>,
+    /// Cache operation counter for monitoring
+    cache_ops: AtomicU64,
+    /// Cache hit counter for statistics
+    cache_hits: AtomicU64,
+    /// Cache miss counter for statistics
+    cache_misses: AtomicU64,
     #[cfg(feature = "recalc")]
     fork_registry: Option<Arc<ForkRegistry>>,
     #[cfg(feature = "recalc")]
@@ -34,6 +47,30 @@ pub struct AppState {
     recalc_semaphore: Option<GlobalRecalcLock>,
     #[cfg(feature = "recalc")]
     screenshot_semaphore: Option<GlobalScreenshotLock>,
+}
+
+/// Cache warming configuration
+#[derive(Debug, Clone)]
+pub struct CacheWarmingConfig {
+    /// Enable cache warming on startup
+    pub enabled: bool,
+    /// Maximum number of workbooks to pre-load
+    pub max_workbooks: usize,
+    /// Timeout for warming operation (seconds)
+    pub timeout_secs: u64,
+    /// Specific workbook IDs to warm (empty = auto-detect frequently used)
+    pub workbook_ids: Vec<String>,
+}
+
+impl Default for CacheWarmingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_workbooks: 5,
+            timeout_secs: 30,
+            workbook_ids: vec![],
+        }
+    }
 }
 
 impl AppState {
@@ -80,6 +117,9 @@ impl AppState {
             cache: RwLock::new(LruCache::new(capacity)),
             index: RwLock::new(HashMap::new()),
             alias_index: RwLock::new(HashMap::new()),
+            cache_ops: AtomicU64::new(0),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
             #[cfg(feature = "recalc")]
             fork_registry,
             #[cfg(feature = "recalc")]
@@ -115,8 +155,31 @@ impl AppState {
         self.screenshot_semaphore.as_ref()
     }
 
+    /// Get cache statistics
+    pub fn cache_stats(&self) -> CacheStats {
+        CacheStats {
+            operations: self.cache_ops.load(Ordering::Relaxed),
+            hits: self.cache_hits.load(Ordering::Relaxed),
+            misses: self.cache_misses.load(Ordering::Relaxed),
+            size: self.cache.read().len(),
+            capacity: self.cache.read().cap().get(),
+        }
+    }
+
+    /// Update Prometheus cache metrics
+    fn update_cache_metrics(&self) {
+        let cache = self.cache.read();
+        let size = cache.len();
+        // Rough estimate: 1MB per workbook average
+        let estimated_bytes = (size * 1024 * 1024) as u64;
+        crate::metrics::METRICS.update_cache_stats(size, estimated_bytes);
+    }
+
     pub fn list_workbooks(&self, filter: WorkbookFilter) -> Result<WorkbookListResponse> {
         let response = build_workbook_list(&self.config, &filter)?;
+
+        // Use write lock only when actually updating indices
+        // This minimizes lock contention
         {
             let mut index = self.index.write();
             let mut aliases = self.alias_index.write();
@@ -129,26 +192,41 @@ impl AppState {
                 );
             }
         }
+
         Ok(response)
     }
 
     pub async fn open_workbook(&self, workbook_id: &WorkbookId) -> Result<Arc<WorkbookContext>> {
+        self.cache_ops.fetch_add(1, Ordering::Relaxed);
+
         let canonical = self.canonicalize_workbook_id(workbook_id)?;
+
+        // First, try to get from cache with read lock only
         {
             let mut cache = self.cache.write();
             if let Some(entry) = cache.get(&canonical) {
+                self.cache_hits.fetch_add(1, Ordering::Relaxed);
+                crate::metrics::METRICS.record_cache_hit();
+                debug!(workbook_id = %canonical, "cache hit");
                 return Ok(entry.clone());
             }
         }
 
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+        crate::metrics::METRICS.record_cache_miss();
+        debug!(workbook_id = %canonical, "cache miss");
+
+        // Load workbook outside of locks to avoid blocking other operations
         let path = self.resolve_workbook_path(&canonical)?;
         let config = self.config.clone();
         let path_buf = path.clone();
         let workbook_id_clone = canonical.clone();
+
         let workbook =
             task::spawn_blocking(move || WorkbookContext::load(&config, &path_buf)).await??;
         let workbook = Arc::new(workbook);
 
+        // Update alias index with minimal lock holding
         {
             let mut aliases = self.alias_index.write();
             aliases.insert(
@@ -157,71 +235,108 @@ impl AppState {
             );
         }
 
-        let mut cache = self.cache.write();
-        cache.put(workbook_id_clone, workbook.clone());
+        // Insert into cache with write lock
+        {
+            let mut cache = self.cache.write();
+            cache.put(workbook_id_clone, workbook.clone());
+        }
+        self.update_cache_metrics();
+
+        debug!(workbook_id = %canonical, "workbook loaded and cached");
         Ok(workbook)
     }
 
     pub fn close_workbook(&self, workbook_id: &WorkbookId) -> Result<()> {
         let canonical = self.canonicalize_workbook_id(workbook_id)?;
-        let mut cache = self.cache.write();
-        cache.pop(&canonical);
+
+        // Atomic cache operation
+        {
+            let mut cache = self.cache.write();
+            cache.pop(&canonical);
+        }
+        self.update_cache_metrics();
+
+        debug!(workbook_id = %canonical, "workbook closed");
         Ok(())
     }
 
     pub fn evict_by_path(&self, path: &Path) {
-        let index = self.index.read();
-        let workbook_id = index
-            .iter()
-            .find(|(_, p)| *p == path)
-            .map(|(id, _)| id.clone());
-        drop(index);
+        // Use read lock to find the workbook ID
+        let workbook_id = {
+            let index = self.index.read();
+            index
+                .iter()
+                .find(|(_, p)| *p == path)
+                .map(|(id, _)| id.clone())
+        };
 
         if let Some(id) = workbook_id {
             let mut cache = self.cache.write();
             cache.pop(&id);
+            self.update_cache_metrics();
+            debug!(path = ?path, workbook_id = %id, "evicted workbook by path");
         }
     }
 
     fn resolve_workbook_path(&self, workbook_id: &WorkbookId) -> Result<PathBuf> {
+        // Check fork registry first with minimal locking
         #[cfg(feature = "recalc")]
-        if let Some(registry) = &self.fork_registry
-            && let Some(fork_path) = registry.get_fork_path(workbook_id.as_str())
+        if let Some(registry) = &self.fork_registry {
+            if let Some(fork_path) = registry.get_fork_path(workbook_id.as_str()) {
+                debug!(workbook_id = %workbook_id, "resolved to fork path");
+                return Ok(fork_path);
+            }
+        }
+
+        // Check index with read lock
         {
-            return Ok(fork_path);
+            let index = self.index.read();
+            if let Some(path) = index.get(workbook_id).cloned() {
+                debug!(workbook_id = %workbook_id, "resolved from index");
+                return Ok(path);
+            }
         }
 
-        if let Some(path) = self.index.read().get(workbook_id).cloned() {
-            return Ok(path);
-        }
-
+        // Scan filesystem if not found
+        debug!(workbook_id = %workbook_id, "scanning filesystem");
         let located = self.scan_for_workbook(workbook_id.as_str())?;
         self.register_location(&located);
         Ok(located.path)
     }
 
     fn canonicalize_workbook_id(&self, workbook_id: &WorkbookId) -> Result<WorkbookId> {
+        // Check fork registry first
         #[cfg(feature = "recalc")]
-        if let Some(registry) = &self.fork_registry
-            && registry.get_fork_path(workbook_id.as_str()).is_some()
-        {
-            return Ok(workbook_id.clone());
+        if let Some(registry) = &self.fork_registry {
+            if registry.get_fork_path(workbook_id.as_str()).is_some() {
+                return Ok(workbook_id.clone());
+            }
         }
 
-        if self.index.read().contains_key(workbook_id) {
-            return Ok(workbook_id.clone());
-        }
-        let aliases = self.alias_index.read();
-        if let Some(mapped) = aliases.get(workbook_id.as_str()).cloned() {
-            return Ok(mapped);
-        }
-        let lowered = workbook_id.as_str().to_ascii_lowercase();
-        if lowered != workbook_id.as_str()
-            && let Some(mapped) = aliases.get(&lowered).cloned()
+        // Check index with read lock
         {
-            return Ok(mapped);
+            let index = self.index.read();
+            if index.contains_key(workbook_id) {
+                return Ok(workbook_id.clone());
+            }
         }
 
+        // Check aliases with read lock
+        {
+            let aliases = self.alias_index.read();
+            if let Some(mapped) = aliases.get(workbook_id.as_str()).cloned() {
+                return Ok(mapped);
+            }
+
+            let lowered = workbook_id.as_str().to_ascii_lowercase();
+            if lowered != workbook_id.as_str() {
+                if let Some(mapped) = aliases.get(&lowered).cloned() {
+                    return Ok(mapped);
+                }
+            }
+        }
+
+        // Scan filesystem if not found
         let located = self.scan_for_workbook(workbook_id.as_str())?;
         let canonical = located.workbook_id.clone();
         self.register_location(&located);
@@ -282,14 +397,146 @@ impl AppState {
     }
 
     fn register_location(&self, located: &LocatedWorkbook) {
-        self.index
-            .write()
-            .insert(located.workbook_id.clone(), located.path.clone());
+        // Atomic registration of both index and alias
+        let mut index = self.index.write();
+        let mut aliases = self.alias_index.write();
 
-        self.alias_index.write().insert(
+        index.insert(located.workbook_id.clone(), located.path.clone());
+        aliases.insert(
             located.short_id.to_ascii_lowercase(),
             located.workbook_id.clone(),
         );
+
+        debug!(
+            workbook_id = %located.workbook_id,
+            short_id = %located.short_id,
+            path = ?located.path,
+            "registered workbook location"
+        );
+    }
+
+    /// Warm up the cache by pre-loading frequently used workbooks
+    /// This eliminates cold-start latency for common operations
+    pub async fn warm_cache(&self, config: CacheWarmingConfig) -> Result<CacheWarmingResult> {
+        if !config.enabled {
+            debug!("cache warming disabled");
+            return Ok(CacheWarmingResult::default());
+        }
+
+        let start_time = Instant::now();
+        info!(
+            max_workbooks = config.max_workbooks,
+            timeout_secs = config.timeout_secs,
+            "starting cache warming"
+        );
+
+        let workbooks_to_warm = if !config.workbook_ids.is_empty() {
+            // Use explicitly configured workbooks
+            config.workbook_ids.clone()
+        } else {
+            // Auto-detect workbooks to warm
+            self.discover_warmup_candidates(config.max_workbooks)?
+        };
+
+        let mut loaded = 0;
+        let mut failed = 0;
+        let mut errors = Vec::new();
+
+        for workbook_id in workbooks_to_warm.iter().take(config.max_workbooks) {
+            // Check timeout
+            if start_time.elapsed().as_secs() >= config.timeout_secs {
+                warn!(
+                    loaded,
+                    failed, "cache warming timeout reached, stopping early"
+                );
+                break;
+            }
+
+            info!(workbook_id = %workbook_id, "warming cache for workbook");
+
+            match self.open_workbook(&WorkbookId(workbook_id.clone())).await {
+                Ok(wb) => {
+                    loaded += 1;
+                    debug!(
+                        workbook_id = %workbook_id,
+                        short_id = %wb.short_id,
+                        "workbook loaded into cache"
+                    );
+                }
+                Err(e) => {
+                    failed += 1;
+                    let error_msg = format!("{}: {}", workbook_id, e);
+                    warn!(workbook_id = %workbook_id, error = %e, "failed to warm workbook");
+                    errors.push(error_msg);
+                }
+            }
+        }
+
+        let duration = start_time.elapsed();
+        let result = CacheWarmingResult {
+            loaded,
+            failed,
+            duration_ms: duration.as_millis() as u64,
+            errors,
+        };
+
+        info!(
+            loaded,
+            failed,
+            duration_ms = result.duration_ms,
+            "cache warming completed"
+        );
+
+        Ok(result)
+    }
+
+    /// Discover candidate workbooks for cache warming
+    /// Heuristic: pick the most recently modified workbooks
+    fn discover_warmup_candidates(&self, max_count: usize) -> Result<Vec<String>> {
+        let mut candidates: Vec<(String, std::time::SystemTime)> = Vec::new();
+
+        if let Some(single) = self.config.single_workbook() {
+            let metadata = fs::metadata(single)?;
+            let canonical = WorkbookId(hash_path_metadata(single, &metadata));
+            if let Ok(modified) = metadata.modified() {
+                candidates.push((canonical.0, modified));
+            }
+        } else {
+            for entry in WalkDir::new(&self.config.workspace_root).max_depth(3) {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+
+                let path = entry.path();
+                if !has_supported_extension(&self.config.supported_extensions, path) {
+                    continue;
+                }
+
+                let metadata = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+
+                let canonical = WorkbookId(hash_path_metadata(path, &metadata));
+                if let Ok(modified) = metadata.modified() {
+                    candidates.push((canonical.0, modified));
+                }
+            }
+        }
+
+        // Sort by modification time (most recent first)
+        candidates.sort_by(|a, b| b.1.cmp(&a.1));
+
+        Ok(candidates
+            .into_iter()
+            .take(max_count)
+            .map(|(id, _)| id)
+            .collect())
     }
 }
 
@@ -307,4 +554,37 @@ fn has_supported_extension(allowed: &[String], path: &Path) -> bool {
             allowed.iter().any(|candidate| candidate == &lower)
         })
         .unwrap_or(false)
+}
+
+/// Cache statistics for monitoring
+#[derive(Debug, Clone)]
+pub struct CacheStats {
+    pub operations: u64,
+    pub hits: u64,
+    pub misses: u64,
+    pub size: usize,
+    pub capacity: usize,
+}
+
+impl CacheStats {
+    pub fn hit_rate(&self) -> f64 {
+        if self.operations == 0 {
+            0.0
+        } else {
+            self.hits as f64 / self.operations as f64
+        }
+    }
+}
+
+/// Result of cache warming operation
+#[derive(Debug, Clone, Default)]
+pub struct CacheWarmingResult {
+    /// Number of workbooks successfully loaded
+    pub loaded: usize,
+    /// Number of workbooks that failed to load
+    pub failed: usize,
+    /// Duration of warming operation in milliseconds
+    pub duration_ms: u64,
+    /// Error messages for failed workbooks
+    pub errors: Vec<String>,
 }

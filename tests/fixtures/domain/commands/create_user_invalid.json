@@ -1,0 +1,6 @@
+{
+  "CreateUser": {
+    "email": "invalid-email",
+    "age": 15
+  }
+}

@@ -103,6 +103,7 @@ pub struct StyleUsage {
 }
 
 impl SheetCacheEntry {
+    /// Get detected regions, returning empty vec if not yet computed
     pub fn detected_regions(&self) -> Vec<crate::model::DetectedRegion> {
         self.detected_regions
             .read()
@@ -460,7 +461,8 @@ pub fn excel_serial_to_iso_with_leap_bug(
     let days = serial.trunc() as i64;
 
     if use_1904_system {
-        let epoch_1904 = NaiveDate::from_ymd_opt(1904, 1, 1).unwrap();
+        let epoch_1904 = NaiveDate::from_ymd_opt(1904, 1, 1)
+            .expect("Valid epoch date 1904-01-01 should always be constructible");
         return epoch_1904
             .checked_add_signed(chrono::Duration::days(days))
             .map(|d| d.format("%Y-%m-%d").to_string())
@@ -468,9 +470,11 @@ pub fn excel_serial_to_iso_with_leap_bug(
     }
 
     let epoch = if compensate_leap_bug && days >= EXCEL_LEAP_YEAR_BUG_SERIAL {
-        NaiveDate::from_ymd_opt(1899, 12, 30).unwrap()
+        NaiveDate::from_ymd_opt(1899, 12, 30)
+            .expect("Valid epoch date 1899-12-30 should always be constructible")
     } else {
-        NaiveDate::from_ymd_opt(1899, 12, 31).unwrap()
+        NaiveDate::from_ymd_opt(1899, 12, 31)
+            .expect("Valid epoch date 1899-12-31 should always be constructible")
     };
 
     epoch
@@ -749,12 +753,15 @@ fn count_in_sorted_range(values: &[u32], start: u32, end: u32) -> u32 {
     end_idx.saturating_sub(start_idx) as u32
 }
 
+/// Trim bounds by removing sparse cells from edges
+/// Returns (start, end) tuple representing trimmed bounds
 fn trim_bounds_by_cells(
     entries: &[(u32, usize)],
     trim_cells: usize,
     default_start: u32,
     default_end: u32,
 ) -> (u32, u32) {
+    // Guard against empty entries
     if entries.is_empty() {
         return (default_start, default_end);
     }
@@ -1312,7 +1319,10 @@ fn header_data_penalty(s: &str) -> f32 {
     if s.len() > HEADER_LONG_STRING_PENALTY_THRESHOLD {
         return HEADER_LONG_STRING_PENALTY;
     }
-    let first_char = s.chars().next().unwrap();
+    // Safely get first character - we already checked is_empty()
+    let Some(first_char) = s.chars().next() else {
+        return 0.0;
+    };
     let is_capitalized = first_char.is_uppercase();
     let has_lowercase = s.chars().skip(1).any(|c| c.is_lowercase());
     let is_all_caps = s.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());

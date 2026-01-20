@@ -73,8 +73,11 @@ impl RecalcExecutor for FireAndForgetExecutor {
             ));
         }
 
+        let duration = start.elapsed();
+        crate::metrics::METRICS.record_recalc_duration(duration);
+
         Ok(RecalcResult {
-            duration_ms: start.elapsed().as_millis() as u64,
+            duration_ms: duration.as_millis() as u64,
             was_warm: false,
             executor_type: "fire_and_forget",
         })

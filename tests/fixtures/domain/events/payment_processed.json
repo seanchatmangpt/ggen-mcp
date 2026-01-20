@@ -1,0 +1,11 @@
+{
+  "PaymentProcessed": {
+    "payment_id": "payment_001",
+    "order_id": "order_789",
+    "amount": {
+      "amount": 7497,
+      "currency": "USD"
+    },
+    "method": "CreditCard"
+  }
+}

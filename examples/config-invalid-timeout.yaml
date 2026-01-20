@@ -1,0 +1,9 @@
+# Example invalid configuration: tool timeout too short
+# This will fail validation with:
+# "tool_timeout_ms must be at least 100ms or 0 to disable (got 50ms)"
+
+workspace_root: "."
+cache_capacity: 10
+tool_timeout_ms: 50
+extensions:
+  - xlsx

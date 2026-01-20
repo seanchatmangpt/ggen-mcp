@@ -1,0 +1,7 @@
+{
+  "OrderPlaced": {
+    "order_id": "order_new_001",
+    "user_id": "user_123",
+    "item_count": 3
+  }
+}

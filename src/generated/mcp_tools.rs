@@ -18,11 +18,7 @@ use crate::model::*;
 use crate::state::AppState;
 use crate::tools;
 use anyhow::Result;
-use rmcp::{
-    ErrorData as McpError, Json,
-    handler::server::wrapper::Parameters,
-    tool,
-};
+use rmcp::{ErrorData as McpError, Json, handler::server::wrapper::Parameters, tool};
 use std::sync::Arc;
 
 use super::mcp_tool_params::*;
@@ -59,10 +55,7 @@ pub async fn list_workbooks(
 /// Handler for the `describe_workbook` tool
 ///
 /// Describe workbook metadata
-#[tool(
-    name = "describe_workbook",
-    description = "Describe workbook metadata"
-)]
+#[tool(name = "describe_workbook", description = "Describe workbook metadata")]
 pub async fn describe_workbook(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<DescribeWorkbookParams>,
@@ -107,10 +100,7 @@ pub async fn workbook_summary(
 /// Handler for the `list_sheets` tool
 ///
 /// List sheets with summaries
-#[tool(
-    name = "list_sheets",
-    description = "List sheets with summaries"
-)]
+#[tool(name = "list_sheets", description = "List sheets with summaries")]
 pub async fn list_sheets(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<ListSheetsParams>,
@@ -179,10 +169,7 @@ pub async fn read_table(
 /// Handler for the `table_profile` tool
 ///
 /// Profile a region or table
-#[tool(
-    name = "table_profile",
-    description = "Profile a region or table"
-)]
+#[tool(name = "table_profile", description = "Profile a region or table")]
 pub async fn table_profile(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<TableProfileParams>,

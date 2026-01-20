@@ -1,0 +1,42 @@
+# Configuration with some fields omitted to test defaults
+
+[project]
+name = "defaults-test"
+version = "0.1.0"
+description = "Testing default values"
+
+[ontology]
+source = "ontology/defaults.ttl"
+base_uri = "https://defaults.dev/domain#"
+format = "turtle"
+
+[rdf]
+base_uri = "https://defaults.dev/"
+default_format = "turtle"
+# cache_queries defaults to false
+# store_path defaults to ".ggen/rdf-store"
+
+[sparql]
+# timeout defaults to 30
+# max_results defaults to 5000
+cache_enabled = true
+# cache_ttl defaults to 3600
+
+[inference]
+enabled = false
+
+[generation]
+output_dir = "."
+
+[validation]
+validate_syntax = true
+# Other validation settings use defaults
+
+[logging]
+level = "info"
+# format defaults to "pretty"
+# output defaults to "stderr"
+
+[performance]
+parallel_execution = true
+# max_workers defaults to number of CPUs

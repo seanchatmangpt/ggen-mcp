@@ -1,4 +1,5 @@
 use crate::config::ServerConfig;
+use crate::error::{ErrorCode, McpError as CustomMcpError, to_rmcp_error};
 use crate::model::{
     CloseWorkbookResponse, FindFormulaResponse, FindValueResponse, FormulaTraceResponse,
     ManifestStubResponse, NamedRangesResponse, RangeValuesResponse, ReadTableResponse,
@@ -223,21 +224,41 @@ impl SpreadsheetServer {
         F: Future<Output = Result<T>>,
         T: Serialize,
     {
+        use crate::metrics::{METRICS, RequestMetrics, classify_error};
+
+        let metrics = RequestMetrics::new(tool);
+
         let result = if let Some(timeout_duration) = self.state.config().tool_timeout() {
             match tokio::time::timeout(timeout_duration, fut).await {
                 Ok(result) => result,
-                Err(_) => Err(anyhow!(
-                    "tool '{}' timed out after {}ms",
-                    tool,
-                    timeout_duration.as_millis()
-                )),
+                Err(_) => {
+                    let err = anyhow!(
+                        "tool '{}' timed out after {}ms",
+                        tool,
+                        timeout_duration.as_millis()
+                    );
+                    metrics.timeout();
+                    return Err(err);
+                }
             }
         } else {
             fut.await
-        }?;
+        };
 
-        self.ensure_response_size(tool, &result)?;
-        Ok(result)
+        match result {
+            Ok(response) => {
+                if let Err(e) = self.ensure_response_size(tool, &response) {
+                    metrics.error(classify_error(&e));
+                    return Err(e);
+                }
+                metrics.success();
+                Ok(response)
+            }
+            Err(e) => {
+                metrics.error(classify_error(&e));
+                Err(e)
+            }
+        }
     }
 
     fn ensure_response_size<T: Serialize>(&self, tool: &str, value: &T) -> Result<()> {
@@ -1096,13 +1117,56 @@ impl ServerHandler for SpreadsheetServer {
 }
 
 fn to_mcp_error(error: anyhow::Error) -> McpError {
-    if error.downcast_ref::<ToolDisabledError>().is_some() {
-        McpError::invalid_request(error.to_string(), None)
-    } else if error.downcast_ref::<ResponseTooLargeError>().is_some() {
-        McpError::invalid_request(error.to_string(), None)
-    } else {
-        McpError::internal_error(error.to_string(), None)
+    // Check for specific error types first
+    if let Some(tool_disabled) = error.downcast_ref::<ToolDisabledError>() {
+        let custom_error = CustomMcpError::builder(ErrorCode::ToolDisabled)
+            .message(format!(
+                "Tool '{}' is disabled by server configuration",
+                tool_disabled.tool_name
+            ))
+            .operation(&tool_disabled.tool_name)
+            .suggestion("Enable the tool in server configuration")
+            .suggestion("Check SPREADSHEET_MCP_ENABLED_TOOLS environment variable")
+            .build_and_track();
+        return to_rmcp_error(custom_error);
     }
+
+    if let Some(response_too_large) = error.downcast_ref::<ResponseTooLargeError>() {
+        let custom_error = CustomMcpError::builder(ErrorCode::ResponseTooLarge)
+            .message(format!(
+                "Tool '{}' response too large ({} bytes > {} bytes)",
+                response_too_large.tool_name, response_too_large.size, response_too_large.limit
+            ))
+            .operation(&response_too_large.tool_name)
+            .param("size", response_too_large.size)
+            .param("limit", response_too_large.limit)
+            .suggestion("Use limit and offset parameters for pagination")
+            .suggestion("Narrow the range or apply filters")
+            .suggestion("Use summary_only=true for changesets")
+            .build_and_track();
+        return to_rmcp_error(custom_error);
+    }
+
+    if error.downcast_ref::<VbaDisabledError>().is_some() {
+        let custom_error = CustomMcpError::builder(ErrorCode::ToolDisabled)
+            .message("VBA tools are disabled")
+            .suggestion("Set SPREADSHEET_MCP_VBA_ENABLED=true to enable VBA tools")
+            .build_and_track();
+        return to_rmcp_error(custom_error);
+    }
+
+    #[cfg(feature = "recalc")]
+    if error.downcast_ref::<RecalcDisabledError>().is_some() {
+        let custom_error = CustomMcpError::builder(ErrorCode::ToolDisabled)
+            .message("Recalc/write tools are disabled")
+            .suggestion("Set SPREADSHEET_MCP_RECALC_ENABLED=true to enable recalc tools")
+            .build_and_track();
+        return to_rmcp_error(custom_error);
+    }
+
+    // Use the comprehensive error conversion from error module
+    let custom_error = crate::error::to_mcp_error(error);
+    to_rmcp_error(custom_error)
 }
 
 #[derive(Debug, Error)]

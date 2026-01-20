@@ -1,0 +1,191 @@
+# Prometheus Configuration for GGEN MCP Server Monitoring
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ggen-mcp-production'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+      timeout: 10s
+      api_version: v2
+
+# Load rules files
+rule_files:
+  - '/etc/prometheus/alerts/*.yml'
+  - '/etc/prometheus/rules/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ============================================================================
+  # GGEN MCP Server - Main application metrics
+  # ============================================================================
+  - job_name: 'ggen-mcp'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
+          - 'host.docker.internal:9464'  # Adjust port based on your config
+        labels:
+          service: 'ggen-mcp'
+          team: 'platform'
+    # Optional: Add relabeling for instance names
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'ggen-mcp-server'
+
+  # ============================================================================
+  # Prometheus Self-Monitoring
+  # ============================================================================
+  - job_name: 'prometheus'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+        labels:
+          service: 'prometheus'
+
+  # ============================================================================
+  # Alertmanager Metrics
+  # ============================================================================
+  - job_name: 'alertmanager'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'alertmanager:9093'
+        labels:
+          service: 'alertmanager'
+
+  # ============================================================================
+  # Node Exporter - Host System Metrics
+  # ============================================================================
+  - job_name: 'node-exporter'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'node-exporter:9100'
+        labels:
+          service: 'node-exporter'
+          instance: 'host-system'
+
+  # ============================================================================
+  # cAdvisor - Container Metrics
+  # ============================================================================
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'cadvisor:8080'
+        labels:
+          service: 'cadvisor'
+
+  # ============================================================================
+  # Blackbox Exporter - Endpoint Monitoring
+  # ============================================================================
+  - job_name: 'blackbox-http'
+    scrape_interval: 30s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - 'http://host.docker.internal:9464/health'  # GGEN MCP health endpoint
+        labels:
+          service: 'ggen-mcp'
+          check_type: 'http'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
+
+  # ============================================================================
+  # Grafana Metrics
+  # ============================================================================
+  - job_name: 'grafana'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'grafana:3000'
+        labels:
+          service: 'grafana'
+
+  # ============================================================================
+  # Loki Metrics
+  # ============================================================================
+  - job_name: 'loki'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'loki:3100'
+        labels:
+          service: 'loki'
+
+  # ============================================================================
+  # Jaeger Metrics
+  # ============================================================================
+  - job_name: 'jaeger'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'jaeger:14269'
+        labels:
+          service: 'jaeger'
+
+  # ============================================================================
+  # Redis Exporter (optional - uncomment if using Redis)
+  # ============================================================================
+  # - job_name: 'redis'
+  #   scrape_interval: 15s
+  #   static_configs:
+  #     - targets:
+  #         - 'redis-exporter:9121'
+  #       labels:
+  #         service: 'redis'
+
+  # ============================================================================
+  # PostgreSQL Exporter (optional - uncomment if using PostgreSQL)
+  # ============================================================================
+  # - job_name: 'postgres'
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets:
+  #         - 'postgres-exporter:9187'
+  #       labels:
+  #         service: 'postgres'
+
+# Storage configuration
+storage:
+  tsdb:
+    # Retention period
+    retention.time: 30d
+    # Maximum storage size
+    retention.size: 10GB
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: 'https://your-remote-storage/api/v1/write'
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 50
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       min_backoff: 30ms
+#       max_backoff: 100ms
+
+# Remote read configuration (optional)
+# remote_read:
+#   - url: 'https://your-remote-storage/api/v1/read'
+#     read_recent: true

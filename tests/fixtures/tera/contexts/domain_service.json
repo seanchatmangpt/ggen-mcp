@@ -1,0 +1,72 @@
+{
+  "service_name": "UserService",
+  "description": "Service for managing user operations and business logic",
+  "has_async": true,
+  "has_transactions": true,
+  "has_events": true,
+  "entity_name": "User",
+  "operations": [
+    {
+      "name": "create_user",
+      "description": "Creates a new user account",
+      "params": [
+        {
+          "name": "username",
+          "rust_type": "String"
+        },
+        {
+          "name": "email",
+          "rust_type": "String"
+        }
+      ],
+      "return_type": "User"
+    },
+    {
+      "name": "find_by_id",
+      "description": "Finds a user by their unique identifier",
+      "params": [
+        {
+          "name": "id",
+          "rust_type": "String"
+        }
+      ],
+      "return_type": "Option<User>"
+    },
+    {
+      "name": "update_user",
+      "description": "Updates an existing user's information",
+      "params": [
+        {
+          "name": "id",
+          "rust_type": "String"
+        },
+        {
+          "name": "user",
+          "rust_type": "User"
+        }
+      ],
+      "return_type": "()"
+    },
+    {
+      "name": "delete_user",
+      "description": "Deletes a user by their identifier",
+      "params": [
+        {
+          "name": "id",
+          "rust_type": "String"
+        }
+      ],
+      "return_type": "()"
+    }
+  ],
+  "dependencies": [
+    {
+      "module": "repositories",
+      "type": "UserRepository"
+    },
+    {
+      "module": "events",
+      "type": "EventBus"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "user_123",
+  "email": {
+    "value": "john.doe@example.com",
+    "verified": true
+  },
+  "age": 30,
+  "address": {
+    "street": "123 Main Street",
+    "city": "Springfield",
+    "state": "IL",
+    "zip_code": "62701",
+    "country": "USA"
+  },
+  "phone": {
+    "value": "+1-555-0123"
+  },
+  "status": "Active",
+  "version": 1
+}
