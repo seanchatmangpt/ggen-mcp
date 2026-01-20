@@ -46,7 +46,13 @@ ontology/mcp-domain.ttl (RDF/Turtle)
 ```
 
 ### Technology Stack
-Rust 2024 | rmcp v0.11 | Tokio async | Oxigraph RDF/SPARQL | Tera templates | OpenTelemetry observability
+**Core**: Rust 2024 | rmcp v0.11 | Tokio async | Oxigraph RDF/SPARQL | Tera templates
+
+**Observability**: OpenTelemetry | Jaeger (tracing) | Prometheus (metrics) | Grafana (visualization) | Loki (logs) | Alertmanager (alerting)
+
+**Concurrency**: parking_lot RwLock | tokio semaphores | AtomicU64 counters
+
+**Resilience**: Circuit breaker | Exponential backoff retry | Graceful degradation
 
 ---
 
@@ -55,18 +61,60 @@ Rust 2024 | rmcp v0.11 | Tokio async | Oxigraph RDF/SPARQL | Tera templates | Op
 ```
 src/
 ├── generated/        # NEVER edit manually - regenerate from ontology
-├── validation/       # Input guards, poka-yoke
-├── domain/          # NewTypes, value objects
-├── ontology/        # RDF/SPARQL engine
+├── validation/       # Input guards, poka-yoke (105KB, 6 files)
+├── domain/          # NewTypes, value objects (31KB)
+├── ontology/        # RDF/SPARQL engine (140KB, 3 files)
+├── sparql/          # Query handling, injection prevention (196KB, 11 files)
+├── tools/           # Fork logic, VBA operations (231KB, 4 files)
+├── recovery/        # Circuit breaker, retry, fallback (77KB, 6 files)
+├── template/        # Parameter validation, rendering safety (110KB, 4 files)
+├── audit/           # Audit trail system (52KB, 3 files)
+├── analysis/        # Formula analysis, style classification (31KB, 5 files)
+├── diff/            # Cell/table/SST diffing (45KB, 8 files)
+├── recalc/          # Recalculation engine (27KB, 6 files)
+├── formula/         # Formula pattern matching (15KB, 2 files)
+├── codegen/         # Code generation validation (42KB, 2 files)
 ├── workbook.rs      # Core spreadsheet logic (55KB)
 ├── server.rs        # MCP tools (43KB)
-└── error.rs         # Typed errors (27KB)
+├── error.rs         # Typed errors (27KB)
+├── config.rs        # Configuration management (21KB)
+├── fork.rs          # Forking operations (28KB)
+├── health.rs        # Health check endpoints (17KB)
+├── logging.rs       # Observability infrastructure (19KB)
+├── metrics.rs       # Telemetry collection (20KB)
+├── model.rs         # Core data models (25KB)
+├── state.rs         # Server state management (20KB)
+└── shutdown.rs      # Graceful shutdown (20KB)
 
 ontology/mcp-domain.ttl    # Source of truth (42KB)
-ggen.toml                  # Generation config
-templates/*.rs.tera        # Code generators
-queries/*.rq              # SPARQL extractors
+ggen.toml                  # Generation config (528 lines)
+templates/*.rs.tera        # Code generators (21 files)
+queries/*.rq              # SPARQL extractors (14 files)
+Makefile.toml             # Build automation (31 tasks)
+scripts/                  # Automation scripts (7 scripts)
 ```
+
+---
+
+## System Architecture Layers
+
+### Recovery & Resilience (src/recovery/)
+Circuit breaker pattern. Exponential backoff retry. Fallback strategies. Partial success handling. Workbook corruption recovery.
+
+### Audit Trail (src/audit/)
+Structured event logging. 10K event buffer. Persistent file logging (100MB rotation, 30-day retention). Event correlation via span IDs.
+
+### SPARQL Safety (src/sparql/)
+Injection prevention (sanitizer + query builder). Result validation. Performance profiling. Query caching with TTL.
+
+### Validation Stack (src/validation/)
+4 layers: Input guards → Schema validation → Middleware → Enhanced bounds. Path traversal prevention. Excel limit enforcement.
+
+### Observability (logging.rs, metrics.rs, health.rs)
+Prometheus metrics (11 families). OpenTelemetry tracing. Health checks (/health, /ready, /components). Graceful shutdown coordination.
+
+### API Surface
+42 MCP tools (20 core read-only, 2 VBA, 20 fork/write/recalc). Dynamic tool registration. Feature-gated availability (SPREADSHEET_MCP_RECALC_ENABLED).
 
 ---
 
@@ -142,6 +190,13 @@ impl From<Error> for rmcp::Error { ... }
 ### Chicago-Style TDD
 State-based testing. Real implementations. Minimal mocking. Integration-focused.
 
+**Test Infrastructure**: 97 test files, 34.8K LOC. 11 test harnesses (11.7K LOC). 66 property tests.
+
+**Critical Requirement**: Initialize submodules before testing:
+```bash
+git submodule update --init --recursive  # Required for chicago-tdd-tools
+```
+
 ### Test Commands
 ```bash
 cargo test                    # All tests
@@ -150,8 +205,13 @@ cargo test --test name        # Specific suite
 cargo bench                   # Benchmarks
 ```
 
+### Test Harnesses (tests/harness/)
+Domain model • Codegen pipeline • Turtle ontology • Tera templates • TOML config • Integration workflows • Property input • Snapshot testing
+
 ### Coverage Targets
 Security: 95%+ | Core handlers: 80%+ | Business logic: 80%+
+
+**Note**: Coverage script generates reports but requires manual category validation. Coverage thresholds documented but not automatically enforced in CI.
 
 ---
 
@@ -174,6 +234,48 @@ cargo make ci  # fmt-check + clippy + check + test-all
 4. `cargo test`
 5. `cargo fmt && cargo clippy`
 6. Commit
+
+---
+
+## System Limits & Configuration
+
+### Resource Limits (src/fork.rs, src/config.rs)
+```
+Max forks: 10 (default)
+Fork TTL: 0 seconds (no auto-cleanup)
+Max checkpoints per fork: 10
+Max staged changes per fork: 20
+Max file size: 100MB
+Screenshot max range: 100 rows × 30 columns
+Concurrent recalc: Per-fork locking
+Response size limit: 1MB (configurable)
+Tool timeout: 30s (configurable, 100ms-10min range)
+```
+
+### Excel Limits (validation/bounds.rs)
+```
+Max rows: 1,048,576 (Excel 2007+ limit)
+Max columns: 16,384 (XFD)
+Sheet name: 255 chars max, no forbidden chars ([]:*?/\)
+Workbook ID: 1024 chars max
+Fork ID: 256 chars max
+```
+
+### Environment Configuration
+```bash
+SPREADSHEET_MCP_RECALC_ENABLED=true    # Enable fork/write/recalc tools
+SPREADSHEET_MCP_VBA_ENABLED=true       # Enable VBA inspection tools
+SPREADSHEET_MCP_ENABLED_TOOLS=tool1,tool2  # Whitelist specific tools
+OTEL_EXPORTER_OTLP_ENDPOINT=...        # Jaeger endpoint for tracing
+OTEL_SAMPLING_RATE=1.0                 # OpenTelemetry sampling (0.0-1.0)
+```
+
+### Cache Configuration (src/state.rs)
+```
+LRU cache capacity: 5-1000 workbooks (default 5)
+Eviction strategy: Least Recently Used
+Cache metrics: Atomic counters (hits/misses/ops)
+```
 
 ---
 
@@ -201,30 +303,59 @@ cargo make ci  # fmt-check + clippy + check + test-all
 
 ## Essential Commands
 
-### Code Generation
+### Code Generation (cargo make)
 ```bash
-ggen sync --manifest ggen.toml
-grep -r "TODO" src/generated/  # Must be empty
-cargo check                     # Must pass
+cargo make sync              # Generate from ontology
+cargo make sync-validate     # Check without writing
+cargo make sync-dry-run      # Preview changes
+cargo make sync-force        # Regenerate all
+cargo make test-traceability # Verify ontology→code
+cargo make test-determinism  # Code generation consistency
 ```
 
-### Testing
+### Testing (cargo make)
 ```bash
-cargo test
-./scripts/coverage.sh --check
+cargo make test              # Unit + generated tests
+cargo make test-all          # Includes integration
+cargo make test-integration  # ggen-specific tests
+cargo make test-ggen         # Combined ggen tests
+cargo make test-ddd          # DDD pipeline tests
+```
+
+### Build & Quality (cargo make)
+```bash
+cargo make check             # Compilation check
+cargo make fmt               # Format code
+cargo make fmt-check         # Verify formatting
+cargo make lint              # Run clippy
+cargo make pre-commit        # sync + check + test
+cargo make ci                # fmt-check + lint + check + test-all
 ```
 
 ### Docker
 ```bash
-docker build -t spreadsheet-mcp:dev .
+docker build -t spreadsheet-mcp:dev .                    # Slim build
+docker build -f Dockerfile.full -t spreadsheet-mcp:full . # With LibreOffice
 docker run -v $(pwd)/fixtures:/data -p 8079:8079 spreadsheet-mcp:dev
 ```
 
-### Scripts
+### Scripts (7 automation scripts)
 ```bash
-./scripts/coverage.sh          # Coverage analysis
-./scripts/ggen-sync.sh         # Sync with validation
-./verify_poka_yoke.sh          # Verify safety patterns
+./scripts/ggen-sync.sh              # Sync with validation
+./scripts/coverage.sh --check       # Coverage analysis
+./scripts/snapshot_manager.sh       # Snapshot test management
+./scripts/start-monitoring.sh       # Launch observability stack
+./scripts/stop-monitoring.sh        # Stop monitoring stack
+./scripts/load-test.sh              # Performance load testing
+./scripts/local-docker-mcp.sh       # Local Docker execution
+./verify_poka_yoke.sh               # Verify safety patterns
+```
+
+### Observability Stack
+```bash
+docker-compose -f docker-compose.monitoring.yml up      # Full stack
+docker-compose -f docker-compose.observability.yml up   # Simplified
+# Access: Grafana (3000), Prometheus (9090), Jaeger (16686)
 ```
 
 ---
@@ -235,6 +366,23 @@ docker run -v $(pwd)/fixtures:/data -p 8079:8079 spreadsheet-mcp:dev
 - `RUST_MCP_BEST_PRACTICES.md` (36KB) - Comprehensive Rust patterns
 - `POKA_YOKE_IMPLEMENTATION.md` (15KB) - Error-proofing guide
 - `CHICAGO_TDD_TEST_HARNESS_COMPLETE.md` (26KB) - Testing infrastructure
+
+**Production & Observability** (10 docs, ~110KB):
+- `docs/DISTRIBUTED_TRACING.md` (14KB) - OpenTelemetry distributed tracing
+- `docs/HEALTH_CHECKS.md` (16KB) - Health check patterns
+- `docs/PRODUCTION_MONITORING.md` (13KB) - Monitoring architecture
+- `docs/PROMETHEUS_METRICS.md` (17KB) - Metric definitions
+- `docs/PROMETHEUS_QUERIES.md` (16KB) - Query examples
+- `docs/RUST_MCP_PRODUCTION_DEPLOYMENT.md` (24KB) - Deployment guide
+- `docs/STRUCTURED_LOGGING.md` (15KB) - Logging infrastructure
+- `docker-compose.monitoring.yml` (9.7KB) - Full observability stack
+
+**Audit/Recovery/Fork Features** (7 docs, ~40KB):
+- `AUDIT_TRAIL.md` (624 lines) - Audit trail implementation
+- `AUDIT_INTEGRATION_GUIDE.md` (661 lines) - Integration patterns
+- `RECOVERY_SUMMARY.md` - Recovery patterns
+- `RECOVERY_IMPLEMENTATION.md` (519 lines) - Implementation details
+- `FORK_ENHANCEMENTS_SUMMARY.md` - Fork feature extensions
 
 **Quick Reference**:
 - `SPARQL_TEMPLATE_POKA_YOKE.md` - SPARQL injection prevention
@@ -291,6 +439,7 @@ A: You can't. It's checked 5+ times. Mandatory. Non-negotiable.
 ---
 
 **Version History**:
+- 1.3.0 (2026-01-20): 80/20 gap analysis update - Added 23-directory structure, observability stack, system limits, 31 Makefile tasks, 7 scripts, architecture layers (recovery/audit/SPARQL), production docs
 - 1.2.0 (2026-01-20): SPR-optimized 80/20 distillation (200 LOC)
 - 1.1.0 (2026-01-20): Added SPR protocol enforcement
 - 1.0.0 (2026-01-20): Initial comprehensive guide
