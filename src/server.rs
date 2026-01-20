@@ -1461,6 +1461,42 @@ impl SpreadsheetServer {
         .map(Json)
         .map_err(to_mcp_error)
     }
+
+    #[tool(
+        name = "manage_jira_integration",
+        description = "Unified Jira integration tool. Consolidates 6 operations: QueryTickets, CreateTickets, ImportTickets, SyncToSpreadsheet, SyncToJira, CreateDashboard. \
+Token-efficient (250 token savings). Operation-based dispatch."
+    )]
+    pub async fn manage_jira_integration(
+        &self,
+        Parameters(params): Parameters<tools::jira_unified::ManageJiraParams>,
+    ) -> Result<Json<tools::jira_unified::ManageJiraResponse>, McpError> {
+        // Check if fork feature required for certain operations
+        match &params.operation {
+            tools::jira_unified::JiraOperation::SyncToSpreadsheet { .. } => {
+                #[cfg(not(feature = "recalc"))]
+                {
+                    return Err(to_mcp_error(anyhow::anyhow!(
+                        "SyncToSpreadsheet requires fork support (enable recalc feature)"
+                    )));
+                }
+                #[cfg(feature = "recalc")]
+                {
+                    self.ensure_recalc_enabled("manage_jira_integration")
+                        .map_err(to_mcp_error)?;
+                }
+            }
+            _ => {}
+        }
+
+        self.run_tool_with_timeout(
+            "manage_jira_integration",
+            tools::jira_unified::manage_jira_integration(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
