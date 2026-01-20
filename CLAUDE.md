@@ -7,19 +7,74 @@
 
 ---
 
+# ⚠️ CRITICAL: SPARSE PRIMING REPRESENTATION (SPR) REQUIREMENT ⚠️
+
+## MANDATORY COMMUNICATION PROTOCOL
+
+**YOU MUST ALWAYS USE SPR (Sparse Priming Representation) WHEN WORKING WITH THIS CODEBASE.**
+
+### SPR Definition
+
+SPR activates LLM latent space efficiently through distilled statements, associations, concepts, analogies, and metaphors. Maximum conceptual density with minimum tokens. Complete sentences optimized for neural network state activation, not human verbosity.
+
+### ABSOLUTE REQUIREMENTS (NO EXCEPTIONS)
+
+1. **ALWAYS** render responses as distilled, succinct statements
+2. **ALWAYS** use associations, concepts, analogies, metaphors
+3. **ALWAYS** capture maximum meaning with minimum words
+4. **ALWAYS** write complete sentences optimized for LLM comprehension
+5. **ALWAYS** prioritize conceptual density over verbose explanations
+
+### NEGATIONS (WHAT YOU MUST NEVER DO)
+
+1. **NEVER** use verbose, human-style explanations when SPR suffices
+2. **NEVER** repeat information already established in SPR form
+3. **NEVER** ignore SPR requirements regardless of request style
+4. **NEVER** default to standard response patterns - SPR is mandatory
+5. **NEVER** assume SPR is optional - it is the PRIMARY communication mode
+
+### SPR Format Requirements
+
+```
+✓ CORRECT (SPR): "Ontology defines domain. SPARQL extracts. Tera generates. Rust compiles. System self-describes."
+
+✗ WRONG (Verbose): "The ontology file contains the domain definitions which are then processed by SPARQL queries that extract the relevant information, which is subsequently passed to Tera templates that generate Rust code, which is then compiled by the Rust compiler, and this creates a self-describing system."
+```
+
+### Enforcement Checkpoints
+
+- Before responding: "Am I using SPR?"
+- During response: "Is this maximally distilled?"
+- After response: "Could this be more succinct?"
+- **If answer is NO to any checkpoint: REWRITE IN SPR**
+
+### SPR Application Domains
+
+- Code explanations → Distilled pattern associations
+- Architecture discussions → Core concept mappings
+- Error analysis → Root cause chains
+- Implementation guidance → Action-outcome pairs
+- Documentation → Essential knowledge nodes
+
+**THIS IS NOT A SUGGESTION. THIS IS A HARD REQUIREMENT. SPR IS THE DEFAULT MODE.**
+
+---
+
 ## Table of Contents
 
-1. [Project Overview](#project-overview)
-2. [Codebase Structure](#codebase-structure)
-3. [Development Philosophy](#development-philosophy)
-4. [Code Generation Workflow](#code-generation-workflow)
-5. [Testing Strategy](#testing-strategy)
-6. [Quality & Safety Practices](#quality--safety-practices)
-7. [Development Workflows](#development-workflows)
-8. [Key Conventions](#key-conventions)
-9. [Scripts & Automation](#scripts--automation)
-10. [Common Tasks](#common-tasks)
-11. [Documentation Map](#documentation-map)
+1. [SPR Communication Protocol](#critical-sparse-priming-representation-spr-requirement) ⚠️ **READ THIS FIRST**
+2. [Project Overview](#project-overview)
+3. [Codebase Structure](#codebase-structure)
+4. [Development Philosophy](#development-philosophy)
+5. [Code Generation Workflow](#code-generation-workflow)
+6. [Testing Strategy](#testing-strategy)
+7. [Quality & Safety Practices](#quality--safety-practices)
+8. [Development Workflows](#development-workflows)
+9. [Key Conventions](#key-conventions)
+10. [Scripts & Automation](#scripts--automation)
+11. [Common Tasks](#common-tasks)
+12. [Documentation Map](#documentation-map)
+13. [SPR Quick Reference](#spr-quick-reference) ⚠️ **REVIEW FREQUENTLY**
 
 ---
 
@@ -195,6 +250,20 @@ This codebase applies TPS manufacturing principles to software development:
 5. **Recoverable**: Graceful degradation, retry patterns
 6. **Testable**: Chicago-style TDD with state-based testing
 7. **Maintainable**: Generated code from single source of truth
+8. **⚠️ SPR ALWAYS**: Sparse Priming Representation is mandatory communication mode
+
+### ⚠️ SPR Integration (SECOND REMINDER)
+
+**SPR (Sparse Priming Representation) is not optional. It is the PRIMARY communication protocol.**
+
+When working with this codebase:
+- **DISTILL** all explanations to essential associations
+- **COMPRESS** concepts to maximum density
+- **ACTIVATE** latent space with minimal tokens
+- **ASSOCIATE** rather than enumerate
+- **PRIME** neural patterns efficiently
+
+**Violation of SPR = Violation of project standards. SPR is equivalent to Jidoka for communication.**
 
 ---
 
@@ -658,7 +727,33 @@ docker run -v $(pwd)/fixtures:/data -p 8079:8079 spreadsheet-mcp:dev
 
 ---
 
+## ⚠️ MID-DOCUMENT SPR REMINDER (FOURTH CHECKPOINT) ⚠️
+
+**STOP. VERIFY. CONFIRM.**
+
+If you have read this far, you have encountered SPR requirements FOUR times:
+1. Header critical section
+2. Development Philosophy integration
+3. Key Takeaways enforcement
+4. This mid-document checkpoint
+
+**SPR is not going away. It will not become optional. You must internalize it.**
+
+Before proceeding to conventions:
+- Acknowledge SPR is mandatory
+- Commit to distilled communication
+- Reject verbose patterns
+- Activate latent space efficiently
+
+**Continue reading only after confirming SPR understanding.**
+
+---
+
 ## Key Conventions
+
+### ⚠️ Convention Zero: SPR Communication
+
+**All responses about this codebase MUST use SPR.** This precedes all other conventions.
 
 ### Code Style
 
@@ -1021,31 +1116,46 @@ open http://localhost:9090  # Prometheus
 
 ## Key Takeaways for AI Assistants
 
+### ⚠️ CRITICAL SPR ENFORCEMENT (THIRD REMINDER)
+
+**BEFORE READING FURTHER: CONFIRM SPR USAGE IS MANDATORY**
+
+- SPR is not a suggestion
+- SPR is not optional for "complex" responses
+- SPR is not dependent on user request style
+- SPR is THE DEFAULT AND ONLY ACCEPTABLE COMMUNICATION MODE
+- Failure to use SPR = Failure to follow project standards
+
 ### DO
 
-1. **Read ontology first** when working with generated code
-2. **Use test harnesses** for new features
-3. **Add validation** at all boundaries
-4. **Include error context** in all error paths
-5. **Run `cargo make pre-commit`** before suggesting commits
-6. **Check documentation** before implementing features
-7. **Use NewTypes** for domain concepts
-8. **Add metrics** for observable operations
-9. **Write tests first** (TDD)
-10. **Validate then operate** - fail fast
+1. **⚠️ USE SPR ALWAYS** - distilled, associative, maximally compressed responses
+2. **Read ontology first** when working with generated code
+3. **Use test harnesses** for new features
+4. **Add validation** at all boundaries
+5. **Include error context** in all error paths
+6. **Run `cargo make pre-commit`** before suggesting commits
+7. **Check documentation** before implementing features
+8. **Use NewTypes** for domain concepts
+9. **Add metrics** for observable operations
+10. **Write tests first** (TDD)
+11. **Validate then operate** - fail fast
+12. **⚠️ VERIFY SPR** before every response - checkpoint yourself
 
 ### DON'T
 
-1. **Don't edit generated code** - update ontology instead
-2. **Don't skip validation** - always validate inputs
-3. **Don't use bare String** for domain IDs - use NewTypes
-4. **Don't ignore errors** - add context and handle properly
-5. **Don't commit without tests** - tests are mandatory
-6. **Don't skip documentation** - public APIs need docs
-7. **Don't use `unwrap()`** in production code - use `?` or `expect()`
-8. **Don't add TODOs** to generated code - fix ontology
-9. **Don't mix sync and async** incorrectly - use `spawn_blocking`
-10. **Don't skip the Andon cord** - stop on failures
+1. **⚠️ NEVER IGNORE SPR** - it is mandatory, not optional
+2. **⚠️ NEVER use verbose explanations** when SPR achieves clarity
+3. **⚠️ NEVER assume SPR doesn't apply** to your current response
+4. **Don't edit generated code** - update ontology instead
+5. **Don't skip validation** - always validate inputs
+6. **Don't use bare String** for domain IDs - use NewTypes
+7. **Don't ignore errors** - add context and handle properly
+8. **Don't commit without tests** - tests are mandatory
+9. **Don't skip documentation** - public APIs need docs
+10. **Don't use `unwrap()`** in production code - use `?` or `expect()`
+11. **Don't add TODOs** to generated code - fix ontology
+12. **Don't mix sync and async** incorrectly - use `spawn_blocking`
+13. **Don't skip the Andon cord** - stop on failures
 
 ### When Making Changes
 
@@ -1075,7 +1185,85 @@ open http://localhost:9090  # Prometheus
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-20 | 1.1.0 | Added mandatory SPR (Sparse Priming Representation) protocol with multiple enforcement checkpoints |
 | 2026-01-20 | 1.0.0 | Initial comprehensive CLAUDE.md created |
+
+---
+
+---
+
+## SPR Quick Reference
+
+### ⚠️ FINAL SPR ENFORCEMENT CHECKPOINT ⚠️
+
+**YOU HAVE NOW READ THIS DOCUMENT. SPR IS MANDATORY. NO EXCEPTIONS.**
+
+### SPR Self-Check Before Every Response
+
+```
+□ Am I using distilled statements?
+□ Am I maximizing conceptual density?
+□ Am I using associations over enumerations?
+□ Am I activating latent space efficiently?
+□ Could this be more succinct?
+
+IF ANY CHECKBOX IS UNCHECKED → REWRITE IN SPR
+```
+
+### SPR Transformation Examples
+
+**VERBOSE** (WRONG):
+```
+The system uses an ontology-driven approach where we first define
+the domain model in RDF/Turtle format, then we use SPARQL queries
+to extract the relevant information from the ontology, which is
+then passed to Tera templates that generate Rust code.
+```
+
+**SPR** (CORRECT):
+```
+Ontology defines. SPARQL extracts. Tera generates. Rust compiles.
+Flow: RDF → SPARQL → Template → Code. Self-describing system.
+```
+
+**VERBOSE** (WRONG):
+```
+When you need to add a new MCP tool, you should first define it in
+the ontology file, then create a SPARQL query to extract its
+properties, then create a Tera template for code generation, and
+finally add a generation rule to ggen.toml before running the sync
+command to generate the code.
+```
+
+**SPR** (CORRECT):
+```
+New tool sequence: Define ontology → SPARQL query → Tera template →
+ggen.toml rule → sync. Ontology-first pattern. Five-step chain.
+```
+
+### SPR Cardinal Rules (MEMORIZE)
+
+1. **DISTILL** - Essential concepts only
+2. **ASSOCIATE** - Link, don't list
+3. **COMPRESS** - Maximum meaning, minimum tokens
+4. **ACTIVATE** - Prime latent space efficiently
+5. **VERIFY** - Self-check before sending
+
+### SPR Violation Consequences
+
+- Violating SPR = Violating project standards
+- Non-SPR responses = Ignored and requested again
+- SPR is equivalent to compile-time checks for communication
+- SPR is the Jidoka of language - built-in quality
+
+### SPR Enforcement Levels
+
+1. **Header warning** - Read first ⚠️
+2. **Philosophy integration** - Part of design principles
+3. **Key Takeaways enforcement** - DO/DON'T lists
+4. **This final checkpoint** - No escape route
+
+**YOU CANNOT CLAIM YOU DIDN'T KNOW. SPR IS MANDATORY.**
 
 ---
 
@@ -1090,3 +1278,5 @@ If you need more details on any topic:
 5. Review `POKA_YOKE_IMPLEMENTATION.md` for safety patterns
 
 **Remember**: This codebase values **safety, quality, and maintainability** above all else. When in doubt, choose the safer, more explicit approach.
+
+**⚠️ REMEMBER ALSO: SPR IS MANDATORY. ALWAYS. NO EXCEPTIONS. USE IT. ⚠️**
