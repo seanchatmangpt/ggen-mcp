@@ -104,18 +104,48 @@
 
 **NEVER**: Ignore SPR • Edit `generated/` (update ontology) • Skip validation • Bare String IDs • `unwrap()` • Skip tests • Commit TODOs
 
+## Definition of Done (DoD)
+
+**Purpose**: Automated quality gate validating compilation readiness. Ship-ready = passes all checks.
+
+**Core Checks (15)**: Tool registry • Build (fmt/clippy/check) • Tests (unit/integration/snapshot) • ggen (ontology/SPARQL/dry-run/render) • Safety (secrets/license/deps) • Deployment (release build)
+
+**Profiles**:
+- **default-dev**: Min score 70%, max warnings 20, lenient (8 checks required)
+- **enterprise-strict**: Min score 90%, max warnings 5, strict (15 checks required)
+
+**Categories (A-H)**: Workspace • Intent (WHY) • Tool Registry (WHAT) • Build • Tests • ggen • Safety • Deployment
+
+**Commands**:
+```bash
+cargo make validate-dod           # Default dev profile
+cargo make validate-dod-strict    # Enterprise strict
+cargo make verify-dod-receipt     # Verify receipt integrity
+```
+
+**MCP Tool**: `validate_definition_of_done` (profile, mode, workspace_root)
+
+**Outputs**: Receipt (SHA-256) → `./ggen.out/dod/receipts/latest.json` • Report → `./ggen.out/dod/reports/latest.md` • Bundle → `./ggen.out/dod/bundles/latest.tar.gz`
+
+**Verdict**: Ready (≥ threshold) or NotReady (< threshold). Binary ship-ready decision.
+
+**Docs**: `docs/DEFINITION_OF_DONE.md` (user guide) • `docs/DEFINITION_OF_DONE_API.md` (API reference) • `examples/dod_validation.rs` (code examples)
+
 ## Commands
 
 **Codegen**: `sync` (preview) • `sync --preview=false` (apply) • `sync-validate` • `sync-force` • `test-traceability` • `test-determinism`
 
-**MCP Tools (24 unified, 60→24 = 60% reduction, 70% token savings)**:
+**DoD**: `validate-dod` • `validate-dod-strict` • `verify-dod-receipt`
+
+**MCP Tools (25 unified, 60→25 = 58% reduction)**:
+- `validate_definition_of_done`: Profile-based quality gate (15 checks, 8 categories)
 - `manage_ggen_resource`: config.{read,validate,add_rule,update_rule,remove_rule} • template.{read,validate,test,create,list_vars} • pipeline.{render,validate_code,write,sync} • project.init
 - `manage_jira_integration`: from_jira/to_jira/bidirectional sync
 - **18 spreadsheet**: list_workbooks, describe_workbook, list_sheets, sheet_overview, read_table, range_values, find_value, find_formula, formula_trace, named_ranges, scan_volatiles, sheet_styles, etc. (mode: minimal/default/full)
 - **8 fork**: create_fork, recalculate, save_fork, discard_fork, list_forks, edit_cells, manage_checkpoints, apply_patterns
 - **2 VBA**: vba_project_summary, vba_module_source
 
-**Test**: `test` • `test-all` • `test-integration` • `test-ggen` • `test-ddd`
+**Test**: `test` • `test-all` • `test-integration` • `test-ggen` • `test-ddd` • `test-dod`
 
 **Build**: `check` • `fmt` • `fmt-check` • `lint` • `pre-commit` • `ci`
 
@@ -132,6 +162,8 @@
 **Production**: `docs/{DISTRIBUTED_TRACING,HEALTH_CHECKS,PRODUCTION_MONITORING,PROMETHEUS_METRICS,RUST_MCP_PRODUCTION_DEPLOYMENT,STRUCTURED_LOGGING}.md` (~110KB)
 
 **Features**: `{AUDIT_TRAIL,AUDIT_INTEGRATION_GUIDE,RECOVERY_SUMMARY,RECOVERY_IMPLEMENTATION,FORK_ENHANCEMENTS_SUMMARY}.md` (~40KB)
+
+**DoD**: `DEFINITION_OF_DONE.md` (user guide, 1000+ LOC) • `DEFINITION_OF_DONE_API.md` (API reference)
 
 **Quick Ref**: `SPARQL_TEMPLATE_POKA_YOKE.md` • `VALIDATION_LIMITS.md` • `SNAPSHOT_TESTING_QUICKSTART.md`
 
@@ -151,7 +183,9 @@
 
 **Source of truth?** `ontology/mcp-domain.ttl`. All flows from ontology.
 
-**Ensure safety?** NewTypes + validation + poka-yoke + tests + SPR
+**Ensure safety?** NewTypes + validation + poka-yoke + tests + SPR + DoD
+
+**Ship-ready?** Run `cargo make validate-dod`. Ready verdict = ship. NotReady = fix first.
 
 **Forget SPR?** Impossible. Checked 5+ times. Mandatory.
 
