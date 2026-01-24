@@ -1000,6 +1000,29 @@ impl SpreadsheetServer {
         .map(Json)
         .map_err(to_mcp_error)
     }
+
+    // ========================================================================
+    // Unified Ggen Resource Management Tool
+    // ========================================================================
+
+    #[tool(
+        name = "manage_ggen_resource",
+        description = "Unified ggen resource management: config (5 ops), ontology (5 ops), templates (5 ops). Single MCP tool consolidating 15 authoring operations."
+    )]
+    pub async fn manage_ggen_resource(
+        &self,
+        Parameters(params): Parameters<tools::ggen_unified::ManageGgenResourceParams>,
+    ) -> Result<Json<tools::ggen_unified::ManageGgenResourceResponse>, McpError> {
+        self.ensure_tool_enabled("manage_ggen_resource")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "manage_ggen_resource",
+            tools::ggen_unified::manage_ggen_resource(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
 }
 
 #[cfg(feature = "recalc")]
