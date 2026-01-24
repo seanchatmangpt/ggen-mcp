@@ -1,0 +1,7 @@
+[package]
+name = "invalid-test-workspace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Intentionally missing dependencies to cause build failures

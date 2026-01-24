@@ -883,6 +883,25 @@ impl SpreadsheetServer {
         .map_err(to_mcp_error)
     }
 
+    #[tool(
+        name = "validate_definition_of_done",
+        description = "Validate Definition of Done: 15 checks (workspace, build, tests, ggen, safety). Returns deployment readiness verdict with evidence bundle."
+    )]
+    pub async fn validate_definition_of_done_tool(
+        &self,
+        Parameters(params): Parameters<tools::dod::ValidateDefinitionOfDoneParams>,
+    ) -> Result<Json<tools::dod::ValidateDefinitionOfDoneResponse>, McpError> {
+        self.ensure_tool_enabled("validate_definition_of_done")
+            .map_err(to_mcp_error)?;
+        self.run_tool_with_timeout(
+            "validate_definition_of_done",
+            tools::dod::validate_definition_of_done(self.state.clone(), params),
+        )
+        .await
+        .map(Json)
+        .map_err(to_mcp_error)
+    }
+
     // ========================================================================
     // Tera Template Authoring Tools
     // ========================================================================
