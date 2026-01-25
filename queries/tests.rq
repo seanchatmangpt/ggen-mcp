@@ -10,3 +10,4 @@ WHERE {
   ?test ddd:hasAssert ?assert_code .
 }
 ORDER BY ?test_name
+LIMIT 10000

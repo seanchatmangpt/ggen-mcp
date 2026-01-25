@@ -11,3 +11,4 @@ WHERE {
        ddd:message ?message .
 }
 ORDER BY ?aggregate ?invariantLabel
+LIMIT 10000

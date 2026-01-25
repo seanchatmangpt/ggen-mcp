@@ -43,7 +43,7 @@
 //! }
 //! ```
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use oxigraph::io::GraphFormat;
 use oxigraph::model::{GraphNameRef, NamedNode, NamedNodeRef, Subject, Term, Triple};
 use oxigraph::sparql::{Query, QueryResults};
@@ -202,9 +202,7 @@ impl OntologyTestHarness {
             .transpose()?
             .map(|n| Subject::NamedNode(n));
 
-        let p_term = predicate
-            .map(|p| NamedNode::new(p))
-            .transpose()?;
+        let p_term = predicate.map(|p| NamedNode::new(p)).transpose()?;
 
         let o_term = object
             .map(|o| NamedNode::new(o))
@@ -347,7 +345,9 @@ impl OntologyTestHarness {
         assert!(
             count > 0,
             "Expected triple <{} {} {}> to exist, but it was not found",
-            subject, predicate, object
+            subject,
+            predicate,
+            object
         );
     }
 
@@ -375,7 +375,9 @@ impl OntologyTestHarness {
 
     /// Assert that a class is an aggregate root
     pub fn assert_class_is_aggregate_root(&self, class_uri: &str) {
-        let aggregates = self.get_aggregate_roots().expect("Failed to get aggregates");
+        let aggregates = self
+            .get_aggregate_roots()
+            .expect("Failed to get aggregates");
         assert!(
             aggregates.contains(&class_uri.to_string()),
             "Expected <{}> to be an AggregateRoot, but it was not found.\nDefined aggregates: {:?}",
@@ -386,7 +388,9 @@ impl OntologyTestHarness {
 
     /// Assert that a class is a value object
     pub fn assert_class_is_value_object(&self, class_uri: &str) {
-        let vos = self.get_value_objects().expect("Failed to get value objects");
+        let vos = self
+            .get_value_objects()
+            .expect("Failed to get value objects");
         assert!(
             vos.contains(&class_uri.to_string()),
             "Expected <{}> to be a ValueObject, but it was not found.\nDefined value objects: {:?}",
@@ -488,7 +492,8 @@ impl OntologyTestHarness {
             aggregate = aggregate_uri
         );
 
-        let properties = self.extract_uris_from_query(&query)
+        let properties = self
+            .extract_uris_from_query(&query)
             .expect("Failed to query properties");
 
         assert!(
@@ -547,12 +552,27 @@ impl OntologyBuilder {
         let mut prefixes = HashMap::new();
 
         // Add standard prefixes
-        prefixes.insert("rdf".to_string(), "http://www.w3.org/1999/02/22-rdf-syntax-ns#".to_string());
-        prefixes.insert("rdfs".to_string(), "http://www.w3.org/2000/01/rdf-schema#".to_string());
-        prefixes.insert("owl".to_string(), "http://www.w3.org/2002/07/owl#".to_string());
-        prefixes.insert("xsd".to_string(), "http://www.w3.org/2001/XMLSchema#".to_string());
+        prefixes.insert(
+            "rdf".to_string(),
+            "http://www.w3.org/1999/02/22-rdf-syntax-ns#".to_string(),
+        );
+        prefixes.insert(
+            "rdfs".to_string(),
+            "http://www.w3.org/2000/01/rdf-schema#".to_string(),
+        );
+        prefixes.insert(
+            "owl".to_string(),
+            "http://www.w3.org/2002/07/owl#".to_string(),
+        );
+        prefixes.insert(
+            "xsd".to_string(),
+            "http://www.w3.org/2001/XMLSchema#".to_string(),
+        );
         prefixes.insert("sh".to_string(), "http://www.w3.org/ns/shacl#".to_string());
-        prefixes.insert("ddd".to_string(), "http://ggen-mcp.dev/ontology/ddd#".to_string());
+        prefixes.insert(
+            "ddd".to_string(),
+            "http://ggen-mcp.dev/ontology/ddd#".to_string(),
+        );
         prefixes.insert("test".to_string(), "http://test.example.org/".to_string());
 
         Self {
@@ -711,10 +731,9 @@ mod tests {
 
     #[test]
     fn test_parse_valid_user_aggregate() {
-        let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/valid/user_aggregate.ttl"
-        )
-        .expect("Failed to parse user aggregate");
+        let harness =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/user_aggregate.ttl")
+                .expect("Failed to parse user aggregate");
 
         // Verify basic structure
         harness.assert_class_defined("http://ggen-mcp.dev/domain/user#User");
@@ -724,10 +743,9 @@ mod tests {
 
     #[test]
     fn test_parse_valid_order_aggregate() {
-        let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/valid/order_aggregate.ttl"
-        )
-        .expect("Failed to parse order aggregate");
+        let harness =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/order_aggregate.ttl")
+                .expect("Failed to parse order aggregate");
 
         harness.assert_class_defined("http://ggen-mcp.dev/domain/order#Order");
         harness.assert_class_is_aggregate_root("http://ggen-mcp.dev/domain/order#Order");
@@ -735,9 +753,8 @@ mod tests {
 
     #[test]
     fn test_parse_syntax_error() {
-        let result = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/invalid/syntax_error.ttl"
-        );
+        let result =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/invalid/syntax_error.ttl");
 
         assert!(result.is_err(), "Should fail to parse syntax errors");
     }
@@ -745,14 +762,17 @@ mod tests {
     #[test]
     fn test_detect_circular_dependencies() {
         let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/invalid/circular_dependencies.ttl"
+            "tests/fixtures/ttl/invalid/circular_dependencies.ttl",
         )
         .expect("Failed to parse");
 
         let result = harness.validate_consistency();
         assert!(!result.valid, "Should detect circular dependencies");
         assert!(
-            result.errors.iter().any(|e| e.contains("Cyclic") || e.contains("cycle")),
+            result
+                .errors
+                .iter()
+                .any(|e| e.contains("Cyclic") || e.contains("cycle")),
             "Should report cyclic hierarchy: {:?}",
             result.errors
         );
@@ -785,8 +805,7 @@ mod tests {
             ex:MyClass rdfs:subClassOf ex:ParentClass .
         "#;
 
-        let harness = OntologyTestHarness::parse_from_string(ttl)
-            .expect("Failed to parse");
+        let harness = OntologyTestHarness::parse_from_string(ttl).expect("Failed to parse");
 
         harness.assert_triple_exists(
             "http://example.org/MyClass",
@@ -797,12 +816,13 @@ mod tests {
 
     #[test]
     fn test_query_aggregate_roots() {
-        let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/valid/user_aggregate.ttl"
-        )
-        .expect("Failed to parse");
+        let harness =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/user_aggregate.ttl")
+                .expect("Failed to parse");
 
-        let aggregates = harness.get_aggregate_roots().expect("Failed to get aggregates");
+        let aggregates = harness
+            .get_aggregate_roots()
+            .expect("Failed to get aggregates");
         assert!(aggregates.len() > 0, "Should find at least one aggregate");
         assert!(
             aggregates.contains(&"http://ggen-mcp.dev/domain/user#User".to_string()),
@@ -812,10 +832,9 @@ mod tests {
 
     #[test]
     fn test_aggregate_structure_validation() {
-        let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/valid/user_aggregate.ttl"
-        )
-        .expect("Failed to parse");
+        let harness =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/user_aggregate.ttl")
+                .expect("Failed to parse");
 
         harness.assert_aggregate_structure("http://ggen-mcp.dev/domain/user#User");
     }
@@ -833,8 +852,7 @@ mod tests {
                 rdfs:subClassOf ddd:AggregateRoot .
         "#;
 
-        let harness = OntologyTestHarness::parse_from_string(ttl)
-            .expect("Failed to parse");
+        let harness = OntologyTestHarness::parse_from_string(ttl).expect("Failed to parse");
 
         harness.assert_aggregate_structure("http://test.example.org/EmptyAggregate");
     }
@@ -850,8 +868,7 @@ mod tests {
             ex:Class3 rdfs:label "Class 3" .
         "#;
 
-        let harness = OntologyTestHarness::parse_from_string(ttl)
-            .expect("Failed to parse");
+        let harness = OntologyTestHarness::parse_from_string(ttl).expect("Failed to parse");
 
         let count = harness
             .count_triples(
@@ -866,10 +883,9 @@ mod tests {
 
     #[test]
     fn test_mcp_tools_fixture() {
-        let harness = OntologyTestHarness::parse_from_file(
-            "tests/fixtures/ttl/valid/mcp_tools.ttl"
-        )
-        .expect("Failed to parse MCP tools");
+        let harness =
+            OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/mcp_tools.ttl")
+                .expect("Failed to parse MCP tools");
 
         // Verify tools are defined
         let query = r#"
@@ -879,7 +895,8 @@ mod tests {
             }
         "#;
 
-        let tools = harness.extract_uris_from_query(query)
+        let tools = harness
+            .extract_uris_from_query(query)
             .expect("Failed to query tools");
 
         assert!(tools.len() >= 4, "Should have at least 4 tools defined");

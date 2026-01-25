@@ -43,9 +43,12 @@ fn enterprise_strict_has_strict_thresholds() {
 #[test]
 fn profile_get_timeout_for_category() {
     use ggen_mcp::dod::types::CheckCategory;
-    
+
     let profile = DodProfile::default_dev();
-    assert_eq!(profile.get_timeout(CheckCategory::BuildCorrectness), 600_000);
+    assert_eq!(
+        profile.get_timeout(CheckCategory::BuildCorrectness),
+        600_000
+    );
     assert_eq!(profile.get_timeout(CheckCategory::TestTruth), 900_000);
     assert_eq!(profile.get_timeout(CheckCategory::GgenPipeline), 300_000);
     assert_eq!(profile.get_timeout(CheckCategory::ToolRegistry), 60_000);

@@ -57,7 +57,10 @@ mod validation_tests {
         let result = validator.validate("simple_tool", &params);
 
         // Assert: Validation succeeds
-        assert_ok!(result, "Schema validation should succeed for valid parameters");
+        assert_ok!(
+            result,
+            "Schema validation should succeed for valid parameters"
+        );
     });
 
     test!(test_valid_parameters, {
@@ -98,7 +101,10 @@ mod validation_tests {
         let result = validator.validate("simple_tool", &params);
 
         // Assert: Validation fails with appropriate error
-        assert_err!(result, "Validation should fail when required field is missing");
+        assert_err!(
+            result,
+            "Validation should fail when required field is missing"
+        );
 
         if let Err(SchemaValidationError::ValidationFailed { errors, .. }) = result {
             assert!(
@@ -148,14 +154,20 @@ mod validation_tests {
             "optional_field": "optional value"
         });
         let result_with = validator.validate("optional_tool", &params_with);
-        assert_ok!(result_with, "Validation should succeed with optional field present");
+        assert_ok!(
+            result_with,
+            "Validation should succeed with optional field present"
+        );
 
         // Act & Assert: Test with optional field missing
         let params_without = json!({
             "required_field": "value"
         });
         let result_without = validator.validate("optional_tool", &params_without);
-        assert_ok!(result_without, "Validation should succeed with optional field missing");
+        assert_ok!(
+            result_without,
+            "Validation should succeed with optional field missing"
+        );
 
         // Act & Assert: Test with optional field null
         let params_null = json!({
@@ -163,7 +175,10 @@ mod validation_tests {
             "optional_field": null
         });
         let result_null = validator.validate("optional_tool", &params_null);
-        assert_ok!(result_null, "Validation should succeed with optional field null");
+        assert_ok!(
+            result_null,
+            "Validation should succeed with optional field null"
+        );
     });
 
     test!(test_middleware_creation, {
@@ -203,14 +218,20 @@ mod validation_tests {
             "count": 42
         });
         let simple_result = validator.validate("simple_tool", &simple_params);
-        assert_ok!(simple_result, "Builder-created validator should handle simple tool");
+        assert_ok!(
+            simple_result,
+            "Builder-created validator should handle simple tool"
+        );
 
         // Act & Assert: Test optional tool
         let optional_params = json!({
             "required_field": "value"
         });
         let optional_result = validator.validate("optional_tool", &optional_params);
-        assert_ok!(optional_result, "Builder-created validator should handle optional tool");
+        assert_ok!(
+            optional_result,
+            "Builder-created validator should handle optional tool"
+        );
 
         // Act & Assert: Test complex tool
         let complex_params = json!({
@@ -218,7 +239,10 @@ mod validation_tests {
             "sheet_name": "Sheet1"
         });
         let complex_result = validator.validate("complex_tool", &complex_params);
-        assert_ok!(complex_result, "Builder-created validator should handle complex tool");
+        assert_ok!(
+            complex_result,
+            "Builder-created validator should handle complex tool"
+        );
     });
 
     test!(test_error_message_formatting, {
@@ -274,8 +298,14 @@ mod validation_tests {
         assert_ok!(&result, "Validation and deserialization should succeed");
 
         if let Ok(deserialized) = result {
-            assert_eq!(deserialized.name, "test", "Name field should deserialize correctly");
-            assert_eq!(deserialized.count, 42, "Count field should deserialize correctly");
+            assert_eq!(
+                deserialized.name, "test",
+                "Name field should deserialize correctly"
+            );
+            assert_eq!(
+                deserialized.count, 42,
+                "Count field should deserialize correctly"
+            );
         }
     });
 

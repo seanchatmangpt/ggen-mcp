@@ -4,9 +4,9 @@
 
 use anyhow::Result;
 use spreadsheet_mcp::dod::{
-    CheckCategory, CheckSeverity, CheckStatus, DodCheckResult, DodValidationResult,
-    EvidenceBundleGenerator, EvidenceKind, Evidence, OverallVerdict, ValidationMode,
-    ValidationSummary, CategoryScore, ArtifactPaths, FileType,
+    ArtifactPaths, CategoryScore, CheckCategory, CheckSeverity, CheckStatus, DodCheckResult,
+    DodValidationResult, Evidence, EvidenceBundleGenerator, EvidenceKind, FileType, OverallVerdict,
+    ValidationMode, ValidationSummary,
 };
 use std::collections::HashMap;
 use std::fs;
@@ -54,15 +54,13 @@ fn create_test_result(receipt_path: PathBuf, report_path: PathBuf) -> DodValidat
             status: CheckStatus::Pass,
             severity: CheckSeverity::Fatal,
             message: "Dry run successful".to_string(),
-            evidence: vec![
-                Evidence {
-                    kind: EvidenceKind::FileContent,
-                    content: "Generated code preview".to_string(),
-                    file_path: Some(PathBuf::from("src/generated/mod.rs")),
-                    line_number: None,
-                    hash: "ghi789".to_string(),
-                },
-            ],
+            evidence: vec![Evidence {
+                kind: EvidenceKind::FileContent,
+                content: "Generated code preview".to_string(),
+                file_path: Some(PathBuf::from("src/generated/mod.rs")),
+                line_number: None,
+                hash: "ghi789".to_string(),
+            }],
             remediation: vec![],
             duration_ms: 500,
             check_hash: "ghi789".to_string(),
@@ -337,8 +335,7 @@ fn test_compression_creates_tar_gz() -> Result<()> {
     fs::write(&report_path, "# Report")?;
 
     let result = create_test_result(receipt_path, report_path);
-    let generator = EvidenceBundleGenerator::new(output_dir.clone())
-        .with_compression();
+    let generator = EvidenceBundleGenerator::new(output_dir.clone()).with_compression();
 
     let bundle_path = generator.generate(&result, &workspace_root())?;
 
@@ -348,12 +345,16 @@ fn test_compression_creates_tar_gz() -> Result<()> {
     assert!(bundle_path.is_file());
 
     // Original directory should be removed
-    let bundle_name = bundle_path.file_stem()
+    let bundle_name = bundle_path
+        .file_stem()
         .and_then(|s| s.to_str())
         .unwrap()
         .trim_end_matches(".tar");
     let original_dir = output_dir.join(bundle_name);
-    assert!(!original_dir.exists(), "Original directory should be removed after compression");
+    assert!(
+        !original_dir.exists(),
+        "Original directory should be removed after compression"
+    );
 
     Ok(())
 }
@@ -423,7 +424,10 @@ fn test_bundle_preserves_directory_structure_for_artifacts() -> Result<()> {
     // Check if ontology directory structure is preserved (if it exists)
     let ontology_artifact = bundle_path.join("artifacts/ontology/mcp-domain.ttl");
     if workspace_root().join("ontology/mcp-domain.ttl").exists() {
-        assert!(ontology_artifact.exists(), "Directory structure should be preserved");
+        assert!(
+            ontology_artifact.exists(),
+            "Directory structure should be preserved"
+        );
 
         // Parent directory should exist
         assert!(ontology_artifact.parent().unwrap().exists());
@@ -460,7 +464,10 @@ fn test_manifest_total_size_matches_sum() -> Result<()> {
 
     let total_in_manifest = manifest["total_size_bytes"].as_u64().unwrap();
 
-    assert_eq!(total_from_files, total_in_manifest, "Total size should match sum of individual files");
+    assert_eq!(
+        total_from_files, total_in_manifest,
+        "Total size should match sum of individual files"
+    );
 
     Ok(())
 }
@@ -497,7 +504,10 @@ fn test_file_types_are_correctly_categorized() -> Result<()> {
             assert_eq!(entry["file_type"], "Log", "Log files should have Log type");
         }
         if path.starts_with("artifacts/") {
-            assert_eq!(entry["file_type"], "Artifact", "Artifact files should have Artifact type");
+            assert_eq!(
+                entry["file_type"], "Artifact",
+                "Artifact files should have Artifact type"
+            );
         }
     }
 

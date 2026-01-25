@@ -11,7 +11,7 @@
 
 mod harness;
 
-use harness::{SnapshotTestHarness, SnapshotFormat, UpdateMode};
+use harness::{SnapshotFormat, SnapshotTestHarness, UpdateMode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -279,12 +279,7 @@ fn test_sparql_aggregate_query_results() {
     let json_str = serde_json::to_string_pretty(&results).unwrap();
 
     harness
-        .assert_snapshot(
-            "sparql",
-            "aggregates_query",
-            json_str,
-            SnapshotFormat::Json,
-        )
+        .assert_snapshot("sparql", "aggregates_query", json_str, SnapshotFormat::Json)
         .expect("SPARQL aggregates query snapshot should match");
 }
 
@@ -296,12 +291,7 @@ fn test_sparql_binding_structures() {
     let json_str = serde_json::to_string_pretty(&bindings).unwrap();
 
     harness
-        .assert_snapshot(
-            "sparql",
-            "complex_bindings",
-            json_str,
-            SnapshotFormat::Json,
-        )
+        .assert_snapshot("sparql", "complex_bindings", json_str, SnapshotFormat::Json)
         .expect("SPARQL bindings snapshot should match");
 }
 
@@ -332,12 +322,7 @@ fn test_complete_config_serialization() {
     let config = create_complete_config();
 
     harness
-        .assert_snapshot(
-            "config",
-            "complete_config",
-            config,
-            SnapshotFormat::Toml,
-        )
+        .assert_snapshot("config", "complete_config", config, SnapshotFormat::Toml)
         .expect("Complete config snapshot should match");
 }
 
@@ -410,18 +395,8 @@ fn test_snapshot_statistics() {
     let mut harness = SnapshotTestHarness::new();
 
     // Run multiple snapshot assertions
-    let _ = harness.assert_snapshot(
-        "misc",
-        "stat_test_1",
-        "content1",
-        SnapshotFormat::Text,
-    );
-    let _ = harness.assert_snapshot(
-        "misc",
-        "stat_test_2",
-        "content2",
-        SnapshotFormat::Text,
-    );
+    let _ = harness.assert_snapshot("misc", "stat_test_1", "content1", SnapshotFormat::Text);
+    let _ = harness.assert_snapshot("misc", "stat_test_2", "content2", SnapshotFormat::Text);
 
     let stats = harness.stats();
     println!("Snapshot Statistics:");
@@ -470,12 +445,7 @@ fn test_update_mode_always() {
 
     // This will update the snapshot
     harness
-        .assert_snapshot(
-            "misc",
-            "update_test",
-            "new content",
-            SnapshotFormat::Text,
-        )
+        .assert_snapshot("misc", "update_test", "new content", SnapshotFormat::Text)
         .expect("Should succeed in update mode");
 
     let stats = harness.stats();

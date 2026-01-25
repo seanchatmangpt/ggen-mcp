@@ -33,10 +33,22 @@ async fn test_metrics_integration_end_to_end() -> Result<()> {
     // Build validation result
     let summary = ValidationSummary {
         checks_total: check_results.len(),
-        checks_passed: check_results.iter().filter(|r| r.status == CheckStatus::Pass).count(),
-        checks_failed: check_results.iter().filter(|r| r.status == CheckStatus::Fail).count(),
-        checks_warned: check_results.iter().filter(|r| r.status == CheckStatus::Warn).count(),
-        checks_skipped: check_results.iter().filter(|r| r.status == CheckStatus::Skip).count(),
+        checks_passed: check_results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Pass)
+            .count(),
+        checks_failed: check_results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Fail)
+            .count(),
+        checks_warned: check_results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Warn)
+            .count(),
+        checks_skipped: check_results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Skip)
+            .count(),
     };
 
     let total_duration: u64 = check_results.iter().map(|r| r.duration_ms).sum();
@@ -66,7 +78,10 @@ async fn test_metrics_integration_end_to_end() -> Result<()> {
 
     // Verify metrics are populated
     assert!(metrics.checks_executed > 0, "Should have executed checks");
-    assert!(metrics.total_duration.as_millis() > 0, "Should have non-zero duration");
+    assert!(
+        metrics.total_duration.as_millis() > 0,
+        "Should have non-zero duration"
+    );
     assert_eq!(
         metrics.checks_executed,
         validation_result.check_results.len(),
@@ -105,8 +120,14 @@ async fn test_metrics_recorder_integration() -> Result<()> {
 
     // Simulate multiple validation runs
     for _ in 0..10 {
-        recorder.record_check("BUILD_CHECK", Duration::from_millis(1000 + rand::random::<u64>() % 500));
-        recorder.record_check("TEST_UNIT", Duration::from_millis(500 + rand::random::<u64>() % 300));
+        recorder.record_check(
+            "BUILD_CHECK",
+            Duration::from_millis(1000 + rand::random::<u64>() % 500),
+        );
+        recorder.record_check(
+            "TEST_UNIT",
+            Duration::from_millis(500 + rand::random::<u64>() % 300),
+        );
         recorder.record_verdict(OverallVerdict::Ready);
     }
 

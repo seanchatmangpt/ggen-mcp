@@ -23,6 +23,7 @@ use crate::model::WorkbookId;
 {%- set current_params = [] -%}
 {%- set all_tools = [] -%}
 
+{%- if sparql_results -%}
 {#- First pass: collect all unique tools -#}
 {%- for row in sparql_results -%}
 {%- set tool_name = row["?toolName"] | default(value="") -%}
@@ -108,3 +109,7 @@ mod tests {
         assert_eq!({{ all_tools | length }}, {{ all_tools | length }}, "Expected {{ all_tools | length }} param structs from ontology");
     }
 }
+{%- endfor -%}
+{%- else -%}
+// No tool parameters found in ontology
+{%- endif -%}

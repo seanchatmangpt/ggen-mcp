@@ -11,3 +11,4 @@ WHERE {
   ?evt rdfs:label ?emits_event .
 }
 ORDER BY ?handler_name
+LIMIT 10000

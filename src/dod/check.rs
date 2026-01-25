@@ -11,6 +11,7 @@ use std::path::PathBuf;
 pub struct CheckContext {
     pub workspace_root: PathBuf,
     pub timeout_ms: u64,
+    pub mode: ValidationMode,
     pub metadata: HashMap<String, String>,
 }
 
@@ -19,6 +20,7 @@ impl CheckContext {
         Self {
             workspace_root,
             timeout_ms: 120_000, // 2 minutes default
+            mode: ValidationMode::Fast,
             metadata: HashMap::new(),
         }
     }
@@ -90,6 +92,11 @@ impl CheckRegistry {
 
     pub fn get_by_id(&self, id: &str) -> Option<&Box<dyn DodCheck>> {
         self.checks.iter().find(|c| c.id() == id)
+    }
+
+    /// Create a registry with all available checks
+    pub fn with_all_checks() -> Self {
+        crate::dod::checks::create_registry()
     }
 }
 

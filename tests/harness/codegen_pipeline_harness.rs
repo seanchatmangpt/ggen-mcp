@@ -177,23 +177,17 @@ impl CodegenPipelineHarness {
         let input_path = self.fixture_root.join(fixture).join("input/ontology.ttl");
 
         if !input_path.exists() {
-            return Err(anyhow!(
-                "Ontology file not found: {}",
-                input_path.display()
-            ));
+            return Err(anyhow!("Ontology file not found: {}", input_path.display()));
         }
 
         // Load TTL into RDF store
         let store = Store::new()?;
-        let ttl_content = fs::read_to_string(&input_path)
-            .context("Failed to read ontology file")?;
+        let ttl_content =
+            fs::read_to_string(&input_path).context("Failed to read ontology file")?;
 
         // Parse and load into store
         store
-            .load_from_reader(
-                oxigraph::io::RdfFormat::Turtle,
-                ttl_content.as_bytes(),
-            )
+            .load_from_reader(oxigraph::io::RdfFormat::Turtle, ttl_content.as_bytes())
             .context("Failed to parse TTL file")?;
 
         // Validate graph structure
@@ -236,18 +230,11 @@ impl CodegenPipelineHarness {
     // Stage 2: SPARQL Query
     // ========================================================================
 
-    fn run_stage_sparql_query(
-        &mut self,
-        fixture: &str,
-        store: &Store,
-    ) -> Result<SparqlResult> {
+    fn run_stage_sparql_query(&mut self, fixture: &str, store: &Store) -> Result<SparqlResult> {
         println!("  🔍 Stage 2: SPARQL Query Execution");
         let start = Instant::now();
 
-        let query_path = self
-            .fixture_root
-            .join(fixture)
-            .join("input/queries.sparql");
+        let query_path = self.fixture_root.join(fixture).join("input/queries.sparql");
 
         // Load SPARQL queries
         let queries = if query_path.exists() {
@@ -310,12 +297,14 @@ impl CodegenPipelineHarness {
             .get(var)
             .and_then(|term| match term {
                 oxigraph::model::Term::Literal(lit) => Some(lit.value().to_string()),
-                oxigraph::model::Term::NamedNode(node) => {
-                    Some(node.as_str().split('#').last()
+                oxigraph::model::Term::NamedNode(node) => Some(
+                    node.as_str()
+                        .split('#')
+                        .last()
                         .or_else(|| node.as_str().split('/').last())
                         .unwrap_or(node.as_str())
-                        .to_string())
-                }
+                        .to_string(),
+                ),
                 _ => None,
             })
             .ok_or_else(|| anyhow!("Variable '{}' not found in solution", var))
@@ -522,11 +511,8 @@ impl CodegenPipelineHarness {
             written_files.push(output_path.clone());
 
             // Track artifact
-            self.artifact_tracker.track_artifact(
-                &output_path,
-                code.as_bytes(),
-                Vec::new(),
-            )?;
+            self.artifact_tracker
+                .track_artifact(&output_path, code.as_bytes(), Vec::new())?;
 
             println!("    ✓ Wrote {}", output_path.display());
         }
@@ -574,11 +560,7 @@ impl CodegenPipelineHarness {
     }
 
     /// Assert that generated output matches golden file
-    pub fn assert_output_matches_golden(
-        &self,
-        output: &str,
-        golden_file: &Path,
-    ) -> Result<()> {
+    pub fn assert_output_matches_golden(&self, output: &str, golden_file: &Path) -> Result<()> {
         if !self.enable_golden_files {
             return Ok(());
         }
@@ -594,10 +576,7 @@ impl CodegenPipelineHarness {
         if normalized_output != normalized_expected {
             // Generate diff
             let diff = self.generate_diff(&normalized_expected, &normalized_output);
-            return Err(anyhow!(
-                "Output does not match golden file:\n{}",
-                diff
-            ));
+            return Err(anyhow!("Output does not match golden file:\n{}", diff));
         }
 
         Ok(())
@@ -897,7 +876,10 @@ mod tests {
             .with_validation(false)
             .with_golden_files(false);
 
-        assert_eq!(harness.current_fixture, Some("simple_aggregate".to_string()));
+        assert_eq!(
+            harness.current_fixture,
+            Some("simple_aggregate".to_string())
+        );
         assert!(!harness.enable_validation);
         assert!(!harness.enable_golden_files);
     }

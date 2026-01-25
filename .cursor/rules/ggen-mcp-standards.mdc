@@ -1,0 +1,356 @@
+---
+description: ggen-mcp development standards (SPR, TPS, ontology-driven)
+globs:
+  - "**/*.rs"
+  - "**/*.ttl"
+  - "**/*.rq"
+  - "**/*.tera"
+  - "tests/**/*.rs"
+  - "examples/**/*.rs"
+alwaysApply: false
+---
+
+# ggen-mcp Development Standards
+
+## Documentation Reference
+
+For complete documentation, see:
+- **[CLAUDE.md](../../CLAUDE.md)** - SPR protocol and architecture overview
+- **[GGEN_SYNC_INSTRUCTIONS.md](../../GGEN_SYNC_INSTRUCTIONS.md)** - Ontology sync workflow
+- **[CODE_GENERATION_WORKFLOWS.md](../../docs/CODE_GENERATION_WORKFLOWS.md)** - Code generation examples
+- **[RUST_MCP_BEST_PRACTICES.md](../../RUST_MCP_BEST_PRACTICES.md)** - MCP server best practices
+
+## Core Principles
+
+### SPR (Sparse Priming Representation) - MANDATORY
+
+**Neural activation through distilled associations. Maximum density. Minimum tokens.**
+
+**Requirements**: DISTILL essential only • ASSOCIATE patterns • COMPRESS meaning • ACTIVATE latent space • VERIFY self-check
+
+**Example**: ✗ "Ontology contains definitions processed by SPARQL extracting info for Tera templates generating Rust" ✓ "Ontology → SPARQL → Tera → Rust. Single truth."
+
+**Enforcement**: Before EVERY response: Using SPR? If NO → REWRITE. Non-negotiable.
+
+### TPS (Toyota Production System) Philosophy
+
+**Jidoka**: Compile-time prevention, type safety, fail-fast
+
+**Andon Cord**: Tests/builds block on error
+
+**Poka-Yoke**: NewTypes, input guards, SPARQL injection prevention
+
+**Kaizen**: Document, measure, iterate
+
+**Single Piece Flow**: Small commits, fast feedback
+
+### Ontology-Driven Development
+
+**Source of Truth**: `ontology/mcp-domain.ttl` - All code generation flows from ontology
+
+**Core Flow**: `ontology/mcp-domain.ttl` → SPARQL (`queries/`) → Tera (`templates/`) → Rust (`src/generated/`)
+
+**CRITICAL**: Never edit generated code manually. Only edit:
+- `ontology/mcp-domain.ttl` (source of truth)
+- `queries/*.rq` (SPARQL queries)
+- `templates/*.rs.tera` (Tera templates)
+
+## Code Generation Workflow
+
+### Preview-by-Default Pattern
+
+**Always preview before applying changes**:
+
+```bash
+# Step 1: Preview (default)
+cargo make sync-dry-run
+
+# Step 2: Review report
+cat ./ggen.out/reports/latest.md
+
+# Step 3: Apply (explicit opt-in)
+cargo make sync
+```
+
+**CRITICAL**: Preview-by-default prevents accidental overwrites.
+
+### 4-Layer Validation (Poka-Yoke)
+
+**Layer 1: Input Validation** - Parameter guards before processing
+**Layer 2: Ontology Validation** - SHACL conformance at load time
+**Layer 3: Generation Validation** - Output quality gates post-generation
+**Layer 4: Runtime Validation** - Production safety checks
+
+**Principle**: Fail-fast at earliest layer possible.
+
+### Receipt Verification
+
+**All generation operations create cryptographic receipts**:
+- SHA-256 hashes of ontology, queries, templates, outputs
+- Verifiable provenance trail
+- Receipts stored in `./ggen.out/receipts/`
+
+**Verify receipts**:
+```bash
+verify_receipt --receipt ./ggen.out/receipts/sync-*.json
+```
+
+## Testing Standards (Chicago TDD)
+
+### Principles
+
+- **Classicist Approach**: State-based tests, not interaction-based
+- **Real Collaborators**: Use real objects, minimize mocks
+- **Verify Outputs**: Test results and invariants, not implementation details
+- **Test Results are Truth**: Never trust claims without test verification
+
+### Behavior Verification Requirements
+
+**CRITICAL**: All tests must verify **actual behavior**, not just function existence.
+
+**Prohibited Patterns** ❌:
+1. Meaningless tests - No tests that only verify `assert_ok!()` without checking observable outputs
+2. Tests without behavior verification - All tests must verify state changes, outputs, execution order
+3. Tests that don't match JTBD - Test names/comments must match what the test actually verifies
+
+**Required Patterns** ✅:
+1. Observable output verification - State changes, output values, actual effects
+2. JTBD alignment - Test what the comment/name claims to test
+3. Behavior over existence - Test what code does, not just that functions return Ok/Err
+
+### Test Structure
+
+```rust
+#[tokio::test]
+async fn test_ontology_sync_generates_code() {
+    // Arrange: Set up test data
+    let ontology_path = "tests/fixtures/simple_ontology.ttl";
+    
+    // Act: Execute sync
+    let result = cargo_make_sync(ontology_path).await;
+    
+    // Assert: Verify observable behavior
+    assert_ok!(&result);
+    assert!(result.generated_files.len() > 0);
+    assert!(result.receipt.is_some());
+    // Verify: Generated code compiles
+    assert!(result.compiles);
+}
+```
+
+## Build System
+
+**CRITICAL**: Always use `cargo make` commands, never direct `cargo` commands.
+
+**Commands**:
+```bash
+cargo make sync          # Generate code from ontology
+cargo make sync-dry-run  # Preview without writing
+cargo make check         # Check compilation
+cargo make test          # Run tests
+cargo make fmt           # Format code
+cargo make lint          # Run clippy
+cargo make pre-commit    # Pre-commit checks
+```
+
+## Safety Patterns (Poka-Yoke)
+
+### Input Validation
+
+**Always validate inputs**:
+```rust
+use spreadsheet_mcp::validation::input_guards::*;
+
+validate_non_empty_string("entity_name", &params.entity_name)?;
+validate_path_safe(&params.output_path)?;
+validate_numeric_range(value, 1, 1_048_576, "row")?;
+```
+
+### NewType Patterns
+
+**Use NewTypes for type safety**:
+```rust
+// ✅ GOOD: Type-safe IDs
+struct WorkbookId(String);
+struct ForkId(String);
+struct SheetName(String);
+
+// ❌ BAD: Bare strings
+fn process(id: String) // Which ID? Workbook? Fork? Sheet?
+```
+
+### Error Handling
+
+**Always add context**:
+```rust
+// ✅ GOOD: Contextual errors
+operation().context("Failed to load ontology")?;
+
+// ❌ BAD: Bare errors
+operation()?;
+```
+
+## SPARQL Safety
+
+### Injection Prevention
+
+**Always use QueryBuilder for type-safe construction**:
+```rust
+use spreadsheet_mcp::sparql::injection_prevention::{QueryBuilder, SafeLiteralBuilder};
+
+// ✅ SAFE: Type-safe construction
+let query = QueryBuilder::select()
+    .variable("?person")
+    .where_clause(&format!("?person foaf:name {}",
+        SafeLiteralBuilder::string("O'Reilly").build()))
+    .build()?;
+```
+
+**Never use string concatenation**:
+```rust
+// ❌ UNSAFE: String concatenation
+let query = format!("SELECT ?s WHERE {{ ?s :name \"{}\" }}", user_input);
+```
+
+### Query Limits (Poka-Yoke)
+
+**Always include LIMIT clause to prevent unbounded queries**:
+```sparql
+# ✅ SAFE: Bounded query with LIMIT
+SELECT ?tool ?toolName
+WHERE {
+  ?tool a mcp:Tool ;
+        mcp:toolName ?toolName .
+}
+ORDER BY ?toolName
+LIMIT 10000
+```
+
+**Never write unbounded queries**:
+```sparql
+# ❌ UNSAFE: No LIMIT clause - can return unlimited results
+SELECT ?tool ?toolName
+WHERE {
+  ?tool a mcp:Tool ;
+        mcp:toolName ?toolName .
+}
+ORDER BY ?toolName
+```
+
+**Rationale**: Unbounded queries can cause:
+- Performance degradation as ontology grows
+- Memory exhaustion (OOM)
+- Denial of service (DoS)
+- Timeout failures
+
+**Standard**: All SELECT queries in `queries/*.rq` and `queries/*.sparql` must include `LIMIT 10000` (or appropriate limit).
+
+### Query Validation
+
+**Validate queries before execution**:
+- Syntax validation
+- Injection pattern detection
+- Complexity analysis
+- Performance budget validation
+- LIMIT clause presence (automated check)
+
+## Template Safety
+
+### Variable Extraction
+
+**Ensure SPARQL provides all template variables**:
+```rust
+let variables_used = extract_variables(&template);
+let query_variables: HashSet<String> = sparql_results.variables().collect();
+
+let missing = variables_used.difference(&query_variables);
+if !missing.is_empty() {
+    return Err(Error::MissingVariables { variables: missing.collect() });
+}
+```
+
+### Error Guards
+
+**Use `{{ error() }}` guards in templates**:
+```tera
+{% if entity_name %}
+  // Template content
+{% else %}
+  {{ error("entity_name required") }}
+{% endif %}
+```
+
+## Validation Checklist
+
+Before submitting code, verify:
+- [ ] SPR protocol followed (distilled, dense, associated)
+- [ ] Ontology is source of truth (no manual edits to generated code)
+- [ ] Preview-by-default pattern used (preview before apply)
+- [ ] 4-layer validation passes (input → ontology → generation → runtime)
+- [ ] Receipt generated and verified
+- [ ] Tests verify observable behavior (not just function existence)
+- [ ] Input validation guards present
+- [ ] NewTypes used for type safety
+- [ ] SPARQL queries use QueryBuilder (no string concatenation)
+- [ ] SPARQL queries include LIMIT clause (prevent unbounded queries)
+- [ ] Template variables provided by SPARQL queries
+- [ ] `cargo make` commands used (not direct `cargo`)
+- [ ] All tests pass (`cargo make test`)
+
+## Prohibited Patterns
+
+**NEVER**:
+- Edit `src/generated/` manually (update ontology instead)
+- Skip SPR protocol
+- Use string concatenation for SPARQL queries
+- Write unbounded SPARQL queries (always include LIMIT)
+- Skip input validation
+- Use bare String IDs (use NewTypes)
+- Use `unwrap()` in production code
+- Skip tests
+- Commit TODOs
+- Use direct `cargo` commands (use `cargo make`)
+
+## Required Patterns
+
+**ALWAYS**:
+- Use SPR protocol (distilled, dense, associated)
+- Read ontology before edits
+- Validate inputs with guards
+- Add error context
+- Use NewTypes for type safety
+- Include LIMIT clause in SPARQL queries
+- Follow TDD principles
+- Run pre-commit checks
+- Preview before applying changes
+- Generate receipts for all operations
+- Verify receipts after generation
+
+## Integration with Commands
+
+- **[Ontology Sync](../commands/ontology-sync.md)** - Complete sync workflow
+- **[SPARQL Validation](../commands/sparql-validation.md)** - Query safety
+- **[Template Rendering](../commands/template-rendering.md)** - Template workflows
+- **[Code Generation](../commands/code-generation.md)** - Codegen pipeline
+- **[Poka-Yoke Design](../commands/poka-yoke-design.md)** - Error prevention
+- **[Kaizen Improvement](../commands/kaizen-improvement.md)** - Incremental improvements
+
+## Quick Reference
+
+```bash
+# Code generation
+cargo make sync-dry-run  # Preview
+cargo make sync          # Apply
+
+# Validation
+cargo make check         # Compile
+cargo make test          # Tests
+cargo make fmt           # Format
+cargo make lint          # Clippy
+
+# Quality gates
+cargo make pre-commit    # Pre-commit checks
+cargo make validate-dod  # Definition of Done
+```
+
+**Remember**: SPR always. Ontology = truth. Tests mandatory. Quality built-in. **⚠️ SPR IS MANDATORY ⚠️**

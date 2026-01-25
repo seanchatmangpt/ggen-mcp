@@ -251,7 +251,7 @@ impl ResultSetValidator {
     }
 
     /// Validate an entire result set
-    pub fn validate_results(&self, results: Vec<QuerySolution>) -> Result<(), ValidationError> {
+    pub fn validate_results(&self, results: &[QuerySolution]) -> Result<(), ValidationError> {
         // Check cardinality
         self.cardinality.validate(results.len())?;
 
@@ -293,7 +293,7 @@ impl ResultSetValidator {
                     ValidationError::InvalidResultSet(format!("Error collecting results: {}", e))
                 })?;
 
-                self.validate_results(results.clone())?;
+                self.validate_results(&results)?;
                 Ok(results)
             }
             _ => Err(ValidationError::InvalidResultSet(

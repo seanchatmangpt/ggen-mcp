@@ -12,7 +12,7 @@ use crate::sparql::cache::{CacheConfig as QueryCacheConfig, QueryResultCache};
 use crate::tools::filters::WorkbookFilter;
 use crate::utils::{hash_path_metadata, make_short_workbook_id};
 use crate::workbook::{WorkbookContext, build_workbook_list};
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, Context};
 use lru::LruCache;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -85,7 +85,10 @@ impl Default for CacheWarmingConfig {
 
 impl AppState {
     pub fn new(config: Arc<ServerConfig>) -> Self {
-        let capacity = NonZeroUsize::new(config.cache_capacity.max(1)).unwrap();
+        // TPS: Fail-fast with descriptive error if cache capacity is invalid
+        // Using .max(1) ensures value is at least 1, so unwrap is safe, but expect provides better error message
+        let capacity = NonZeroUsize::new(config.cache_capacity.max(1))
+            .expect("Cache capacity must be > 0 after max(1) - this is a programming error");
 
         // Initialize ontology cache
         let ontology_cache = Arc::new(OntologyCache::new(config.ontology_cache_size));
@@ -100,13 +103,19 @@ impl AppState {
             auto_evict: true,
             max_memory_bytes: 100 * 1024 * 1024, // 100 MB
         };
-        let query_cache_advanced = Arc::new(QueryResultCache::new(query_cache_config));
+        let query_cache_advanced = Arc::new(
+            QueryResultCache::new(query_cache_config)
+                .context("Failed to create query cache - invalid configuration")?
+        );
 
         // Initialize entitlement gate
         let entitlement_gate = if config.entitlement_enabled {
             crate::entitlement::EntitlementGate::from_config(&config.entitlement_config)
                 .unwrap_or_else(|e| {
-                    tracing::warn!("Failed to init entitlement gate: {}. Using disabled gate.", e);
+                    tracing::warn!(
+                        "Failed to init entitlement gate: {}. Using disabled gate.",
+                        e
+                    );
                     crate::entitlement::EntitlementGate::disabled()
                 })
         } else {

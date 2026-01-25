@@ -51,14 +51,13 @@ image = { version = "0.25", default-features = false, features = ["png"], option
 base64 = { version = "0.22", optional = true }
 
 # ggen-mcp: ontology and code generation
-oxigraph = "0.4"
-tera = "1"
-syn = { version = "2.0", features = ["full", "parsing"] }
-toml = "0.8"
-toml_edit = "0.22"
-rayon = "1.10"
-prettyplease = "0.2"
-# sha2 already declared above
+# Use ggen crates instead of duplicating logic
+ggen-ontology-core = { path = "ggen/crates/ggen-ontology-core", version = "0.2.0" }
+ggen-core = { path = "ggen/crates/ggen-core", version = "0.2.0" }
+ggen-domain = { path = "ggen/crates/ggen-domain", version = "0.2.0" }
+ggen-config = { path = "ggen/crates/ggen-config", version = "0.2.0" }
+# Keep oxigraph for direct access if needed, but prefer ggen APIs
+oxigraph = "0.5.1"
 
 async-trait = "0.1"
 uuid = { version = "1.10", features = ["v4"] }
@@ -68,6 +67,10 @@ xxhash-rust = { version = "0.8", features = ["xxh64"], optional = true }
 tempfile = "3.10"
 prometheus-client = "0.22"
 reqwest = { version = "0.12", features = ["json"] }
+tera = "1.20"
+toml = "0.8"
+toml_edit = "0.24"
+futures = "0.3"
 
 [features]
 default = []

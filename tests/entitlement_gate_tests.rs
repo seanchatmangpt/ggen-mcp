@@ -207,10 +207,7 @@ impl EntitlementGate {
 
     pub async fn require_capability(&self, capability: Capability) -> Result<()> {
         if !self.check_capability(capability.clone()).await? {
-            return Err(anyhow!(
-                "Operation requires entitlement: {:?}",
-                capability
-            ));
+            return Err(anyhow!("Operation requires entitlement: {:?}", capability));
         }
         Ok(())
     }
@@ -316,7 +313,9 @@ async fn test_gcp_provider() -> Result<()> {
     let provider = GcpSecretProvider::new("test-project".to_string(), "ggen-license".to_string());
 
     // Act
-    let allowed = provider.check_capability(Capability::JiraIntegration).await?;
+    let allowed = provider
+        .check_capability(Capability::JiraIntegration)
+        .await?;
 
     // Assert
     assert!(allowed, "JiraIntegration should be allowed in mock");
@@ -447,11 +446,15 @@ async fn test_multiple_capabilities() -> Result<()> {
         "ApplyMode should be allowed"
     );
     assert!(
-        provider.check_capability(Capability::JiraIntegration).await?,
+        provider
+            .check_capability(Capability::JiraIntegration)
+            .await?,
         "JiraIntegration should be allowed"
     );
     assert!(
-        !provider.check_capability(Capability::UsageReporting).await?,
+        !provider
+            .check_capability(Capability::UsageReporting)
+            .await?,
         "UsageReporting should NOT be allowed"
     );
 
@@ -551,18 +554,17 @@ async fn test_expired_license() -> Result<()> {
 // Test Module Documentation
 // =============================================================================
 
-/// Test coverage summary:
-/// 1. Local provider - allowed capability
-/// 2. Local provider - denied capability
-/// 3. Environment variable provider
-/// 4. GCP secret provider (mock)
-/// 5. Entitlement gate - require fails
-/// 6. Entitlement gate - require succeeds
-/// 7. Usage reporting
-/// 8. Multiple capabilities check
-/// 9. License file not found error
-/// 10. Invalid license JSON error
-/// 11. Environment variable not set error
-/// 12. Expired license handling
-///
-/// Total: 12 tests covering entitlement gate system
+// Test coverage summary:
+// 1. Local provider - allowed capability
+// 2. Local provider - denied capability
+// 3. Environment variable provider
+// 4. GCP secret provider (mock)
+// 5. Entitlement gate - require fails
+// 6. Entitlement gate - require succeeds
+// 7. Usage reporting
+// 8. Multiple capabilities check
+// 9. License file not found error
+// 10. Invalid license JSON error
+// 11. Environment variable not set error
+// 12. Expired license handling
+// Total: 12 tests covering entitlement gate system

@@ -1,9 +1,10 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Severity level for check results
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub enum CheckSeverity {
     Info,
     Warning,
@@ -11,7 +12,7 @@ pub enum CheckSeverity {
 }
 
 /// Status of a single check
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum CheckStatus {
     Pass,
     Fail,
@@ -20,7 +21,7 @@ pub enum CheckStatus {
 }
 
 /// Result of a single DoD check
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DodCheckResult {
     pub id: String,
     pub category: CheckCategory,
@@ -34,7 +35,7 @@ pub struct DodCheckResult {
 }
 
 /// Check category (A-H from PRD)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 pub enum CheckCategory {
     WorkspaceIntegrity,  // Category A
     IntentAlignment,     // Category B (WHY)
@@ -47,7 +48,7 @@ pub enum CheckCategory {
 }
 
 /// Evidence for a check result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Evidence {
     pub kind: EvidenceKind,
     pub content: String,
@@ -56,7 +57,7 @@ pub struct Evidence {
     pub hash: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum EvidenceKind {
     FileContent,
     CommandOutput,
@@ -66,11 +67,11 @@ pub enum EvidenceKind {
 }
 
 /// Category score
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CategoryScore {
     pub category: CheckCategory,
-    pub score: f64,           // 0.0 to 100.0
-    pub weight: f64,          // 0.0 to 1.0
+    pub score: f64,  // 0.0 to 100.0
+    pub weight: f64, // 0.0 to 1.0
     pub checks_passed: usize,
     pub checks_failed: usize,
     pub checks_warned: usize,
@@ -78,7 +79,7 @@ pub struct CategoryScore {
 }
 
 /// Overall DoD validation result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DodValidationResult {
     pub verdict: OverallVerdict,
     pub readiness_score: f64,
@@ -92,14 +93,14 @@ pub struct DodValidationResult {
 }
 
 /// Overall verdict: Ready or NotReady
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum OverallVerdict {
     Ready,    // PASS - ship-ready
     NotReady, // FAIL - not ship-ready
 }
 
 /// Validation mode determines thoroughness
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum ValidationMode {
     Fast,
     Strict,
@@ -107,7 +108,7 @@ pub enum ValidationMode {
 }
 
 /// Summary of validation results
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidationSummary {
     pub checks_total: usize,
     pub checks_passed: usize,
@@ -117,7 +118,7 @@ pub struct ValidationSummary {
 }
 
 /// Paths to generated artifacts
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArtifactPaths {
     pub receipt_path: PathBuf,
     pub report_path: PathBuf,

@@ -17,9 +17,9 @@
 
 mod harness;
 
+use anyhow::Result;
 use chicago_tdd_tools::async_test_with_timeout;
 use harness::*;
-use anyhow::Result;
 
 // =============================================================================
 // User Registration Workflow Tests
@@ -56,7 +56,9 @@ async_test_with_timeout!(test_user_registration_workflow_events, 30, {
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
     // Assert: Verify specific event payloads
-    let user_created_event = result.events.iter()
+    let user_created_event = result
+        .events
+        .iter()
         .find(|e| e.event_type == "user_created")
         .ok_or_else(|| anyhow::anyhow!("user_created event not found"))?;
 
@@ -73,7 +75,9 @@ async_test_with_timeout!(test_user_registration_workflow_audit, 30, {
     let result = user_registration_workflow::run_user_registration_workflow().await?;
 
     // Assert: Verify specific audit entries exist
-    let audit_actions: Vec<&str> = result.audit_log.iter()
+    let audit_actions: Vec<&str> = result
+        .audit_log
+        .iter()
         .map(|entry| entry.action.as_str())
         .collect();
 
@@ -98,14 +102,30 @@ async_test_with_timeout!(test_order_processing_workflow_complete, 30, {
     assert_eq!(result.steps_executed, 8);
 
     let events = result.events;
-    assert!(events.iter().position(|e| e.event_type == "order_created") <
-            events.iter().position(|e| e.event_type == "item_added"));
-    assert!(events.iter().position(|e| e.event_type == "item_added") <
-            events.iter().position(|e| e.event_type == "total_calculated"));
-    assert!(events.iter().position(|e| e.event_type == "total_calculated") <
-            events.iter().position(|e| e.event_type == "payment_processed"));
-    assert!(events.iter().position(|e| e.event_type == "payment_processed") <
-            events.iter().position(|e| e.event_type == "order_placed"));
+    assert!(
+        events.iter().position(|e| e.event_type == "order_created")
+            < events.iter().position(|e| e.event_type == "item_added")
+    );
+    assert!(
+        events.iter().position(|e| e.event_type == "item_added")
+            < events
+                .iter()
+                .position(|e| e.event_type == "total_calculated")
+    );
+    assert!(
+        events
+            .iter()
+            .position(|e| e.event_type == "total_calculated")
+            < events
+                .iter()
+                .position(|e| e.event_type == "payment_processed")
+    );
+    assert!(
+        events
+            .iter()
+            .position(|e| e.event_type == "payment_processed")
+            < events.iter().position(|e| e.event_type == "order_placed")
+    );
 
     Ok::<(), anyhow::Error>(())
 });
@@ -117,16 +137,23 @@ async_test_with_timeout!(test_order_processing_workflow_calculation, 30, {
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
     // Assert: Verify total calculation is correct
-    let total_event = result.events.iter()
+    let total_event = result
+        .events
+        .iter()
         .find(|e| e.event_type == "total_calculated")
         .ok_or_else(|| anyhow::anyhow!("total_calculated event not found"))?;
 
-    let total = total_event.payload["total"].as_f64()
+    let total = total_event.payload["total"]
+        .as_f64()
         .ok_or_else(|| anyhow::anyhow!("total not found in payload"))?;
     let expected_total = 183.5352; // (2*29.99 + 1*49.99 + 3*19.99) * 1.08
 
-    assert!((total - expected_total).abs() < 0.01,
-        "Total mismatch: expected {}, got {}", expected_total, total);
+    assert!(
+        (total - expected_total).abs() < 0.01,
+        "Total mismatch: expected {}, got {}",
+        expected_total,
+        total
+    );
 
     Ok::<(), anyhow::Error>(())
 });
@@ -138,7 +165,9 @@ async_test_with_timeout!(test_order_processing_workflow_payment, 30, {
     let result = order_processing_workflow::run_order_processing_workflow().await?;
 
     // Assert: Verify payment was processed correctly
-    let payment_event = result.events.iter()
+    let payment_event = result
+        .events
+        .iter()
         .find(|e| e.event_type == "payment_processed")
         .ok_or_else(|| anyhow::anyhow!("payment_processed event not found"))?;
 
@@ -183,7 +212,9 @@ async_test_with_timeout!(test_mcp_tool_workflow_protocol, 30, {
     let result = mcp_tool_workflow::run_mcp_tool_workflow().await?;
 
     // Assert: Verify tool was invoked via protocol
-    let invoked_event = result.events.iter()
+    let invoked_event = result
+        .events
+        .iter()
         .find(|e| e.event_type == "tool_invoked")
         .ok_or_else(|| anyhow::anyhow!("tool_invoked event not found"))?;
 
@@ -207,7 +238,10 @@ async_test_with_timeout!(test_mcp_tool_workflow_audit, 30, {
     // Assert: Verify all required audit entries exist
     for required in &required_actions {
         assert!(
-            result.audit_log.iter().any(|entry| entry.action == *required),
+            result
+                .audit_log
+                .iter()
+                .any(|entry| entry.action == *required),
             "Required audit action '{}' not found",
             required
         );
@@ -228,9 +262,9 @@ async_test_with_timeout!(test_concurrent_user_registrations, 30, {
 
     // Act: Spawn 5 concurrent user registration workflows
     for _i in 0..5 {
-        set.spawn(async move {
-            user_registration_workflow::run_user_registration_workflow().await
-        });
+        set.spawn(
+            async move { user_registration_workflow::run_user_registration_workflow().await },
+        );
     }
 
     // Wait for all workflows to complete
@@ -274,15 +308,11 @@ async_test_with_timeout!(test_workflow_step_failure_cleanup, 30, {
 
     // Arrange: Create a workflow with an intentional failure in middle step
     let workflow_builder = WorkflowBuilder::new("failing_workflow")?
-        .step("step1", |_ctx, _harness| async move {
-            Ok(())
-        })
+        .step("step1", |_ctx, _harness| async move { Ok(()) })
         .step("failing_step", |_ctx, _harness| async move {
             Err(anyhow::anyhow!("Intentional failure"))
         })
-        .step("step3", |_ctx, _harness| async move {
-            Ok(())
-        });
+        .step("step3", |_ctx, _harness| async move { Ok(()) });
 
     // Act: Run the workflow (expecting failure)
     let result = workflow_builder.run().await;
@@ -303,7 +333,8 @@ async_test_with_timeout!(test_workflow_assertion_failure, 30, {
             Ok(())
         })
         .assert("wrong_value", |ctx, _harness| async move {
-            let value = get_data(ctx.clone(), "value").await
+            let value = get_data(ctx.clone(), "value")
+                .await
                 .and_then(|v| v.as_i64())
                 .ok_or_else(|| anyhow::anyhow!("value not found"))?;
 
@@ -383,9 +414,15 @@ async_test_with_timeout!(test_event_emission, 30, {
     let harness = IntegrationWorkflowHarness::new()?;
 
     // Act: Emit multiple events
-    harness.emit_event("event1", serde_json::json!({"data": 1}), "source1").await;
-    harness.emit_event("event2", serde_json::json!({"data": 2}), "source2").await;
-    harness.emit_event("event3", serde_json::json!({"data": 3}), "source3").await;
+    harness
+        .emit_event("event1", serde_json::json!({"data": 1}), "source1")
+        .await;
+    harness
+        .emit_event("event2", serde_json::json!({"data": 2}), "source2")
+        .await;
+    harness
+        .emit_event("event3", serde_json::json!({"data": 3}), "source3")
+        .await;
 
     // Assert: Verify events were recorded in correct order
     let events = harness.events().await;
@@ -402,8 +439,12 @@ async_test_with_timeout!(test_audit_logging, 30, {
     let harness = IntegrationWorkflowHarness::new()?;
 
     // Act: Add audit entries
-    harness.audit("action1", "actor1", serde_json::json!({"detail": 1})).await;
-    harness.audit("action2", "actor2", serde_json::json!({"detail": 2})).await;
+    harness
+        .audit("action1", "actor1", serde_json::json!({"detail": 1}))
+        .await;
+    harness
+        .audit("action2", "actor2", serde_json::json!({"detail": 2}))
+        .await;
 
     // Assert: Verify audit log entries
     let log = harness.audit_log().await;
@@ -425,10 +466,9 @@ async_test_with_timeout!(test_mcp_protocol_tester_tool_invocation, 30, {
     let tester = McpProtocolTester::new("http://localhost:8080");
 
     // Act: Invoke a tool via protocol
-    let response = tester.invoke_tool(
-        "test_tool",
-        serde_json::json!({"arg": "value"})
-    ).await?;
+    let response = tester
+        .invoke_tool("test_tool", serde_json::json!({"arg": "value"}))
+        .await?;
 
     // Assert: Verify JSON-RPC 2.0 structure
     assert_eq!(response["jsonrpc"], "2.0");
@@ -467,11 +507,13 @@ async_test_with_timeout!(test_mcp_protocol_tester_error_response, 30, {
     let tester = McpProtocolTester::new("http://localhost:8080");
 
     // Act: Send error response
-    let response = tester.send_error(
-        -32600,
-        "Invalid Request",
-        Some(serde_json::json!({"detail": "test"}))
-    ).await?;
+    let response = tester
+        .send_error(
+            -32600,
+            "Invalid Request",
+            Some(serde_json::json!({"detail": "test"})),
+        )
+        .await?;
 
     // Assert: Verify error structure
     assert_eq!(response["jsonrpc"], "2.0");

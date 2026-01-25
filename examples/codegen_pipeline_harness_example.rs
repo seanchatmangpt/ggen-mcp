@@ -36,8 +36,9 @@ fn main() -> Result<()> {
     println!("  ✓ Error Handling     - Invalid ontology\n");
 
     println!("📋 Example Test Code:");
-    println!("─────────────────────────────────────────────────────────────────");
-    println!(r#"
+    println!("-----------------------------------------------------------------");
+    println!(
+        r#"
 #[test]
 fn test_simple_aggregate_pipeline() -> Result<()> {{
     // Arrange - Create harness with fixture
@@ -65,31 +66,33 @@ fn test_simple_aggregate_pipeline() -> Result<()> {{
 
     Ok(())
 }}
-"#);
-    println!("─────────────────────────────────────────────────────────────────\n");
+"#
+    );
+    println!("-----------------------------------------------------------------\n");
 
     println!("📊 Pipeline Metrics Example:");
-    println!("─────────────────────────────────────────────────────────────────");
+    println!("-----------------------------------------------------------------");
     println!("  Ontology Loading:    12 ms");
     println!("  SPARQL Query:        8 ms");
     println!("  Template Rendering:  15 ms");
     println!("  Code Validation:     45 ms");
     println!("  File Writing:        5 ms");
-    println!("  ─────────────────────────────────");
+    println!("  --------------------------------");
     println!("  Total:               85 ms");
-    println!("─────────────────────────────────────────────────────────────────\n");
+    println!("-----------------------------------------------------------------\n");
 
     println!("✅ Features:");
-    println!("  • State-based testing with real collaborators");
-    println!("  • Golden file comparison for regression testing");
-    println!("  • Performance benchmarks and metrics");
-    println!("  • Incremental update detection");
-    println!("  • Comprehensive error scenarios");
-    println!("  • Integration with CI/CD pipelines\n");
+    println!("  - State-based testing with real collaborators");
+    println!("  - Golden file comparison for regression testing");
+    println!("  - Performance benchmarks and metrics");
+    println!("  - Incremental update detection");
+    println!("  - Comprehensive error scenarios");
+    println!("  - Integration with CI/CD pipelines\n");
 
     println!("📁 Fixture Structure:");
-    println!("─────────────────────────────────────────────────────────────────");
-    println!(r#"
+    println!("-----------------------------------------------------------------");
+    println!(
+        r#"
 tests/fixtures/pipeline/
 ├── simple_aggregate/
 │   ├── input/
@@ -108,8 +111,9 @@ tests/fixtures/pipeline/
 └── mcp_tool/
     ├── input/ontology.ttl
     └── expected/tools/
-"#);
-    println!("─────────────────────────────────────────────────────────────────\n");
+"#
+    );
+    println!("-----------------------------------------------------------------\n");
 
     println!("🚀 Running Tests:");
     println!("  cargo test --test codegen_pipeline_integration_tests");
@@ -120,17 +124,8 @@ tests/fixtures/pipeline/
     println!("📖 Documentation:");
     println!("  See docs/TDD_CODEGEN_PIPELINE_HARNESS.md for complete guide\n");
 
-    println!("=================================================================");
-    println!("✅ Example Complete");
-    println!("=================================================================");
-
-    Ok(())
-}
-"#);
-    println!("─────────────────────────────────────────────────────────────────\n");
-
     println!("📚 Key Components:");
-    println!("─────────────────────────────────────────────────────────────────");
+    println!("-----------------------------------------------------------------");
 
     demonstrate_harness_api();
     demonstrate_assertions();
@@ -173,19 +168,19 @@ fn demonstrate_golden_files() {
     println!("   - compare_golden_files()   Compare all outputs");
     println!("   - update_golden_files()    Update expected files");
     println!("   - GoldenFileReport         Detailed comparison");
-    println!("     • matches: Vec<String>");
-    println!("     • mismatches: Vec<String>");
-    println!("     • missing: Vec<String>");
+    println!("     - matches: Vec<String>");
+    println!("     - mismatches: Vec<String>");
+    println!("     - missing: Vec<String>");
 }
 
 fn demonstrate_performance() {
     println!("\n4. Performance Metrics:");
     println!("   - PipelineMetrics          Stage-by-stage timing");
-    println!("     • ontology_duration");
-    println!("     • sparql_duration");
-    println!("     • template_duration");
-    println!("     • validation_duration");
-    println!("     • file_duration");
-    println!("     • total_duration");
+    println!("     - ontology_duration");
+    println!("     - sparql_duration");
+    println!("     - template_duration");
+    println!("     - validation_duration");
+    println!("     - file_duration");
+    println!("     - total_duration");
     println!("   - print_summary()          Display metrics");
 }

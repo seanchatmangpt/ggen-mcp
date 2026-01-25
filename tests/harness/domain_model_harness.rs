@@ -91,7 +91,11 @@ impl User {
     /// Apply event to update state
     pub fn apply_event(&mut self, event: &DomainEvent) {
         match event {
-            DomainEvent::UserCreated { user_id, email, age } => {
+            DomainEvent::UserCreated {
+                user_id,
+                email,
+                age,
+            } => {
                 self.id = user_id.clone();
                 self.email = email.clone();
                 self.age = *age;
@@ -848,17 +852,11 @@ impl ShippingCalculator {
     }
 
     pub fn estimate_delivery_days(address: &Address) -> u8 {
-        if address.is_domestic() {
-            3
-        } else {
-            10
-        }
+        if address.is_domestic() { 3 } else { 10 }
     }
 
     pub fn is_address_valid_for_shipping(address: &Address) -> bool {
-        !address.street.is_empty()
-            && !address.city.is_empty()
-            && !address.zip_code.is_empty()
+        !address.street.is_empty() && !address.city.is_empty() && !address.zip_code.is_empty()
     }
 }
 
@@ -868,22 +866,10 @@ impl ShippingCalculator {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DomainError {
-    ValidationError {
-        field: String,
-        message: String,
-    },
-    InvariantViolation {
-        invariant: String,
-        message: String,
-    },
-    BusinessRuleViolation {
-        rule: String,
-        message: String,
-    },
-    NotFound {
-        entity: String,
-        id: String,
-    },
+    ValidationError { field: String, message: String },
+    InvariantViolation { invariant: String, message: String },
+    BusinessRuleViolation { rule: String, message: String },
+    NotFound { entity: String, id: String },
 }
 
 impl fmt::Display for DomainError {
@@ -933,7 +919,10 @@ impl DomainModelHarness {
         category: &str,
         name: &str,
     ) -> Result<T, Box<dyn std::error::Error>> {
-        let path = self.fixture_path.join(category).join(format!("{}.json", name));
+        let path = self
+            .fixture_path
+            .join(category)
+            .join(format!("{}.json", name));
         let content = std::fs::read_to_string(path)?;
         Ok(serde_json::from_str(&content)?)
     }
@@ -959,7 +948,10 @@ impl DomainModelHarness {
         match check() {
             Err(DomainError::BusinessRuleViolation { rule, .. }) if rule == rule_name => {}
             Err(e) => panic!("Expected rule '{}' violation, got: {}", rule_name, e),
-            Ok(_) => panic!("Expected rule '{}' to be enforced, but it passed", rule_name),
+            Ok(_) => panic!(
+                "Expected rule '{}' to be enforced, but it passed",
+                rule_name
+            ),
         }
     }
 
@@ -979,10 +971,7 @@ impl DomainModelHarness {
         after: &T,
         _event: &DomainEvent,
     ) {
-        assert_ne!(
-            before, after,
-            "State should change after applying event"
-        );
+        assert_ne!(before, after, "State should change after applying event");
     }
 
     // ------------------------------------------------------------------------
@@ -1606,10 +1595,7 @@ mod tests {
         let harness = DomainModelHarness::new();
         let user = UserBuilder::new().age(25).build().unwrap();
 
-        harness.assert_invariant_holds(
-            || user.validate_age_requirement(),
-            "minimum_age",
-        );
+        harness.assert_invariant_holds(|| user.validate_age_requirement(), "minimum_age");
     }
 
     #[test]
@@ -1619,10 +1605,7 @@ mod tests {
         let mut user = UserBuilder::new().age(25).build().unwrap();
         user.age = 17; // Bypass builder to create invalid state
 
-        harness.assert_invariant_holds(
-            || user.validate_age_requirement(),
-            "minimum_age",
-        );
+        harness.assert_invariant_holds(|| user.validate_age_requirement(), "minimum_age");
     }
 
     #[test]

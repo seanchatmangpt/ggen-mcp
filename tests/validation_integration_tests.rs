@@ -2,8 +2,7 @@
 // Chicago-TDD: Real implementations, state-based testing
 
 use ggen_mcp::tools::ontology_generation::{
-    ValidateGeneratedCodeParams, ValidateGeneratedCodeResponse,
-    validate_generated_code,
+    ValidateGeneratedCodeParams, ValidateGeneratedCodeResponse, validate_generated_code,
 };
 use std::path::PathBuf;
 
@@ -112,10 +111,16 @@ async fn test_validate_rust_invalid() {
     };
 
     let result = validate_generated_code(params).await;
-    assert!(result.is_ok(), "Validation should succeed even with syntax errors");
+    assert!(
+        result.is_ok(),
+        "Validation should succeed even with syntax errors"
+    );
 
     let response = result.unwrap();
-    assert!(!response.valid, "Expected valid=false for invalid Rust code");
+    assert!(
+        !response.valid,
+        "Expected valid=false for invalid Rust code"
+    );
     assert!(!response.errors.is_empty(), "Expected syntax errors");
 }
 
@@ -374,8 +379,13 @@ async fn test_language_aliases() {
         let result2 = validate_generated_code(params2).await;
 
         // Both should succeed (or fail in the same way)
-        assert_eq!(result1.is_ok(), result2.is_ok(),
-            "Language aliases {} and {} should behave the same", lang1, lang2);
+        assert_eq!(
+            result1.is_ok(),
+            result2.is_ok(),
+            "Language aliases {} and {} should behave the same",
+            lang1,
+            lang2
+        );
     }
 }
 
@@ -405,5 +415,8 @@ pub struct Test {
 
     let response = result.unwrap();
     assert!(!response.valid);
-    assert!(!response.summary.is_empty(), "Summary should provide context");
+    assert!(
+        !response.summary.is_empty(),
+        "Summary should provide context"
+    );
 }

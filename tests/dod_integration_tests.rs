@@ -8,8 +8,7 @@ use std::path::PathBuf;
 
 /// Create test context pointing to actual workspace
 fn test_workspace_context() -> CheckContext {
-    CheckContext::new(PathBuf::from(env!("CARGO_MANIFEST_DIR")))
-        .with_timeout(120_000)
+    CheckContext::new(PathBuf::from(env!("CARGO_MANIFEST_DIR"))).with_timeout(120_000)
 }
 
 /// Create test context for fixtures
@@ -44,7 +43,10 @@ mod e2e_full_validation {
         for result in &check_results {
             assert!(!result.id.is_empty(), "Check ID should not be empty");
             assert!(!result.message.is_empty(), "Message should not be empty");
-            assert!(!result.check_hash.is_empty(), "Check hash should not be empty");
+            assert!(
+                !result.check_hash.is_empty(),
+                "Check hash should not be empty"
+            );
             assert!(result.duration_ms > 0, "Duration should be recorded");
         }
 
@@ -89,7 +91,10 @@ mod e2e_full_validation {
             .count();
 
         if failure_count > 0 {
-            assert!(!remediations.is_empty(), "Should have remediation suggestions");
+            assert!(
+                !remediations.is_empty(),
+                "Should have remediation suggestions"
+            );
         }
 
         // Log summary for debugging
@@ -177,8 +182,14 @@ mod e2e_full_validation {
         // ASSERT: Evidence has valid structure
         for result in &check_results {
             for evidence in &result.evidence {
-                assert!(!evidence.content.is_empty(), "Evidence content should not be empty");
-                assert!(!evidence.hash.is_empty(), "Evidence hash should not be empty");
+                assert!(
+                    !evidence.content.is_empty(),
+                    "Evidence content should not be empty"
+                );
+                assert!(
+                    !evidence.hash.is_empty(),
+                    "Evidence hash should not be empty"
+                );
             }
         }
     }
@@ -207,7 +218,10 @@ mod profile_validation {
     fn profile_weights_sum_to_one() {
         let profile = DodProfile::default_dev();
         let weight_sum: f64 = profile.category_weights.values().sum();
-        assert!((weight_sum - 1.0).abs() < 0.001, "Weights should sum to 1.0");
+        assert!(
+            (weight_sum - 1.0).abs() < 0.001,
+            "Weights should sum to 1.0"
+        );
     }
 
     #[test]
@@ -436,14 +450,28 @@ mod remediation_integration {
         assert_eq!(suggestions.len(), 1);
         let suggestion = &suggestions[0];
         assert!(suggestion.automation.is_some());
-        assert!(suggestion.automation.as_ref().unwrap().contains("cargo fmt"));
+        assert!(
+            suggestion
+                .automation
+                .as_ref()
+                .unwrap()
+                .contains("cargo fmt")
+        );
     }
 
     #[test]
     fn remediation_prioritizes_critical() {
         let results = vec![
-            mock_fail_severity("BUILD_CHECK", CheckCategory::BuildCorrectness, CheckSeverity::Fatal),
-            mock_fail_severity("WHY_INTENT", CheckCategory::IntentAlignment, CheckSeverity::Warning),
+            mock_fail_severity(
+                "BUILD_CHECK",
+                CheckCategory::BuildCorrectness,
+                CheckSeverity::Fatal,
+            ),
+            mock_fail_severity(
+                "WHY_INTENT",
+                CheckCategory::IntentAlignment,
+                CheckSeverity::Warning,
+            ),
         ];
 
         let suggestions = RemediationGenerator::generate(&results);
@@ -471,7 +499,11 @@ mod remediation_integration {
         mock_fail_severity(id, category, CheckSeverity::Fatal)
     }
 
-    fn mock_fail_severity(id: &str, category: CheckCategory, severity: CheckSeverity) -> DodCheckResult {
+    fn mock_fail_severity(
+        id: &str,
+        category: CheckCategory,
+        severity: CheckSeverity,
+    ) -> DodCheckResult {
         DodCheckResult {
             id: id.to_string(),
             category,
@@ -506,8 +538,8 @@ mod failure_scenarios {
     #[tokio::test]
     async fn handles_missing_cargo_toml() {
         // ARRANGE: Context pointing to non-existent workspace
-        let context = CheckContext::new(PathBuf::from("/tmp/nonexistent_workspace"))
-            .with_timeout(30_000);
+        let context =
+            CheckContext::new(PathBuf::from("/tmp/nonexistent_workspace")).with_timeout(30_000);
 
         let registry = spreadsheet_mcp::dod::checks::create_registry();
         let profile = DodProfile::default_dev();
@@ -520,12 +552,14 @@ mod failure_scenarios {
         let workspace_failures = check_results
             .iter()
             .filter(|r| {
-                r.category == CheckCategory::WorkspaceIntegrity
-                    && r.status == CheckStatus::Fail
+                r.category == CheckCategory::WorkspaceIntegrity && r.status == CheckStatus::Fail
             })
             .count();
 
-        assert!(workspace_failures > 0, "Workspace integrity checks should fail");
+        assert!(
+            workspace_failures > 0,
+            "Workspace integrity checks should fail"
+        );
     }
 
     #[tokio::test]
@@ -682,8 +716,16 @@ mod failure_scenarios {
 
         // ASSERT: Both checks should execute despite one failing
         assert_eq!(results.len(), 2);
-        assert!(results.iter().any(|r| r.id == "FAILING_CHECK" && r.status == CheckStatus::Fail));
-        assert!(results.iter().any(|r| r.id == "PASSING_CHECK" && r.status == CheckStatus::Pass));
+        assert!(
+            results
+                .iter()
+                .any(|r| r.id == "FAILING_CHECK" && r.status == CheckStatus::Fail)
+        );
+        assert!(
+            results
+                .iter()
+                .any(|r| r.id == "PASSING_CHECK" && r.status == CheckStatus::Pass)
+        );
     }
 }
 
@@ -708,8 +750,7 @@ mod all_checks_together {
         );
 
         // ASSERT: All categories represented
-        let categories: std::collections::HashSet<_> =
-            results.iter().map(|r| r.category).collect();
+        let categories: std::collections::HashSet<_> = results.iter().map(|r| r.category).collect();
 
         assert!(categories.contains(&CheckCategory::BuildCorrectness));
         assert!(categories.contains(&CheckCategory::TestTruth));
@@ -726,11 +767,7 @@ mod all_checks_together {
         let mut seen_ids = std::collections::HashSet::new();
         for check in all_checks {
             let id = check.id();
-            assert!(
-                !seen_ids.contains(id),
-                "Duplicate check ID found: {}",
-                id
-            );
+            assert!(!seen_ids.contains(id), "Duplicate check ID found: {}", id);
             seen_ids.insert(id);
         }
     }
@@ -742,7 +779,10 @@ mod all_checks_together {
 
         for check in all_checks {
             assert!(!check.id().is_empty(), "Check ID should not be empty");
-            assert!(!check.description().is_empty(), "Description should not be empty");
+            assert!(
+                !check.description().is_empty(),
+                "Description should not be empty"
+            );
 
             // Category should be valid
             let _category = check.category(); // Should not panic

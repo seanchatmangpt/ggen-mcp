@@ -3,11 +3,11 @@
 //! Tests for the MCP tool interface for Definition of Done validation.
 //! Validates tool invocation, parameter handling, response format, and error handling.
 
-use spreadsheet_mcp::tools::dod::*;
-use spreadsheet_mcp::state::AppState;
 use spreadsheet_mcp::ServerConfig;
-use std::sync::Arc;
+use spreadsheet_mcp::state::AppState;
+use spreadsheet_mcp::tools::dod::*;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Create test app state
 fn test_app_state() -> Arc<AppState> {
@@ -386,7 +386,10 @@ mod response_format {
         let response = validate_definition_of_done(state, params).await.unwrap();
 
         // Narrative should be substantial
-        assert!(response.narrative.len() > 50, "Narrative should be descriptive");
+        assert!(
+            response.narrative.len() > 50,
+            "Narrative should be descriptive"
+        );
 
         // Should mention verdict
         assert!(
@@ -532,7 +535,11 @@ mod performance {
 
         // All checks should have duration > 0
         for check in &response.checks {
-            assert!(check.duration_ms > 0, "Check {} should have duration", check.id);
+            assert!(
+                check.duration_ms > 0,
+                "Check {} should have duration",
+                check.id
+            );
         }
 
         // Sum of check durations should be <= total duration
@@ -577,10 +584,9 @@ mod integration_scenarios {
         println!("\n=== Current Workspace Validation ===");
         println!("Verdict: {}", response.verdict);
         println!("Confidence: {}", response.confidence_score);
-        println!("Checks: {} passed, {} failed, {} warnings",
-            response.summary.passed,
-            response.summary.failed,
-            response.summary.warnings
+        println!(
+            "Checks: {} passed, {} failed, {} warnings",
+            response.summary.passed, response.summary.failed, response.summary.warnings
         );
     }
 

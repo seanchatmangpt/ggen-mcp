@@ -40,6 +40,7 @@ WHERE {
   }
 }
 ORDER BY ?toolName ?paramName
+LIMIT 10000
 
 ---
 
@@ -72,6 +73,7 @@ WHERE {
     AS ?proposalOnly
   )
 }
+LIMIT 10000
 
 ---
 
@@ -103,6 +105,7 @@ WHERE {
   )
 }
 ORDER BY ?category ?toolName
+LIMIT 10000
 
 ---
 
@@ -127,3 +130,4 @@ WHERE {
   OPTIONAL { ?param rdfs:comment ?paramDescription }
 }
 ORDER BY ?toolName ?paramRequired DESC ?paramName
+LIMIT 10000

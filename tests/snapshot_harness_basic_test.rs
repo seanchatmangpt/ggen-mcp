@@ -4,7 +4,7 @@
 
 mod harness;
 
-use harness::{SnapshotTestHarness, SnapshotFormat, UpdateMode};
+use harness::{SnapshotFormat, SnapshotTestHarness, UpdateMode};
 use tempfile::TempDir;
 
 #[test]
@@ -20,12 +20,7 @@ fn test_snapshot_creation_in_temp_dir() {
     harness.update_mode = UpdateMode::Always;
 
     let content = "Hello, snapshot testing!";
-    let result = harness.assert_snapshot(
-        "test",
-        "basic_test",
-        content,
-        SnapshotFormat::Text,
-    );
+    let result = harness.assert_snapshot("test", "basic_test", content, SnapshotFormat::Text);
 
     assert!(result.is_ok(), "Snapshot creation should succeed");
     assert_eq!(harness.stats().created, 1);
@@ -68,12 +63,7 @@ fn test_snapshot_mismatch() {
     harness.reset_stats();
     harness.update_mode = UpdateMode::Never;
 
-    let result = harness.assert_snapshot(
-        "test",
-        "mismatch_test",
-        "modified",
-        SnapshotFormat::Text,
-    );
+    let result = harness.assert_snapshot("test", "mismatch_test", "modified", SnapshotFormat::Text);
 
     assert!(result.is_err(), "Snapshot should not match");
     assert_eq!(harness.stats().failed, 1);
@@ -97,12 +87,7 @@ fn test_json_snapshot() {
 
     let json_str = serde_json::to_string_pretty(&json_data).unwrap();
 
-    let result = harness.assert_snapshot(
-        "test",
-        "json_test",
-        json_str,
-        SnapshotFormat::Json,
-    );
+    let result = harness.assert_snapshot("test", "json_test", json_str, SnapshotFormat::Json);
 
     assert!(result.is_ok(), "JSON snapshot should be created");
 }
@@ -163,45 +148,31 @@ fn test_update_modes() {
     let mut harness = SnapshotTestHarness::with_root(temp_dir.path());
     harness.update_mode = UpdateMode::Never;
 
-    let result = harness.assert_snapshot(
-        "test",
-        "never_test",
-        "content",
-        SnapshotFormat::Text,
+    let result = harness.assert_snapshot("test", "never_test", "content", SnapshotFormat::Text);
+    assert!(
+        result.is_err(),
+        "Should fail when snapshot doesn't exist in Never mode"
     );
-    assert!(result.is_err(), "Should fail when snapshot doesn't exist in Never mode");
 
     // Test Always mode
     let mut harness = SnapshotTestHarness::with_root(temp_dir.path());
     harness.update_mode = UpdateMode::Always;
 
-    let result = harness.assert_snapshot(
-        "test",
-        "always_test",
-        "content",
-        SnapshotFormat::Text,
-    );
+    let result = harness.assert_snapshot("test", "always_test", "content", SnapshotFormat::Text);
     assert!(result.is_ok(), "Should create snapshot in Always mode");
 
     // Test New mode
     let mut harness = SnapshotTestHarness::with_root(temp_dir.path());
     harness.update_mode = UpdateMode::New;
 
-    let result = harness.assert_snapshot(
-        "test",
-        "new_test",
-        "content",
-        SnapshotFormat::Text,
-    );
+    let result = harness.assert_snapshot("test", "new_test", "content", SnapshotFormat::Text);
     assert!(result.is_ok(), "Should create new snapshot in New mode");
 
     // Should not update existing in New mode
     harness.reset_stats();
-    let result = harness.assert_snapshot(
-        "test",
-        "new_test",
-        "different",
-        SnapshotFormat::Text,
+    let result = harness.assert_snapshot("test", "new_test", "different", SnapshotFormat::Text);
+    assert!(
+        result.is_err(),
+        "Should not update existing snapshot in New mode"
     );
-    assert!(result.is_err(), "Should not update existing snapshot in New mode");
 }

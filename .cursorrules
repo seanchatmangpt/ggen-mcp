@@ -1,0 +1,143 @@
+# ggen-mcp - Elite Rust Developer Standards (SPR × TPS × Ontology-Driven)
+
+## Core Principles
+
+**SPR (Sparse Priming Representation) - MANDATORY**: Neural activation through distilled associations. Maximum density. Minimum tokens. DISTILL essential only • ASSOCIATE patterns • COMPRESS meaning • ACTIVATE latent space • VERIFY self-check.
+
+**TPS (Toyota Production System)**: Jidoka (compile-time prevention) • Andon Cord (tests/builds block) • Poka-Yoke (error prevention) • Kaizen (continuous improvement) • Single Piece Flow (small commits).
+
+**Ontology-Driven**: `ontology/mcp-domain.ttl` → SPARQL (`queries/`) → Tera (`templates/`) → Rust (`src/generated/`). Ontology is single source of truth.
+
+Never trust text, only test results. All code is production-ready with error handling. Focus on 80% value paths. Types encode invariants; compiler enforces correctness. Zero-cost abstractions are free; trait objects have cost. References over owned values; stack over heap. Ownership is explicit; lifetimes prevent use-after-free. APIs guide correct usage through types.
+
+## Critical Non-Negotiables
+
+**SPR Protocol**: Before EVERY response: Using SPR? If NO → REWRITE. Non-negotiable. Example: ✗ "Ontology contains definitions processed by SPARQL extracting info for Tera templates generating Rust" ✓ "Ontology → SPARQL → Tera → Rust. Single truth."
+
+**Build System**: Always use `cargo make` commands, never direct `cargo` commands. Cargo-make handles proc-macro crates, includes timeouts, ensures consistency.
+
+**Ontology as Source of Truth**: NEVER edit `src/generated/` manually. Only edit `ontology/mcp-domain.ttl`, `queries/*.rq`, `templates/*.rs.tera`. All code generation flows from ontology.
+
+**Preview-by-Default**: Always preview before applying changes. `cargo make sync-dry-run` (preview) → Review report → `cargo make sync` (apply).
+
+**Git Hooks**: NEVER use `--no-verify` flag. All git hooks (pre-commit, pre-push, etc.) MUST run to enforce quality gates. If hooks fail, fix the issues - do not bypass them.
+
+**Timeout SLA**: Every CLI command MUST have timeout wrapper to prevent freezing. Quick checks: `timeout 5s`. Compilation: `timeout 10s`. Unit tests: `timeout 1s`. Integration: `timeout 30s`. Long ops: `timeout 60s`.
+
+**Behavior Verification**: Tests verify observable outputs/state changes, not just function existence. No tests that only check `assert_ok!()` without verifying behavior. Tests check state changes, outputs, execution order, actual effects.
+
+**Chicago TDD**: State-based testing (verify outputs, not implementation). Real collaborators (use real objects, minimize mocks). Behavior verification (verify what code does, not how). AAA pattern required (Arrange-Act-Assert).
+
+**4-Layer Validation**: Layer 1 (Input) → Layer 2 (Ontology/SHACL) → Layer 3 (Generation) → Layer 4 (Runtime). Fail-fast at earliest layer.
+
+## Elite Rust Mindset
+
+**Type-First Thinking**: Types encode invariants; compiler as design tool. Use types to make invalid states unrepresentable. PhantomData for type-level state machines. Const generics over runtime values. Ask: "What can I express in types?" before "What values do I need?"
+
+**Zero-Cost Awareness**: Generics monomorphize (zero-cost). Const generics are zero-cost. Macros expand efficiently. References are zero-cost. Trait objects have dynamic dispatch cost. Heap allocation has cost. Ask: "Is this abstraction zero-cost?"
+
+**Performance Intuition**: References over owned values. Stack over heap. Cache locality matters. Minimize allocations. Optimize hot paths (20% that matters). Ask: "What's the performance characteristic?"
+
+**Memory Safety**: Ownership is explicit. Borrowing enables zero-cost. Lifetimes prevent use-after-free. Rc/Arc for shared ownership. Encapsulate unsafe in safe APIs. Ask: "What are the ownership semantics?"
+
+**API Design**: Type-safe by default (errors impossible through types). Ergonomic interfaces (easy to use correctly, hard to misuse). Composable design. Self-documenting types. Explicit error handling (Result types, not panics). Ask: "How can I make misuse impossible?"
+
+## Ontology-Driven Development Patterns
+
+**Core Flow**: Edit `ontology/mcp-domain.ttl` → Create/update `queries/*.rq` → Create/update `templates/*.rs.tera` → Add `ggen.toml` rule → `cargo make sync-dry-run` (preview) → Review `./ggen.out/reports/latest.md` → `cargo make sync` (apply) → Verify receipt → Test.
+
+**Receipt Verification**: All generation operations create cryptographic receipts (SHA-256). Verify receipts: `verify_receipt --receipt ./ggen.out/receipts/sync-*.json`.
+
+**SPARQL Safety**: Always use `QueryBuilder` for type-safe construction. Never use string concatenation. Validate queries before execution (syntax, injection, complexity, budget).
+
+**Template Safety**: Extract variables from templates. Ensure SPARQL provides all template variables. Use `{{ error() }}` guards in templates.
+
+## Elite Thinking Patterns
+
+**Type-First Design**: Identify invariants → Encode in types → Design APIs → Verify at compile time. If it compiles, invariants are enforced.
+
+**Compile-Time vs Runtime**: Prefer compile-time guarantees (type safety, const generics). Use runtime only when compile-time impossible (user input, network data). Ask: "Can I move this to compile time?"
+
+**Zero-Cost Identification**: Zero-cost: generics, const generics, macros, references, type state patterns. Has cost: trait objects, heap allocation, closures that capture, async. Ask: "Is this abstraction zero-cost?"
+
+**API Ergonomics**: Type-safe, self-documenting, composable, fail-fast (compile-time errors), guided usage (types guide correct usage).
+
+## 80/20 Thinking: Go the Extra Mile
+
+**Idea Generation**: Always generate 3 ideas. First idea: solve immediate problem. Second idea: go bigger (solve 80% of related problems with 20% effort) while maintaining quality standards. Third idea: maximum value (type-level solutions, compile-time guarantees) with quality first. Second idea is usually sweet spot (80% more value, reasonable effort, quality maintained).
+
+**Quality-First 80/20**: Value includes quality, consistency, and maintainability - these are not optional. Quality work may require more effort, but it's still high value because it prevents defects, maintains consistency, and improves maintainability.
+
+**DfLSS Alignment**: Design for Lean Six Sigma - addresses both efficiency (Lean waste elimination) AND quality (Six Sigma defect prevention) from the start. Prevent defects AND waste rather than fixing them later.
+
+**Questions to Ask**: "What invariants can I encode in types?" "Is this abstraction zero-cost?" "What are the ownership semantics?" "Can I move this to compile time?" "How can I make misuse impossible?" **"What's my second idea? Third idea? How can I go bigger with 80/20?"**
+
+**Patterns**: Type state machines (PhantomData), newtype patterns, const generics, HRTB, zero-sized types. References over owned, stack over heap, reuse buffers, minimize allocations, cache-friendly structures. Builder patterns, type state APIs, error types, generic APIs.
+
+**Leverage Rust's Strengths**: Type system prevents error classes. Zero-cost abstractions (generics, macros, const generics). Memory safety (ownership/borrowing). Performance (minimize allocations, references). Compile-time guarantees. Ask: "How can I leverage Rust's strengths?" not "How do I work around constraints?"
+
+## Completion Workflow (Mandatory)
+
+1. **Run Tests Immediately**: `cargo make test` before completion claims. If tests fail: STOP, extract failing test names, create rich todos, fix tests, re-run tests. Only proceed when all tests pass.
+
+2. **Rich Todos**: For each failing test, include: test name, error message, file/line, root cause, proposed fix, status. Batch create 5-10+ related todos in single call.
+
+3. **Fix Systematically**: Read failure message → Identify root cause → Fix issue → Run specific test → Verify fix → Update todo status → Remove when fixed.
+
+4. **Re-Run All Tests**: `cargo make test` to verify all fixes worked. If still failing, return to step 2.
+
+5. **Verify Completion**: All tests pass, no compilation errors, no test failures, all failing tests fixed and removed from todos, no pending test-related todos. Never mark complete without running tests first.
+
+**Quick Feedback**: `cargo make check` (~1s), `cargo make test-unit` (~1s), `cargo make test test_name` (single test). Full validation: `cargo make test`, `cargo make pre-commit`.
+
+## Prohibited Patterns
+
+Placeholders, TODOs (except documented future enhancements), unhandled errors (unwrap/expect/panics in production), stubs, simulated behavior, claims without verification, meaningless tests (only assert_ok without behavior check), direct cargo commands, type system misuse, unnecessary allocations, runtime checks when compile-time possible, editing `src/generated/` manually (update ontology instead), skipping SPR protocol, using string concatenation for SPARQL queries, skipping input validation, using bare String IDs (use NewTypes), `print!` and `println!` macros in library code (use `log!` macros or alert macros instead - exceptions: CLI binaries `src/bin/*.rs` for user-facing output, `build.rs` for Cargo build messages `println!("cargo:warning=...")`, test code for test output/debugging), **NEVER use `--no-verify` flag with git commands** (git hooks MUST run to enforce quality gates).
+
+## Required Patterns
+
+Real library integrations, error handling (Result<T,E>), feature gating, test verification, behavior verification (observable outputs/state), Chicago TDD principles, type-first design, zero-cost abstractions, performance awareness, ergonomic APIs, structured logging (use `log!` macros `log::error!`, `log::warn!`, `log::info!`, `log::debug!` or alert macros `alert_critical!`, `alert_warning!`, `alert_info!`, etc. for library code output), SPR protocol (distilled, dense, associated), ontology-driven development (edit ontology, not generated code), preview-by-default (preview before apply), receipt verification (verify all receipts), 4-layer validation (input → ontology → generation → runtime), SPARQL safety (QueryBuilder, no string concatenation), template safety (extract variables, error guards).
+
+## Output and Logging Guidelines
+
+**Library Code**: Use `log!` macros (`log::error!`, `log::warn!`, `log::info!`, `log::debug!`) or alert macros (`alert_critical!`, `alert_warning!`, `alert_info!`, etc.) for structured logging. These integrate with the alert system, can be filtered/redirected, and provide consistent formatting.
+
+**CLI Binaries** (`src/bin/*.rs`): Use `println!` for stdout (user-facing output) and `eprintln!` for stderr (error output).
+
+**Build Scripts** (`build.rs`): Use `println!("cargo:warning=...")` format for Cargo build-time messages.
+
+**Test Code**: `println!` may be used for test output/debugging when needed, but prefer structured logging when testing logging behavior.
+
+**Error Output**: Use `eprintln!` for immediate error output or `log::error!`/`alert_critical!` for structured error logging.
+
+## Expert Testing
+
+Test the 20% that catches 80% of bugs: error paths, boundary conditions (empty/single/max/zero/negative), resource cleanup (error and panic paths), concurrency, real dependencies (not mocks).
+
+## Workflow Commands
+
+**Ontology-Driven**: [Ontology Sync](.cursor/commands/ontology-sync.md), [SPARQL Validation](.cursor/commands/sparql-validation.md), [Template Rendering](.cursor/commands/template-rendering.md), [Code Generation](.cursor/commands/code-generation.md).
+
+**Complex Workflows**: ACP Command (add/commit/push with validation), Verify Tests Command, Expert Testing Patterns.
+
+**Lean Six Sigma**: Eliminate Muda (waste), Gemba Walk (verify actual behavior), Poka-Yoke Design (prevent errors at compile time), DMAIC Problem Solving, Kaizen Improvement, Eliminate Mura (unevenness), Andon Signals (compiler errors/test failures are stop signals), Root Cause Analysis (5 Whys).
+
+## Documentation References
+
+[CLAUDE.md](CLAUDE.md) (SPR protocol), [GGEN_SYNC_INSTRUCTIONS.md](GGEN_SYNC_INSTRUCTIONS.md) (sync workflow), [CODE_GENERATION_WORKFLOWS.md](docs/CODE_GENERATION_WORKFLOWS.md) (workflow examples), [RUST_MCP_BEST_PRACTICES.md](RUST_MCP_BEST_PRACTICES.md) (MCP best practices), [ggen-mcp Standards](.cursor/rules/ggen-mcp-standards.mdc) (project standards).
+
+## Summary
+
+**Elite Mindset**: Think in types first, zero-cost abstractions, performance intuition, ergonomic APIs, leverage type system, maximize Rust's strengths, go extra mile (3 ideas, 80/20 thinking), SPR always, ontology-driven.
+
+**Critical Requirements**: SPR protocol (mandatory), use `cargo make` commands, timeout SLAs for all CLI commands, behavior verification in tests, test before completion, rich todos for failures, Chicago TDD principles, ontology as source of truth, preview-by-default, receipt verification, 4-layer validation.
+
+**Key Associations**: Types = invariants = compile-time guarantees. Zero-cost = generics/macros/const generics. Performance = references/stack/minimize allocations. Ownership = explicit = memory safety. APIs = type-safe = ergonomic = composable. Tests = observable outputs = behavior verification. 80/20 = second idea = sweet spot = maximum value. SPR = distilled = dense = associated. Ontology = truth = single source.
+
+TODO LISTS ARE ALWAYS 10 ITEMS OR MORE. THEY ARE ALWAYS FULLY COMPLETED BEFORE PROGRESSING TO THE NEXT TASK.
+
+Always show the build button after planning.
+
+NEVER REBASE
+
+**⚠️ SPR IS MANDATORY ⚠️** - Checked before every response. Non-negotiable.

@@ -26,7 +26,8 @@ impl GcpMarketplaceProvider {
 #[async_trait]
 impl EntitlementProvider for GcpMarketplaceProvider {
     async fn check_capability(&self, cap: Capability) -> Result<bool> {
-        // TODO: Implement GCP Procurement API integration
+        // FUTURE: Implement GCP Procurement API integration
+        // See: https://cloud.google.com/marketplace/docs/partners/private-offer/entitlements-api
         // For now: stub that allows all capabilities
         tracing::warn!(
             capability = %cap,
@@ -37,7 +38,9 @@ impl EntitlementProvider for GcpMarketplaceProvider {
     }
 
     async fn report_usage(&self, usage: UsageUnit) -> Result<()> {
-        // TODO: Implement Pub/Sub publishing for usage metering
+        // FUTURE: Implement Pub/Sub publishing for usage metering
+        // See: https://cloud.google.com/pubsub/docs/overview
+        // For now: log usage but don't publish
         tracing::info!(
             operation = %usage.operation,
             workspace_hash = %usage.workspace_hash,
@@ -66,14 +69,18 @@ mod tests {
         let provider = GcpMarketplaceProvider::new(&config).unwrap();
 
         // Stub should allow all capabilities
-        assert!(provider
-            .check_capability(Capability::ApplyMode)
-            .await
-            .unwrap());
-        assert!(provider
-            .check_capability(Capability::JiraCreate)
-            .await
-            .unwrap());
+        assert!(
+            provider
+                .check_capability(Capability::ApplyMode)
+                .await
+                .unwrap()
+        );
+        assert!(
+            provider
+                .check_capability(Capability::JiraCreate)
+                .await
+                .unwrap()
+        );
         assert_eq!(provider.name(), "gcp_marketplace");
     }
 }

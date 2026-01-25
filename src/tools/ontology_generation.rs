@@ -8,15 +8,12 @@
 
 use crate::audit::integration::audit_tool;
 use crate::codegen::validation::{
-    CodeValidationReport, DiffReport, GeneratedCodeValidator,
-    GenerationReceipt, SafeCodeWriter, compute_string_hash,
-    compute_diff, load_golden_file, update_golden_file,
-    validate_json, validate_typescript, validate_yaml,
+    CodeValidationReport, DiffReport, GeneratedCodeValidator, GenerationReceipt, SafeCodeWriter,
+    compute_diff, compute_string_hash, load_golden_file, update_golden_file, validate_json,
+    validate_typescript, validate_yaml,
 };
 use crate::state::AppState;
-use crate::template::{
-    RenderConfig, SafeRenderer,
-};
+use crate::template::{RenderConfig, SafeRenderer};
 use anyhow::{Context, Result, anyhow};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -121,8 +118,7 @@ pub async fn render_template(
         .min(10 * 1024 * 1024);
 
     // Create safe renderer
-    let renderer = SafeRenderer::new(config)
-        .context("Failed to create safe renderer")?;
+    let renderer = SafeRenderer::new(config).context("Failed to create safe renderer")?;
 
     // Build template context
     let template_context = build_template_context(&params)?;
@@ -242,7 +238,10 @@ fn validate_output_format(output: &str, format: &str) -> Result<Vec<String>> {
             }
         }
         _ => {
-            warnings.push(format!("Unknown output format '{}', skipping validation", format));
+            warnings.push(format!(
+                "Unknown output format '{}', skipping validation",
+                format
+            ));
         }
     }
 
@@ -515,12 +514,11 @@ pub struct GoldenFileDiff {
 
 impl From<DiffReport> for GoldenFileDiff {
     fn from(report: DiffReport) -> Self {
-        let diff_sample = report.diff_lines
+        let diff_sample = report
+            .diff_lines
             .into_iter()
             .take(20)
-            .map(|line| {
-                format!("{:4} {}", line.line_num, line.content)
-            })
+            .map(|line| format!("{:4} {}", line.line_num, line.content))
             .collect();
 
         Self {
@@ -542,16 +540,24 @@ pub async fn validate_generated_code(
     let mut report = match params.language.to_lowercase().as_str() {
         "rust" | "rs" => validate_rust_code(&params.code, &params.file_name)?,
         "typescript" | "ts" | "javascript" | "js" | "mjs" => {
-            validate_typescript(&params.code, &params.file_name)
+            CodeValidationReport::from_validation_report(
+                validate_typescript(&params.code, &params.file_name),
+                "typescript".to_string(),
+            )
         }
-        "yaml" | "yml" => {
-            validate_yaml(&params.code, &params.file_name)
-        }
-        "json" => {
-            validate_json(&params.code, &params.file_name)
-        }
+        "yaml" | "yml" => CodeValidationReport::from_validation_report(
+            validate_yaml(&params.code, &params.file_name),
+            "yaml".to_string(),
+        ),
+        "json" => CodeValidationReport::from_validation_report(
+            validate_json(&params.code, &params.file_name),
+            "json".to_string(),
+        ),
         other => {
-            return Err(anyhow!("Unsupported language: {}. Supported: rust, typescript, yaml, json", other));
+            return Err(anyhow!(
+                "Unsupported language: {}. Supported: rust, typescript, yaml, json",
+                other
+            ));
         }
     };
 
@@ -564,12 +570,14 @@ pub async fn validate_generated_code(
                 let diff = compute_diff(&params.code, &golden_content, &golden_path);
 
                 // Check if we should update golden file
-                let should_update = params.allow_golden_update &&
-                    std::env::var("UPDATE_GOLDEN").is_ok();
+                let should_update =
+                    params.allow_golden_update && std::env::var("UPDATE_GOLDEN").is_ok();
 
                 if should_update && !diff.is_identical {
                     update_golden_file(&golden_path, &params.code)?;
-                    report.warnings.push(format!("Updated golden file: {}", golden_path_str));
+                    report
+                        .warnings
+                        .push(format!("Updated golden file: {}", golden_path_str));
                 } else if !diff.is_identical {
                     report.warnings.push(format!(
                         "Generated code differs from golden file: {} additions, {} deletions, {} changes",
@@ -583,9 +591,13 @@ pub async fn validate_generated_code(
                 // Golden file doesn't exist
                 if params.allow_golden_update && std::env::var("UPDATE_GOLDEN").is_ok() {
                     update_golden_file(&golden_path, &params.code)?;
-                    report.warnings.push(format!("Created new golden file: {}", golden_path_str));
+                    report
+                        .warnings
+                        .push(format!("Created new golden file: {}", golden_path_str));
                 } else {
-                    report.warnings.push(format!("Golden file not found: {}", golden_path_str));
+                    report
+                        .warnings
+                        .push(format!("Golden file not found: {}", golden_path_str));
                 }
                 None
             }
@@ -595,13 +607,15 @@ pub async fn validate_generated_code(
     };
 
     // 3. Build response
-    let errors: Vec<ValidationError> = report.errors.iter().map(|err| {
-        ValidationError {
+    let errors: Vec<ValidationError> = report
+        .errors
+        .iter()
+        .map(|err| ValidationError {
             message: err.to_string(),
             location: None,
             suggestion: None,
-        }
-    }).collect();
+        })
+        .collect();
 
     let valid = if params.strict_mode {
         errors.is_empty() && report.warnings.is_empty()
@@ -614,15 +628,20 @@ pub async fn validate_generated_code(
             if diff.is_identical {
                 format!("✓ Validation passed. Code matches golden file.")
             } else {
-                format!("✓ Validation passed. Code differs from golden file ({} changes).",
-                    diff.additions + diff.deletions + diff.changes)
+                format!(
+                    "✓ Validation passed. Code differs from golden file ({} changes).",
+                    diff.additions + diff.deletions + diff.changes
+                )
             }
         } else {
             format!("✓ Validation passed for {} code.", params.language)
         }
     } else {
-        format!("✗ Validation failed: {} errors, {} warnings.",
-            errors.len(), report.warnings.len())
+        format!(
+            "✗ Validation failed: {} errors, {} warnings.",
+            errors.len(),
+            report.warnings.len()
+        )
     };
 
     Ok(ValidateGeneratedCodeResponse {
@@ -645,7 +664,8 @@ fn validate_rust_code(code: &str, file_name: &str) -> Result<CodeValidationRepor
 
     let validation_report = validator.validate_code(code, file_name)?;
 
-    let report = CodeValidationReport::from_validation_report(validation_report, "rust".to_string());
+    let report =
+        CodeValidationReport::from_validation_report(validation_report, "rust".to_string());
 
     Ok(report)
 }

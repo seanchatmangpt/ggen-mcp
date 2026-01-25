@@ -9,24 +9,24 @@
 //! - Ontology generation testing (Load → Query → Render → Validate)
 
 pub mod codegen_pipeline_harness;
-pub mod tera_template_harness;
-pub mod integration_workflow_harness;
-pub mod user_registration_workflow;
-pub mod order_processing_workflow;
-pub mod mcp_tool_workflow;
-pub mod property_input_harness;
 pub mod domain_model_harness;
-pub mod ontology_generation_harness;
-pub mod turtle_ontology_harness;
-pub mod toml_config_harness;
-pub mod ggen_integration_harness;
 pub mod fixture_library;
+pub mod ggen_integration_harness;
+pub mod integration_workflow_harness;
+pub mod mcp_tool_workflow;
+pub mod ontology_generation_harness;
+pub mod order_processing_workflow;
+pub mod property_input_harness;
+pub mod tera_template_harness;
+pub mod toml_config_harness;
+pub mod turtle_ontology_harness;
+pub mod user_registration_workflow;
 
 // Re-export main harness components
 pub use codegen_pipeline_harness::{
-    CodegenPipelineHarness, PipelineResult, OntologyResult, SparqlResult,
-    TemplateResult, ValidationResult as PipelineValidationResult, FileResult,
-    DomainEntity, PipelineMetrics, GoldenFileReport,
+    CodegenPipelineHarness, DomainEntity, FileResult, GoldenFileReport, OntologyResult,
+    PipelineMetrics, PipelineResult, SparqlResult, TemplateResult,
+    ValidationResult as PipelineValidationResult,
 };
 
 pub use tera_template_harness::{
@@ -35,69 +35,91 @@ pub use tera_template_harness::{
 };
 
 pub use integration_workflow_harness::{
-    IntegrationWorkflowHarness,
-    WorkflowBuilder,
-    WorkflowContext,
-    WorkflowResult,
-    WorkflowEvent,
     AuditEntry,
-    ToolRegistration,
-    // Assertions
-    assert_workflow_succeeds,
-    assert_step_state,
-    assert_event_sequence,
-    assert_audit_trail_complete,
-    assert_state_consistent,
-    // Helpers
-    load_ontology_fixture,
-    save_generated_code,
-    register_tool,
-    transition_state,
-    store_data,
-    get_data,
+    IntegrationWorkflowHarness,
     // MCP Protocol
     McpProtocolTester,
+    ToolRegistration,
+    WorkflowBuilder,
+    WorkflowContext,
+    WorkflowEvent,
+    WorkflowResult,
+    assert_audit_trail_complete,
+    assert_event_sequence,
+    assert_state_consistent,
+    assert_step_state,
+    // Assertions
+    assert_workflow_succeeds,
+    get_data,
+    // Helpers
+    load_ontology_fixture,
+    register_tool,
+    save_generated_code,
+    store_data,
+    transition_state,
 };
 
 pub use domain_model_harness::{
-    DomainModelHarness,
-    // Domain Model Types
-    User, Order, Product, Cart, Payment, Shipment,
-    OrderItem, CartItem,
-    // Value Objects
-    Email, Money, Address, PhoneNumber, Currency,
-    // Entity IDs
-    UserId, OrderId, ProductId, CartId, PaymentId, ShipmentId,
-    // Enumerations
-    UserStatus, OrderStatus, PaymentStatus, PaymentMethod, ProductStatus, ShipmentStatus,
+    Address,
+    Cart,
+    CartId,
+    CartItem,
     // Commands & Events
-    Command, DomainEvent,
-    // Domain Services
-    OrderPricingService, PaymentProcessingService, ShippingCalculator,
+    Command,
+    Currency,
     // Errors
     DomainError,
+    DomainEvent,
+    DomainModelHarness,
+    // Value Objects
+    Email,
+    Money,
+    Order,
+    OrderBuilder,
+    OrderId,
+    OrderItem,
+    // Domain Services
+    OrderPricingService,
+    OrderStatus,
+    Payment,
+    PaymentId,
+    PaymentMethod,
+    PaymentProcessingService,
+    PaymentStatus,
+    PhoneNumber,
+    Product,
+    ProductBuilder,
+    ProductId,
+    ProductStatus,
+    Shipment,
+    ShipmentId,
+    ShipmentStatus,
+    ShippingCalculator,
+    // Domain Model Types
+    User,
     // Builders
-    UserBuilder, OrderBuilder, ProductBuilder,
+    UserBuilder,
+    // Entity IDs
+    UserId,
+    // Enumerations
+    UserStatus,
 };
 
 pub use ontology_generation_harness::{
+    CacheTestResult,
+    FileComparison,
+    GoldenFileComparison,
     OntologyGenerationHarness,
-    // Result Types
-    WorkflowResult,
     QueryResult,
     RenderedOutput,
-    ValidationReport,
     ValidationCheck,
-    GoldenFileComparison,
-    FileComparison,
-    CacheTestResult,
+    ValidationReport,
     WorkflowMetrics,
+    // Result Types
+    WorkflowResult,
 };
 
 pub use ggen_integration_harness::{
-    GgenIntegrationHarness,
-    GenerationMetrics,
-    GenerationResult,
-    CompilationResult,
+    CompilationResult, GenerationMetrics, GenerationResult, GgenIntegrationHarness,
     ValidationResult as GgenValidationResult,
 };

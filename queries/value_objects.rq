@@ -17,3 +17,4 @@ WHERE {
   }
 }
 ORDER BY ?vo_name
+LIMIT 10000

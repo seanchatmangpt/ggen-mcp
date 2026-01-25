@@ -13,8 +13,8 @@
 //! 6. Parse Errors
 //! 7. State Transition Errors
 
-use spreadsheet_mcp::validation::*;
 use spreadsheet_mcp::model::*;
+use spreadsheet_mcp::validation::*;
 use std::sync::Arc;
 use tokio::time::Duration;
 
@@ -33,12 +33,12 @@ fn test_empty_workbook_id_validation_error() {
 fn test_invalid_workbook_id_characters() {
     // Test various invalid characters
     let invalid_ids = vec![
-        "../../../etc/passwd",  // Path traversal
-        "workbook<script>",     // HTML injection
-        "workbook\0null",       // Null byte
-        "workbook\n\r",         // Control characters
-        " ",                    // Whitespace only
-        "workbook\\..\\file",   // Windows path traversal
+        "../../../etc/passwd", // Path traversal
+        "workbook<script>",    // HTML injection
+        "workbook\0null",      // Null byte
+        "workbook\n\r",        // Control characters
+        " ",                   // Whitespace only
+        "workbook\\..\\file",  // Windows path traversal
     ];
 
     for id in invalid_ids {
@@ -58,8 +58,10 @@ fn test_workbook_id_length_limits() {
     let result = WorkbookId::try_from(long_id.as_str());
     // This should either succeed or fail gracefully
     if result.is_err() {
-        assert!(result.unwrap_err().to_string().contains("length") ||
-                result.unwrap_err().to_string().contains("too long"));
+        assert!(
+            result.unwrap_err().to_string().contains("length")
+                || result.unwrap_err().to_string().contains("too long")
+        );
     }
 }
 
@@ -143,9 +145,13 @@ async fn test_deadlock_prevention() {
         // Simulate complex operation that could deadlock
         tokio::time::sleep(Duration::from_millis(100)).await;
         Ok::<_, String>(())
-    }).await;
+    })
+    .await;
 
-    assert!(result.is_ok(), "Operation should complete or timeout gracefully");
+    assert!(
+        result.is_ok(),
+        "Operation should complete or timeout gracefully"
+    );
 }
 
 // ============================================================================
@@ -155,13 +161,13 @@ async fn test_deadlock_prevention() {
 #[test]
 fn test_malformed_range_parsing() {
     let invalid_ranges = vec![
-        "A",           // Incomplete range
-        "A1:",         // Missing end
-        ":B2",         // Missing start
+        "A",            // Incomplete range
+        "A1:",          // Missing end
+        ":B2",          // Missing start
         "ZZZ999999999", // Out of bounds
-        "1A:2B",       // Wrong format
-        "Sheet1!",     // Empty range
-        "A1:A0",       // Invalid order
+        "1A:2B",        // Wrong format
+        "Sheet1!",      // Empty range
+        "A1:A0",        // Invalid order
     ];
 
     for range in invalid_ranges {
@@ -177,7 +183,7 @@ fn test_invalid_json_parsing() {
         "{ invalid }",
         "{ \"unclosed\": ",
         "{ \"key\": undefined }",
-        "{ key: 'value' }",  // Unquoted key
+        "{ key: 'value' }", // Unquoted key
     ];
 
     for json in invalid_json {
@@ -201,8 +207,8 @@ fn test_zero_values() {
         range: None,
         columns: None,
         filters: None,
-        limit: Some(0),    // Zero limit
-        offset: Some(0),   // Zero offset
+        limit: Some(0),  // Zero limit
+        offset: Some(0), // Zero offset
         header_row: None,
     };
 
@@ -226,8 +232,8 @@ fn test_maximum_integer_values() {
         range: None,
         columns: None,
         filters: None,
-        limit: Some(usize::MAX),    // Maximum limit
-        offset: Some(usize::MAX),   // Maximum offset
+        limit: Some(usize::MAX),  // Maximum limit
+        offset: Some(usize::MAX), // Maximum offset
         header_row: None,
     };
 
@@ -241,12 +247,12 @@ fn test_maximum_integer_values() {
 #[test]
 fn test_unicode_workbook_names() {
     let unicode_names = vec![
-        "文档-中文",                    // Chinese
-        "ドキュメント-日本語",              // Japanese
-        "مستند-عربي",                   // Arabic (RTL)
-        "📊-spreadsheet",              // Emoji
-        "Ελληνικά",                    // Greek
-        "Документ-Русский",            // Russian
+        "文档-中文",           // Chinese
+        "ドキュメント-日本語", // Japanese
+        "مستند-عربي",          // Arabic (RTL)
+        "📊-spreadsheet",      // Emoji
+        "Ελληνικά",            // Greek
+        "Документ-Русский",    // Russian
     ];
 
     for name in unicode_names {
@@ -262,16 +268,20 @@ fn test_unicode_workbook_names() {
 #[test]
 fn test_control_characters_rejected() {
     let control_chars = vec![
-        "test\x00",      // Null
-        "test\x01",      // SOH
-        "test\x1b",      // Escape
-        "test\x7f",      // Delete
-        "test\r\n",      // CRLF
+        "test\x00", // Null
+        "test\x01", // SOH
+        "test\x1b", // Escape
+        "test\x7f", // Delete
+        "test\r\n", // CRLF
     ];
 
     for input in control_chars {
         let result = WorkbookId::try_from(input);
-        assert!(result.is_err(), "Should reject control characters in: {:?}", input);
+        assert!(
+            result.is_err(),
+            "Should reject control characters in: {:?}",
+            input
+        );
     }
 }
 
@@ -303,14 +313,12 @@ fn test_cleanup_after_error() {
 async fn test_operation_timeout() {
     use tokio::time::timeout;
 
-    let result = timeout(
-        Duration::from_millis(100),
-        async {
-            // Simulate long-running operation
-            tokio::time::sleep(Duration::from_secs(10)).await;
-            Ok::<_, String>(())
-        }
-    ).await;
+    let result = timeout(Duration::from_millis(100), async {
+        // Simulate long-running operation
+        tokio::time::sleep(Duration::from_secs(10)).await;
+        Ok::<_, String>(())
+    })
+    .await;
 
     assert!(result.is_err(), "Operation should timeout");
 }

@@ -9,3 +9,4 @@ WHERE {
   OPTIONAL { ?aggregate rdfs:comment ?comment }
 }
 ORDER BY ?label
+LIMIT 10000

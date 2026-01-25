@@ -42,7 +42,7 @@ const MAX_COLUMN_NAME_LENGTH: usize = 10;
 // Parameter Structs
 // =============================================================================
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CreateJiraTicketsParams {
     /// Workbook ID
     pub workbook_id: WorkbookId,
@@ -537,7 +537,7 @@ fn extract_ticket_data_from_sheet(
 fn get_cell_value(sheet: &umya_spreadsheet::Worksheet, column: &str, row: u32) -> String {
     let cell_ref = format!("{}{}", column, row);
     sheet
-        .get_cell(&cell_ref)
+        .get_cell(cell_ref.as_str())
         .and_then(|cell| cell.get_value().as_ref().map(|v| v.to_string()))
         .unwrap_or_default()
 }
@@ -611,12 +611,14 @@ fn build_jira_request(
         issuetype: JiraIssueType {
             name: ticket.issue_type.clone(),
         },
-        priority: ticket.priority.as_ref().map(|p| JiraPriority {
-            name: p.clone(),
-        }),
-        assignee: ticket.assignee.as_ref().map(|a| JiraAssignee {
-            name: a.clone(),
-        }),
+        priority: ticket
+            .priority
+            .as_ref()
+            .map(|p| JiraPriority { name: p.clone() }),
+        assignee: ticket
+            .assignee
+            .as_ref()
+            .map(|a| JiraAssignee { name: a.clone() }),
         labels: if ticket.labels.is_empty() {
             None
         } else {
@@ -657,11 +659,7 @@ fn base64_encode(input: &[u8]) -> String {
 
     if i < input.len() {
         let b1 = input[i];
-        let b2 = if i + 1 < input.len() {
-            input[i + 1]
-        } else {
-            0
-        };
+        let b2 = if i + 1 < input.len() { input[i + 1] } else { 0 };
 
         let _ = write!(
             &mut result,

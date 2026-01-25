@@ -15,7 +15,7 @@
 //! - Test integration with real dependencies
 //! - Focus on observable outcomes
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
@@ -195,8 +195,8 @@ impl TemplateTestHarness {
         let content = fs::read_to_string(&path)
             .context(format!("Failed to read context file: {:?}", path))?;
 
-        let json: JsonValue = serde_json::from_str(&content)
-            .context("Failed to parse context JSON")?;
+        let json: JsonValue =
+            serde_json::from_str(&content).context("Failed to parse context JSON")?;
 
         TeraContext::from_serialize(&json).context("Failed to create Tera context")
     }
@@ -231,7 +231,9 @@ impl TemplateTestHarness {
 
     /// Checks if a template file exists
     pub fn template_exists(&self, template_file: &str) -> bool {
-        self.tera.get_template_names().any(|name| name == template_file)
+        self.tera
+            .get_template_names()
+            .any(|name| name == template_file)
     }
 
     /// Lists all available templates
@@ -270,15 +272,11 @@ impl TemplateTestHarness {
             .map(|obj| obj.keys().cloned().collect())
             .unwrap_or_default();
 
-        let unused_context_vars: Vec<String> = context_vars
-            .difference(&template_vars)
-            .cloned()
-            .collect();
+        let unused_context_vars: Vec<String> =
+            context_vars.difference(&template_vars).cloned().collect();
 
-        let missing_template_vars: Vec<String> = template_vars
-            .difference(&context_vars)
-            .cloned()
-            .collect();
+        let missing_template_vars: Vec<String> =
+            template_vars.difference(&context_vars).cloned().collect();
 
         Ok(UsageReport {
             unused_context_vars,
@@ -440,10 +438,7 @@ impl TemplateTestHarness {
 
         for &forb in forbidden {
             if output.contains(forb) {
-                return Err(anyhow!(
-                    "Output contains forbidden string: '{}'",
-                    forb
-                ));
+                return Err(anyhow!("Output contains forbidden string: '{}'", forb));
             }
         }
 
@@ -574,8 +569,7 @@ impl TemplateContextBuilder {
 
     /// Sets a boolean flag
     pub fn flag(mut self, name: &str, value: bool) -> Self {
-        self.data
-            .insert(name.to_string(), JsonValue::Bool(value));
+        self.data.insert(name.to_string(), JsonValue::Bool(value));
         self
     }
 
@@ -647,8 +641,7 @@ pub struct CompileResult {
 /// Extracts variable names from template source (simplified)
 fn extract_variables_from_source(source: &str, variables: &mut HashSet<String>) {
     // Simple regex-based extraction (in production, would use AST)
-    let var_pattern = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let var_pattern = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     for cap in var_pattern.captures_iter(source) {
         if let Some(var_name) = cap.get(1) {
@@ -674,7 +667,11 @@ fn check_balanced_delimiters(code: &str) -> Result<()> {
                         .map(|(_, close)| close);
 
                     if expected != Some(&ch) {
-                        return Err(anyhow!("Mismatched delimiter: expected {:?}, got {}", expected, ch));
+                        return Err(anyhow!(
+                            "Mismatched delimiter: expected {:?}, got {}",
+                            expected,
+                            ch
+                        ));
                     }
                 } else {
                     return Err(anyhow!("Unmatched closing delimiter: {}", ch));

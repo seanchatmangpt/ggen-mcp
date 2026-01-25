@@ -39,7 +39,7 @@ WHERE {
 }
 ORDER BY ?promptName ?argName
 
----
+LIMIT 10000
 
 # Query 2: CONSTRUCT - Build MCP Prompt configuration objects
 PREFIX mcp: <https://modelcontextprotocol.io/>
@@ -80,6 +80,8 @@ WHERE {
   }
 }
 
+LIMIT 10000
+
 ---
 
 # Query 3: Extract workflow-based prompts with step details
@@ -114,6 +116,7 @@ WHERE {
   }
 }
 ORDER BY ?promptName ?stepOrder
+LIMIT 10000
 
 ---
 
@@ -160,7 +163,7 @@ WHERE {
 }
 ORDER BY ?promptName
 
----
+LIMIT 1000
 
 # Query 5: Prompt argument validation rules
 PREFIX mcp: <https://modelcontextprotocol.io/>

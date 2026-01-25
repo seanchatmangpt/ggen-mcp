@@ -148,9 +148,15 @@ impl From<ReadTableParams> for crate::tools::ReadTableParams {
     fn from(p: ReadTableParams) -> Self {
         Self {
             workbook_or_fork_id: p.workbook_or_fork_id,
-            sheet_name: p.sheet_name,
+            sheet_name: Some(p.sheet_name),
+            table_name: None,
+            region_id: p.region_id.and_then(|s| s.parse().ok()),
             range: p.range,
-            region_id: p.region_id,
+            header_row: None,
+            header_rows: None,
+            columns: None,
+            filters: None,
+            sample_mode: None,
             limit: p.limit,
             offset: p.offset,
         }
@@ -178,10 +184,10 @@ impl From<TableProfileParams> for crate::tools::TableProfileParams {
         Self {
             workbook_or_fork_id: p.workbook_or_fork_id,
             sheet_name: Some(p.sheet_name),
-            range: p.range,
             region_id: p.region_id.and_then(|s| s.parse().ok()),
             table_name: None,
             sample_mode: None,
+            sample_size: None,
         }
     }
 }

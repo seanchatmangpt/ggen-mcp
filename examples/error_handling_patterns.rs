@@ -10,7 +10,7 @@
 //! - Partial success handling
 //! - Validation error reporting
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -27,10 +27,7 @@ pub enum McpToolError {
     ToolDisabled { tool_name: String },
 
     #[error("Tool '{tool_name}' timed out after {timeout_ms}ms")]
-    Timeout {
-        tool_name: String,
-        timeout_ms: u64,
-    },
+    Timeout { tool_name: String, timeout_ms: u64 },
 
     #[error("Response too large: {size} bytes exceeds limit of {limit} bytes")]
     ResponseTooLarge { size: usize, limit: usize },
@@ -137,59 +134,54 @@ pub enum TemplateError {
 /// Example: Building rich error context
 pub fn load_and_process_ontology(path: &str) -> Result<ProcessedOntology> {
     // Static context
-    let content = std::fs::read_to_string(path)
-        .context("Failed to read ontology file")?;
+    let content = std::fs::read_to_string(path).context("Failed to read ontology file")?;
 
     // Dynamic context with path information
     let parsed = parse_ontology(&content)
         .with_context(|| format!("Failed to parse ontology from file: {}", path))?;
 
     // Nested context with operation details
-    let validated = validate_ontology(&parsed)
-        .with_context(|| {
-            format!(
-                "Ontology validation failed for '{}' (version {})",
-                parsed.name,
-                parsed.version
-            )
-        })?;
+    let validated = validate_ontology(&parsed).with_context(|| {
+        format!(
+            "Ontology validation failed for '{}' (version {})",
+            parsed.name, parsed.version
+        )
+    })?;
 
     process_ontology(validated)
         .with_context(|| format!("Failed to process ontology '{}'", parsed.name))
 }
 
 /// Example: Error context in async operations
-pub async fn execute_sparql_pipeline(
-    query: &str,
-    template: &str,
-) -> Result<PipelineResult> {
+pub async fn execute_sparql_pipeline(query: &str, template: &str) -> Result<PipelineResult> {
     // Context for parsing
     let parsed_query = parse_sparql(query)
         .with_context(|| format!("Failed to parse SPARQL query for template '{}'", template))?;
 
     // Context for validation
-    validate_sparql(&parsed_query)
-        .with_context(|| {
-            format!(
-                "SPARQL validation failed for template '{}': query contains {} variables",
-                template,
-                parsed_query.variables.len()
-            )
-        })?;
+    validate_sparql(&parsed_query).with_context(|| {
+        format!(
+            "SPARQL validation failed for template '{}': query contains {} variables",
+            template,
+            parsed_query.variables.len()
+        )
+    })?;
 
     // Context for execution with retry info
-    let results = execute_with_retry(&parsed_query)
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to execute SPARQL query for template '{}' after multiple retries",
-                template
-            )
-        })?;
+    let results = execute_with_retry(&parsed_query).await.with_context(|| {
+        format!(
+            "Failed to execute SPARQL query for template '{}' after multiple retries",
+            template
+        )
+    })?;
 
     // Context for result processing
-    process_results(results, template)
-        .with_context(|| format!("Failed to process SPARQL results for template '{}'", template))
+    process_results(results, template).with_context(|| {
+        format!(
+            "Failed to process SPARQL results for template '{}'",
+            template
+        )
+    })
 }
 
 // =============================================================================
@@ -280,9 +272,7 @@ pub fn to_mcp_error(error: anyhow::Error) -> McpError {
                 "Rate limit exceeded: {} requests in {} seconds. Please slow down.",
                 requests, window_secs
             )),
-            McpToolError::Validation(validation_error) => {
-                validation_error_to_mcp(validation_error)
-            }
+            McpToolError::Validation(validation_error) => validation_error_to_mcp(validation_error),
             McpToolError::Other(_) => McpError::internal_error(tool_error.to_string()),
         };
     }
@@ -343,16 +333,12 @@ fn validation_error_to_mcp(error: &ValidationError) -> McpError {
             "Field '{}' value {} is out of range [{}, {}].",
             field, value, min, max
         )),
-        ValidationError::InvalidFormat { field, reason } => McpError::invalid_params(format!(
-            "Field '{}' has invalid format: {}.",
-            field, reason
-        )),
-        ValidationError::ConstraintViolation { field, constraint } => {
-            McpError::invalid_params(format!(
-                "Field '{}' violates constraint: {}.",
-                field, constraint
-            ))
+        ValidationError::InvalidFormat { field, reason } => {
+            McpError::invalid_params(format!("Field '{}' has invalid format: {}.", field, reason))
         }
+        ValidationError::ConstraintViolation { field, constraint } => McpError::invalid_params(
+            format!("Field '{}' violates constraint: {}.", field, constraint),
+        ),
     }
 }
 
@@ -524,7 +510,7 @@ impl RetryPolicy for ExponentialBackoff {
         if self.config.jitter {
             use rand::Rng;
             let mut rng = rand::thread_rng();
-            let jitter = (delay.as_millis() as f64 * 0.25 * rng.gen::<f64>()) as u64;
+            let jitter = (delay.as_millis() as f64 * 0.25 * rng.r#gen::<f64>()) as u64;
             delay += Duration::from_millis(jitter);
         }
 
@@ -771,10 +757,7 @@ impl<T> BatchResult<T> {
     }
 }
 
-pub async fn process_batch<T, I, F, Fut>(
-    items: Vec<I>,
-    mut processor: F,
-) -> BatchResult<T>
+pub async fn process_batch<T, I, F, Fut>(items: Vec<I>, mut processor: F) -> BatchResult<T>
 where
     F: FnMut(usize, I) -> Fut,
     Fut: std::future::Future<Output = Result<T>>,

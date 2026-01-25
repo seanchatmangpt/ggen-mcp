@@ -539,6 +539,355 @@ impl AsRef<str> for CellAddress {
 }
 
 // ============================================================================
+// ToolName - MCP tool identifier
+// ============================================================================
+
+/// MCP tool identifier that cannot be empty or contain invalid characters.
+///
+/// **Poka-yoke**: Uses `ToolName` newtype instead of `String` to prevent
+/// invalid tool names at compile time. The type system makes invalid states
+/// impossible.
+///
+/// **Invariants**:
+/// - Always non-empty
+/// - Matches pattern: `^[a-z][a-z0-9_]*$` (lowercase snake_case)
+/// - Maximum length: 64 characters
+///
+/// # Example
+/// ```rust,ignore
+/// let tool = ToolName::new("list_workbooks".to_string())?;
+/// assert_eq!(tool.as_str(), "list_workbooks");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ToolName(String);
+
+impl ToolName {
+    const MAX_LENGTH: usize = 64;
+
+    /// Creates a new ToolName with validation.
+    ///
+    /// # Errors
+    /// Returns `Err` if the name is empty, too long, or contains invalid characters.
+    pub fn new(name: String) -> Result<Self, ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::Empty("ToolName"));
+        }
+        if name.len() > Self::MAX_LENGTH {
+            return Err(ValidationError::TooLong {
+                field: "ToolName",
+                max: Self::MAX_LENGTH,
+                actual: name.len(),
+            });
+        }
+        // Pattern: lowercase snake_case (must start with lowercase letter)
+        if !name.chars().next().map_or(false, |c| c.is_ascii_lowercase()) {
+            return Err(ValidationError::Invalid {
+                field: "ToolName",
+                reason: "must start with lowercase letter",
+            });
+        }
+        if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(ValidationError::Invalid {
+                field: "ToolName",
+                reason: "must contain only lowercase letters, numbers, and underscores",
+            });
+        }
+        Ok(Self(name))
+    }
+
+    /// Creates a ToolName without validation (use with caution).
+    ///
+    /// # Safety
+    /// Caller must ensure the name is valid.
+    pub fn new_unchecked(name: String) -> Self {
+        Self(name)
+    }
+
+    /// Returns the tool name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes self and returns the inner String.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for ToolName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<ToolName> for String {
+    fn from(name: ToolName) -> String {
+        name.0
+    }
+}
+
+impl AsRef<str> for ToolName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+// ============================================================================
+// ResourceName - MCP resource identifier
+// ============================================================================
+
+/// MCP resource identifier that cannot be empty or contain invalid characters.
+///
+/// **Poka-yoke**: Uses `ResourceName` newtype instead of `String` to prevent
+/// invalid resource names at compile time.
+///
+/// **Invariants**:
+/// - Always non-empty
+/// - Matches pattern: `^[a-z][a-z0-9_]*$` (lowercase snake_case)
+/// - Maximum length: 64 characters
+///
+/// # Example
+/// ```rust,ignore
+/// let resource = ResourceName::new("ontology_files".to_string())?;
+/// assert_eq!(resource.as_str(), "ontology_files");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ResourceName(String);
+
+impl ResourceName {
+    const MAX_LENGTH: usize = 64;
+
+    /// Creates a new ResourceName with validation.
+    ///
+    /// # Errors
+    /// Returns `Err` if the name is empty, too long, or contains invalid characters.
+    pub fn new(name: String) -> Result<Self, ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::Empty("ResourceName"));
+        }
+        if name.len() > Self::MAX_LENGTH {
+            return Err(ValidationError::TooLong {
+                field: "ResourceName",
+                max: Self::MAX_LENGTH,
+                actual: name.len(),
+            });
+        }
+        // Pattern: lowercase snake_case (must start with lowercase letter)
+        if !name.chars().next().map_or(false, |c| c.is_ascii_lowercase()) {
+            return Err(ValidationError::Invalid {
+                field: "ResourceName",
+                reason: "must start with lowercase letter",
+            });
+        }
+        if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(ValidationError::Invalid {
+                field: "ResourceName",
+                reason: "must contain only lowercase letters, numbers, and underscores",
+            });
+        }
+        Ok(Self(name))
+    }
+
+    /// Creates a ResourceName without validation (use with caution).
+    ///
+    /// # Safety
+    /// Caller must ensure the name is valid.
+    pub fn new_unchecked(name: String) -> Self {
+        Self(name)
+    }
+
+    /// Returns the resource name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes self and returns the inner String.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for ResourceName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<ResourceName> for String {
+    fn from(name: ResourceName) -> String {
+        name.0
+    }
+}
+
+impl AsRef<str> for ResourceName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+// ============================================================================
+// TemplateName - Template file identifier
+// ============================================================================
+
+/// Template file identifier that cannot be empty.
+///
+/// **Poka-yoke**: Uses `TemplateName` newtype instead of `String` to prevent
+/// invalid template names at compile time.
+///
+/// **Invariants**:
+/// - Always non-empty
+/// - Maximum length: 255 characters
+///
+/// # Example
+/// ```rust,ignore
+/// let template = TemplateName::new("domain_entity.rs.tera".to_string())?;
+/// assert_eq!(template.as_str(), "domain_entity.rs.tera");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct TemplateName(String);
+
+impl TemplateName {
+    const MAX_LENGTH: usize = 255;
+
+    /// Creates a new TemplateName with validation.
+    ///
+    /// # Errors
+    /// Returns `Err` if the name is empty or too long.
+    pub fn new(name: String) -> Result<Self, ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::Empty("TemplateName"));
+        }
+        if name.len() > Self::MAX_LENGTH {
+            return Err(ValidationError::TooLong {
+                field: "TemplateName",
+                max: Self::MAX_LENGTH,
+                actual: name.len(),
+            });
+        }
+        Ok(Self(name))
+    }
+
+    /// Creates a TemplateName without validation (use with caution).
+    ///
+    /// # Safety
+    /// Caller must ensure the name is valid.
+    pub fn new_unchecked(name: String) -> Self {
+        Self(name)
+    }
+
+    /// Returns the template name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes self and returns the inner String.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for TemplateName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<TemplateName> for String {
+    fn from(name: TemplateName) -> String {
+        name.0
+    }
+}
+
+impl AsRef<str> for TemplateName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+// ============================================================================
+// QueryName - SPARQL query file identifier
+// ============================================================================
+
+/// SPARQL query file identifier that cannot be empty.
+///
+/// **Poka-yoke**: Uses `QueryName` newtype instead of `String` to prevent
+/// invalid query names at compile time.
+///
+/// **Invariants**:
+/// - Always non-empty
+/// - Maximum length: 255 characters
+///
+/// # Example
+/// ```rust,ignore
+/// let query = QueryName::new("mcp_tools.rq".to_string())?;
+/// assert_eq!(query.as_str(), "mcp_tools.rq");
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct QueryName(String);
+
+impl QueryName {
+    const MAX_LENGTH: usize = 255;
+
+    /// Creates a new QueryName with validation.
+    ///
+    /// # Errors
+    /// Returns `Err` if the name is empty or too long.
+    pub fn new(name: String) -> Result<Self, ValidationError> {
+        if name.is_empty() {
+            return Err(ValidationError::Empty("QueryName"));
+        }
+        if name.len() > Self::MAX_LENGTH {
+            return Err(ValidationError::TooLong {
+                field: "QueryName",
+                max: Self::MAX_LENGTH,
+                actual: name.len(),
+            });
+        }
+        Ok(Self(name))
+    }
+
+    /// Creates a QueryName without validation (use with caution).
+    ///
+    /// # Safety
+    /// Caller must ensure the name is valid.
+    pub fn new_unchecked(name: String) -> Self {
+        Self(name)
+    }
+
+    /// Returns the query name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes self and returns the inner String.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for QueryName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<QueryName> for String {
+    fn from(name: QueryName) -> String {
+        name.0
+    }
+}
+
+impl AsRef<str> for QueryName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+// ============================================================================
 // ValidationError - Errors for value object validation
 // ============================================================================
 

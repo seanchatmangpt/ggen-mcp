@@ -195,22 +195,58 @@ const TEMPLATE_ENTITY: &str = r#"//! Generated entity from ontology
 
 use serde::{Deserialize, Serialize};
 
+{% if entities is not defined %}
+{{ error("entities array is required for entity generation") }}
+{% endif %}
+
+{% if entities | length == 0 %}
+{{ error("entities array cannot be empty") }}
+{% endif %}
+
 {% for entity in entities %}
-/// {{ entity.comment }}
+{% if entity.name is not defined %}
+{{ error("entity.name is required") }}
+{% endif %}
+
+{% if entity.fields is not defined %}
+{{ error("entity.fields is required for entity " ~ entity.name) }}
+{% endif %}
+
+{% if entity.fields | length == 0 %}
+{{ error("entity.fields cannot be empty for entity " ~ entity.name) }}
+{% endif %}
+
+/// {{ entity.comment | default(value="Entity") }}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct {{ entity.name }} {
-    // TODO: Add fields from ontology properties
+    {% for field in entity.fields %}
+    {% if field.name is not defined %}
+    {{ error("field.name is required in entity " ~ entity.name) }}
+    {% endif %}
+    /// {{ field.description | default(value="") }}
+    pub {{ field.name }}: {{ field.type | default(value="String") }},
+    {% endfor %}
 }
 
 impl {{ entity.name }} {
-    pub fn new() -> Self {
+    pub fn new({% for field in entity.fields %}{{ field.name }}: {{ field.type | default(value="String") }}{% if not loop.last %}, {% endif %}{% endfor %}) -> Self {
         Self {
-            // TODO: Initialize fields
+            {% for field in entity.fields %}
+            {{ field.name }},
+            {% endfor %}
         }
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        // TODO: Add validation logic
+        {% for field in entity.fields %}
+        {% if field.required | default(value=false) %}
+        {% if field.type | default(value="String") == "String" %}
+        if self.{{ field.name }}.is_empty() {
+            return Err(format!("{{ field.name }} cannot be empty"));
+        }
+        {% endif %}
+        {% endif %}
+        {% endfor %}
         Ok(())
     }
 }
@@ -243,30 +279,92 @@ const TEMPLATE_API: &str = r#"//! Generated API endpoints from ontology
 use axum::{Router, Json};
 use serde::{Deserialize, Serialize};
 
+{% if endpoints is not defined %}
+{{ error("endpoints array is required for API generation") }}
+{% endif %}
+
+{% if endpoints | length == 0 %}
+{{ error("endpoints array cannot be empty") }}
+{% endif %}
+
 {% for endpoint in endpoints %}
-/// {{ endpoint.description }}
+{% if endpoint.name is not defined %}
+{{ error("endpoint.name is required") }}
+{% endif %}
+
+{% if endpoint.request_fields is not defined %}
+{{ error("endpoint.request_fields is required for endpoint " ~ endpoint.name) }}
+{% endif %}
+
+{% if endpoint.response_fields is not defined %}
+{{ error("endpoint.response_fields is required for endpoint " ~ endpoint.name) }}
+{% endif %}
+
+/// {{ endpoint.description | default(value="API endpoint") }}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct {{ endpoint.name }}Request {
-    // TODO: Add request fields from ontology
+    {% for field in endpoint.request_fields %}
+    {% if field.name is not defined %}
+    {{ error("field.name is required in request_fields for endpoint " ~ endpoint.name) }}
+    {% endif %}
+    /// {{ field.description | default(value="") }}
+    pub {{ field.name }}: {{ field.type | default(value="String") }},
+    {% endfor %}
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct {{ endpoint.name }}Response {
-    // TODO: Add response fields from ontology
+    {% for field in endpoint.response_fields %}
+    {% if field.name is not defined %}
+    {{ error("field.name is required in response_fields for endpoint " ~ endpoint.name) }}
+    {% endif %}
+    /// {{ field.description | default(value="") }}
+    pub {{ field.name }}: {{ field.type | default(value="String") }},
+    {% endfor %}
 }
 
 pub async fn {{ endpoint.name | lower }}_handler(
     Json(req): Json<{{ endpoint.name }}Request>,
 ) -> Json<{{ endpoint.name }}Response> {
-    // TODO: Implement handler logic
-    Json({{ endpoint.name }}Response {})
+    // Validate request
+    {% for field in endpoint.request_fields %}
+    {% if field.required | default(value=false) %}
+    {% if field.type | default(value="String") == "String" %}
+    if req.{{ field.name }}.is_empty() {
+        return Json({{ endpoint.name }}Response {
+            {% for resp_field in endpoint.response_fields %}
+            {{ resp_field.name }}: {{ resp_field.default | default(value="Default::default()") }},
+            {% endfor %}
+        });
+    }
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+
+    // Process request
+    // Map request fields to response fields
+    // Customize this section with your business logic
+    {% for field in endpoint.response_fields %}
+    {% set mapped = false %}
+    {% for req_field in endpoint.request_fields %}
+    {% if field.name == req_field.name %}
+    {% set mapped = true %}
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+    
+    Json({{ endpoint.name }}Response {
+        {% for field in endpoint.response_fields %}
+        {{ field.name }}: {% for req_field in endpoint.request_fields %}{% if field.name == req_field.name %}req.{{ req_field.name }}{% endif %}{% endfor %}{% if not (endpoint.request_fields | selectattr("name", "equalto", field.name) | list | length > 0) %}{{ field.default | default(value="Default::default()") }}{% endif %},
+        {% endfor %}
+    })
 }
 {% endfor %}
 
 pub fn routes() -> Router {
     Router::new()
     {% for endpoint in endpoints %}
-        .route("/{{ endpoint.path }}", axum::routing::post({{ endpoint.name | lower }}_handler))
+        .route("/{{ endpoint.path | default(value=endpoint.name | lower) }}", axum::routing::post({{ endpoint.name | lower }}_handler))
     {% endfor %}
 }
 "#;
@@ -467,10 +565,7 @@ fn validate_init_params(params: &InitGgenProjectParams) -> Result<()> {
         bail!("Project name cannot be empty");
     }
     if params.project_name.len() > MAX_PROJECT_NAME_LEN {
-        bail!(
-            "Project name exceeds {} characters",
-            MAX_PROJECT_NAME_LEN
-        );
+        bail!("Project name exceeds {} characters", MAX_PROJECT_NAME_LEN);
     }
     if !params
         .project_name
@@ -485,7 +580,10 @@ fn validate_init_params(params: &InitGgenProjectParams) -> Result<()> {
         bail!("Target directory cannot be empty");
     }
     if params.target_dir.len() > MAX_TARGET_DIR_LEN {
-        bail!("Target directory path exceeds {} characters", MAX_TARGET_DIR_LEN);
+        bail!(
+            "Target directory path exceeds {} characters",
+            MAX_TARGET_DIR_LEN
+        );
     }
     if params.target_dir.contains("../") || params.target_dir.contains("..\\") {
         bail!("Path traversal not allowed in target directory");
@@ -506,15 +604,9 @@ fn validate_init_params(params: &InitGgenProjectParams) -> Result<()> {
     }
     for entity in &params.entities {
         if entity.is_empty() || entity.len() > MAX_ENTITY_NAME_LEN {
-            bail!(
-                "Entity name must be 1-{} characters",
-                MAX_ENTITY_NAME_LEN
-            );
+            bail!("Entity name must be 1-{} characters", MAX_ENTITY_NAME_LEN);
         }
-        if !entity
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_')
-        {
+        if !entity.chars().all(|c| c.is_alphanumeric() || c == '_') {
             bail!("Entity names must be alphanumeric (underscores allowed)");
         }
     }
@@ -541,7 +633,10 @@ fn validate_target_directory(path: &Path) -> Result<()> {
     if path.exists() {
         // Directory exists - must be empty
         if !path.is_dir() {
-            bail!("Target path exists but is not a directory: {}", path.display());
+            bail!(
+                "Target path exists but is not a directory: {}",
+                path.display()
+            );
         }
 
         let entries = fs::read_dir(path)
@@ -611,28 +706,13 @@ fn create_project_structure(
 
     // Write configuration files
     let ggen_toml = render_template(GGEN_TOML_TEMPLATE, params)?;
-    write_file(
-        target_path,
-        "ggen.toml",
-        &ggen_toml,
-        &mut files_created,
-    )?;
+    write_file(target_path, "ggen.toml", &ggen_toml, &mut files_created)?;
 
     let readme = render_template(README_TEMPLATE, params)?;
-    write_file(
-        target_path,
-        "README.md",
-        &readme,
-        &mut files_created,
-    )?;
+    write_file(target_path, "README.md", &readme, &mut files_created)?;
 
     let cargo_toml = render_template(CARGO_TOML_TEMPLATE, params)?;
-    write_file(
-        target_path,
-        "Cargo.toml",
-        &cargo_toml,
-        &mut files_created,
-    )?;
+    write_file(target_path, "Cargo.toml", &cargo_toml, &mut files_created)?;
 
     // Create empty generated directory
     fs::create_dir_all(target_path.join("src/generated"))
@@ -651,12 +731,7 @@ fn create_project_structure(
 }
 
 fn create_directories(base: &Path) -> Result<()> {
-    let dirs = vec![
-        "ontology",
-        "queries",
-        "templates",
-        "src/generated",
-    ];
+    let dirs = vec!["ontology", "queries", "templates", "src/generated"];
 
     for dir in dirs {
         let path = base.join(dir);
@@ -822,10 +897,7 @@ mod tests {
 
     #[test]
     fn test_select_ontology() {
-        assert_eq!(
-            select_ontology("rust-mcp-server"),
-            ONTOLOGY_RUST_MCP_SERVER
-        );
+        assert_eq!(select_ontology("rust-mcp-server"), ONTOLOGY_RUST_MCP_SERVER);
         assert_eq!(select_ontology("api-server"), ONTOLOGY_API_SERVER);
         assert_eq!(select_ontology("domain-model"), ONTOLOGY_DOMAIN_MODEL);
         assert_eq!(select_ontology("unknown"), ONTOLOGY_DOMAIN_MODEL); // Default

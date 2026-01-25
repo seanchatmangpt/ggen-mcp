@@ -265,8 +265,7 @@ impl SyncContext {
         // Read config
         let config_path = workspace_root.join("ggen.toml");
         let config_content = if config_path.exists() {
-            std::fs::read_to_string(&config_path)
-                .context("Failed to read ggen.toml")?
+            std::fs::read_to_string(&config_path).context("Failed to read ggen.toml")?
         } else {
             String::new()
         };

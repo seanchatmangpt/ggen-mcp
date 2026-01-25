@@ -647,7 +647,9 @@ test!(test_invalid_language_tag_ignored, {
     let invalid_lang = "invalid123";
 
     // Act: Build literal with invalid language tag
-    let lit = SafeLiteralBuilder::string(value).language(invalid_lang).build();
+    let lit = SafeLiteralBuilder::string(value)
+        .language(invalid_lang)
+        .build();
 
     // Assert: Verify invalid language tag is ignored
     assert!(!lit.contains("@invalid123"));
@@ -659,7 +661,9 @@ test!(test_custom_datatype, {
     let datatype = "http://example.org/customType";
 
     // Act: Build literal with custom datatype
-    let lit = SafeLiteralBuilder::string(value).with_datatype(datatype).build();
+    let lit = SafeLiteralBuilder::string(value)
+        .with_datatype(datatype)
+        .build();
 
     // Assert: Verify custom datatype is applied
     assert!(lit.contains("http://example.org/customType"));
@@ -872,8 +876,7 @@ test!(test_query_builder_distinct, {
 
 test!(test_query_builder_select_all, {
     // Arrange: Query builder with SELECT * (no variables)
-    let builder = QueryBuilder::select()
-        .where_clause("?s ?p ?o");
+    let builder = QueryBuilder::select().where_clause("?s ?p ?o");
 
     // Act: Build query
     let result = builder.build();
@@ -887,8 +890,7 @@ test!(test_query_builder_select_all, {
 
 test!(test_query_builder_ask, {
     // Arrange: ASK query builder
-    let builder = QueryBuilder::ask()
-        .where_clause("?person a foaf:Person");
+    let builder = QueryBuilder::ask().where_clause("?person a foaf:Person");
 
     // Act: Build ASK query
     let result = builder.build();

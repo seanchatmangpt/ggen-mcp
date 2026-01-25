@@ -63,11 +63,13 @@ async fn load_order_ontology(
         ctx.ontology = Some(ontology.clone());
     }
 
-    harness.emit_event(
-        "ontology_loaded",
-        json!({ "type": "order", "size_bytes": ontology.len() }),
-        "load_order_ontology"
-    ).await;
+    harness
+        .emit_event(
+            "ontology_loaded",
+            json!({ "type": "order", "size_bytes": ontology.len() }),
+            "load_order_ontology",
+        )
+        .await;
 
     transition_state(context.clone(), "ontology_loaded", "load_order_ontology").await;
 
@@ -81,7 +83,8 @@ async fn generate_order_tools(
 ) -> Result<()> {
     let ontology = {
         let ctx = context.read().await;
-        ctx.ontology.clone()
+        ctx.ontology
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("Ontology not loaded"))?
     };
 
@@ -95,14 +98,16 @@ async fn generate_order_tools(
     // Register tools
     register_order_tools(context.clone()).await;
 
-    harness.emit_event(
-        "tools_generated",
-        json!({
-            "artifacts": ["order_aggregate", "order_tools"],
-            "tools": ["create_order", "add_item", "calculate_total", "process_payment"]
-        }),
-        "generate_order_tools"
-    ).await;
+    harness
+        .emit_event(
+            "tools_generated",
+            json!({
+                "artifacts": ["order_aggregate", "order_tools"],
+                "tools": ["create_order", "add_item", "calculate_total", "process_payment"]
+            }),
+            "generate_order_tools",
+        )
+        .await;
 
     transition_state(context.clone(), "tools_generated", "generate_order_tools").await;
 
@@ -124,20 +129,20 @@ async fn create_order(
     store_data(context.clone(), "order_data", order_data.clone()).await;
     store_data(context.clone(), "items", json!([])).await;
 
-    harness.emit_event(
-        "order_created",
-        json!({
-            "order_id": order_id,
-            "customer_id": "cust_456"
-        }),
-        "create_order"
-    ).await;
+    harness
+        .emit_event(
+            "order_created",
+            json!({
+                "order_id": order_id,
+                "customer_id": "cust_456"
+            }),
+            "create_order",
+        )
+        .await;
 
-    harness.audit(
-        "order_created",
-        "system",
-        json!({ "order_id": order_id })
-    ).await;
+    harness
+        .audit("order_created", "system", json!({ "order_id": order_id }))
+        .await;
 
     transition_state(context.clone(), "order_created", "create_order").await;
 
@@ -173,21 +178,21 @@ async fn add_items_to_cart(
     store_data(context.clone(), "items", json!(items.clone())).await;
 
     for (index, item) in items.iter().enumerate() {
-        harness.emit_event(
-            "item_added",
-            json!({
-                "item_index": index,
-                "product_id": item["product_id"],
-                "quantity": item["quantity"]
-            }),
-            "add_items_to_cart"
-        ).await;
+        harness
+            .emit_event(
+                "item_added",
+                json!({
+                    "item_index": index,
+                    "product_id": item["product_id"],
+                    "quantity": item["quantity"]
+                }),
+                "add_items_to_cart",
+            )
+            .await;
 
-        harness.audit(
-            "item_added_to_order",
-            "system",
-            item.clone()
-        ).await;
+        harness
+            .audit("item_added_to_order", "system", item.clone())
+            .await;
     }
 
     transition_state(context.clone(), "items_added", "add_items_to_cart").await;
@@ -200,10 +205,12 @@ async fn calculate_order_total(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let items = get_data(context.clone(), "items").await
+    let items = get_data(context.clone(), "items")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Items not found"))?;
 
-    let items_array = items.as_array()
+    let items_array = items
+        .as_array()
         .ok_or_else(|| anyhow::anyhow!("Items is not an array"))?;
 
     let mut subtotal = 0.0;
@@ -221,21 +228,25 @@ async fn calculate_order_total(
     store_data(context.clone(), "tax", json!(tax)).await;
     store_data(context.clone(), "total", json!(total)).await;
 
-    harness.emit_event(
-        "total_calculated",
-        json!({
-            "subtotal": subtotal,
-            "tax": tax,
-            "total": total
-        }),
-        "calculate_order_total"
-    ).await;
+    harness
+        .emit_event(
+            "total_calculated",
+            json!({
+                "subtotal": subtotal,
+                "tax": tax,
+                "total": total
+            }),
+            "calculate_order_total",
+        )
+        .await;
 
-    harness.audit(
-        "order_total_calculated",
-        "system",
-        json!({ "total": total })
-    ).await;
+    harness
+        .audit(
+            "order_total_calculated",
+            "system",
+            json!({ "total": total }),
+        )
+        .await;
 
     transition_state(context.clone(), "total_calculated", "calculate_order_total").await;
 
@@ -261,11 +272,9 @@ async fn validate_payment(
 
     store_data(context.clone(), "payment_method", payment_method.clone()).await;
 
-    harness.emit_event(
-        "payment_validated",
-        payment_method,
-        "validate_payment"
-    ).await;
+    harness
+        .emit_event("payment_validated", payment_method, "validate_payment")
+        .await;
 
     transition_state(context.clone(), "payment_validated", "validate_payment").await;
 
@@ -277,11 +286,13 @@ async fn process_payment(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let total = get_data(context.clone(), "total").await
+    let total = get_data(context.clone(), "total")
+        .await
         .and_then(|v| v.as_f64())
         .ok_or_else(|| anyhow::anyhow!("Total not found"))?;
 
-    let payment_method = get_data(context.clone(), "payment_method").await
+    let payment_method = get_data(context.clone(), "payment_method")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Payment method not found"))?;
 
     // Simulate payment processing
@@ -289,24 +300,28 @@ async fn process_payment(
     store_data(context.clone(), "transaction_id", json!(transaction_id)).await;
     store_data(context.clone(), "payment_status", json!("completed")).await;
 
-    harness.emit_event(
-        "payment_processed",
-        json!({
-            "transaction_id": transaction_id,
-            "amount": total,
-            "payment_method": payment_method
-        }),
-        "process_payment"
-    ).await;
+    harness
+        .emit_event(
+            "payment_processed",
+            json!({
+                "transaction_id": transaction_id,
+                "amount": total,
+                "payment_method": payment_method
+            }),
+            "process_payment",
+        )
+        .await;
 
-    harness.audit(
-        "payment_processed",
-        "payment_gateway",
-        json!({
-            "transaction_id": transaction_id,
-            "amount": total
-        })
-    ).await;
+    harness
+        .audit(
+            "payment_processed",
+            "payment_gateway",
+            json!({
+                "transaction_id": transaction_id,
+                "amount": total
+            }),
+        )
+        .await;
 
     transition_state(context.clone(), "payment_processed", "process_payment").await;
 
@@ -318,26 +333,27 @@ async fn finalize_order(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let order_id = get_data(context.clone(), "order_id").await
+    let order_id = get_data(context.clone(), "order_id")
+        .await
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .ok_or_else(|| anyhow::anyhow!("Order ID not found"))?;
 
     store_data(context.clone(), "order_status", json!("placed")).await;
 
-    harness.emit_event(
-        "order_placed",
-        json!({
-            "order_id": order_id,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }),
-        "finalize_order"
-    ).await;
+    harness
+        .emit_event(
+            "order_placed",
+            json!({
+                "order_id": order_id,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }),
+            "finalize_order",
+        )
+        .await;
 
-    harness.audit(
-        "order_placed",
-        "system",
-        json!({ "order_id": order_id })
-    ).await;
+    harness
+        .audit("order_placed", "system", json!({ "order_id": order_id }))
+        .await;
 
     transition_state(context.clone(), "order_placed", "finalize_order").await;
 
@@ -352,7 +368,8 @@ async fn assert_order_created(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let order_id = get_data(context.clone(), "order_id").await
+    let order_id = get_data(context.clone(), "order_id")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Order ID not found"))?;
 
     if !order_id.is_string() {
@@ -366,10 +383,12 @@ async fn assert_items_added(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let items = get_data(context.clone(), "items").await
+    let items = get_data(context.clone(), "items")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Items not found"))?;
 
-    let items_array = items.as_array()
+    let items_array = items
+        .as_array()
         .ok_or_else(|| anyhow::anyhow!("Items is not an array"))?;
 
     if items_array.is_empty() {
@@ -377,7 +396,10 @@ async fn assert_items_added(
     }
 
     if items_array.len() != 3 {
-        return Err(anyhow::anyhow!("Expected 3 items, got {}", items_array.len()));
+        return Err(anyhow::anyhow!(
+            "Expected 3 items, got {}",
+            items_array.len()
+        ));
     }
 
     Ok(())
@@ -387,7 +409,8 @@ async fn assert_total_calculated(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let total = get_data(context.clone(), "total").await
+    let total = get_data(context.clone(), "total")
+        .await
         .and_then(|v| v.as_f64())
         .ok_or_else(|| anyhow::anyhow!("Total not found"))?;
 
@@ -408,7 +431,8 @@ async fn assert_payment_processed(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let payment_status = get_data(context.clone(), "payment_status").await
+    let payment_status = get_data(context.clone(), "payment_status")
+        .await
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .ok_or_else(|| anyhow::anyhow!("Payment status not found"))?;
 
@@ -419,7 +443,8 @@ async fn assert_payment_processed(
         ));
     }
 
-    let transaction_id = get_data(context.clone(), "transaction_id").await
+    let transaction_id = get_data(context.clone(), "transaction_id")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Transaction ID not found"))?;
 
     if !transaction_id.is_string() {
@@ -435,7 +460,8 @@ async fn assert_order_placed_event(
 ) -> Result<()> {
     let events = harness.events().await;
 
-    let order_placed_event = events.iter()
+    let order_placed_event = events
+        .iter()
         .find(|e| e.event_type == "order_placed")
         .ok_or_else(|| anyhow::anyhow!("order_placed event not found"))?;
 
@@ -483,7 +509,8 @@ pub enum OrderStatus {
     Shipped,
     Delivered,
 }
-"#.to_string())
+"#
+    .to_string())
 }
 
 fn generate_order_tools_code(_ontology: &str) -> Result<String> {
@@ -512,7 +539,8 @@ pub fn calculate_total(order: &mut Order, tax_rate: f64) {
     order.tax = order.subtotal * tax_rate;
     order.total = order.subtotal + order.tax;
 }
-"#.to_string())
+"#
+    .to_string())
 }
 
 async fn register_order_tools(context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>) {
@@ -574,9 +602,12 @@ mod tests {
         ];
         store_data(context.clone(), "items", json!(items)).await;
 
-        calculate_order_total(context.clone(), &harness).await.unwrap();
+        calculate_order_total(context.clone(), &harness)
+            .await
+            .unwrap();
 
-        let total = get_data(context.clone(), "total").await
+        let total = get_data(context.clone(), "total")
+            .await
             .and_then(|v| v.as_f64())
             .unwrap();
 

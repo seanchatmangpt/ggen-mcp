@@ -329,17 +329,18 @@ impl GraphIntegrityChecker {
             predicates.insert(quad.predicate.clone());
             objects.insert(quad.object.clone());
 
-            match &quad.subject {
-                Subject::NamedNode(_) => report.named_nodes += 1,
-                Subject::BlankNode(_) => report.blank_nodes += 1,
-                Subject::Triple(_) => {} // RDF-star
+            if quad.subject.is_named_node() {
+                report.named_nodes += 1;
+            } else if quad.subject.is_blank_node() {
+                report.blank_nodes += 1;
             }
 
-            match &quad.object {
-                Term::NamedNode(_) => {}
-                Term::BlankNode(_) => report.blank_nodes += 1,
-                Term::Literal(_) => report.literals += 1,
-                Term::Triple(_) => {} // RDF-star
+            if quad.object.is_named_node() {
+                // Named nodes as objects don't count separately
+            } else if quad.object.is_blank_node() {
+                report.blank_nodes += 1;
+            } else if quad.object.is_literal() {
+                report.literals += 1;
             }
 
             // Validate triple
@@ -396,10 +397,16 @@ impl GraphIntegrityChecker {
             let quad = quad?;
             connected_nodes.insert(quad.subject.to_string());
 
-            if let Term::NamedNode(node) = &quad.object {
-                connected_nodes.insert(node.to_string());
-            } else if let Term::BlankNode(node) = &quad.object {
-                connected_nodes.insert(node.to_string());
+            match &quad.object {
+                Term::NamedNode(node) => {
+                    let obj_str = node.to_string();
+                    connected_nodes.insert(obj_str.clone());
+                }
+                Term::BlankNode(node) => {
+                    let obj_str = node.to_string();
+                    connected_nodes.insert(obj_str);
+                }
+                _ => {}
             }
         }
 
@@ -721,11 +728,11 @@ impl ReferenceChecker {
 
         for quad in store.quads_for_pattern(None, Some(property), None, None) {
             let quad = quad?;
-            if let Term::NamedNode(start) = quad.subject.clone().into() {
+            if let Subject::NamedNode(start) = &quad.subject {
                 self.dfs_cycle_detection(
                     store,
                     property,
-                    &start,
+                    start,
                     &mut visited,
                     &mut path,
                     &mut cycles,
@@ -755,7 +762,9 @@ impl ReferenceChecker {
 
         if path.contains(&current_str) {
             // Found a cycle
-            let cycle_start = path.iter().position(|n| n == &current_str).unwrap();
+            // TPS: Fail-fast with descriptive error if position not found (should never happen)
+            let cycle_start = path.iter().position(|n| n == &current_str)
+                .expect("Cycle detected but position not found - this indicates a logic error");
             let cycle: Vec<String> = path[cycle_start..].to_vec();
             cycles.push(cycle);
             return Ok(());
@@ -771,8 +780,11 @@ impl ReferenceChecker {
             store.quads_for_pattern(Some(current.clone().into()), Some(property), None, None)
         {
             let quad = quad?;
-            if let Term::NamedNode(next) = &quad.object {
-                self.dfs_cycle_detection(store, property, next, visited, path, cycles, depth + 1)?;
+            match &quad.object {
+                Term::NamedNode(next) => {
+                    self.dfs_cycle_detection(store, property, next, visited, path, cycles, depth + 1)?;
+                }
+                _ => {}
             }
         }
 
@@ -835,11 +847,14 @@ impl TypeChecker {
         // Collect all type assertions
         for quad in store.quads_for_pattern(None, Some(&*rdf::TYPE), None, None) {
             let quad = quad?;
-            if let Term::NamedNode(type_node) = &quad.object {
-                subject_types
-                    .entry(quad.subject.to_string())
-                    .or_default()
-                    .push(type_node.to_string());
+            match &quad.object {
+                Term::NamedNode(type_node) => {
+                    subject_types
+                        .entry(quad.subject.to_string())
+                        .or_default()
+                        .push(type_node.to_string());
+                }
+                _ => {}
             }
         }
 
@@ -866,8 +881,11 @@ impl TypeChecker {
 
         for quad in store.quads_for_pattern(Some(subject.clone()), Some(&*rdf::TYPE), None, None) {
             let quad = quad?;
-            if let Term::NamedNode(type_node) = quad.object {
-                types.push(type_node);
+            match &quad.object {
+                Term::NamedNode(type_node) => {
+                    types.push(type_node.clone());
+                }
+                _ => {}
             }
         }
 
@@ -896,21 +914,22 @@ impl GraphDiff {
     pub fn compute(old_store: &Store, new_store: &Store) -> Result<Self> {
         let mut diff = Self::new();
 
+        // TPS: Handle iterator errors properly - fail-fast on any error
         let old_triples: HashSet<_> = old_store
             .iter()
             .map(|q| {
-                let q = q.unwrap();
-                (q.subject.clone(), q.predicate.clone(), q.object.clone())
+                let q = q.context("Failed to read quad from old store")?;
+                Ok((q.subject.clone(), q.predicate.clone(), q.object.clone()))
             })
-            .collect();
+            .collect::<Result<_>>()?;
 
         let new_triples: HashSet<_> = new_store
             .iter()
             .map(|q| {
-                let q = q.unwrap();
-                (q.subject.clone(), q.predicate.clone(), q.object.clone())
+                let q = q.context("Failed to read quad from new store")?;
+                Ok((q.subject.clone(), q.predicate.clone(), q.object.clone()))
             })
-            .collect();
+            .collect::<Result<_>>()?;
 
         // Find added triples
         for triple_tuple in new_triples.difference(&old_triples) {

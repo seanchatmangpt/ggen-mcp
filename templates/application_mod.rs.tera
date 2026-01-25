@@ -1,6 +1,7 @@
 // Application state - generated from ontology
 use crate::domain::*;
 
+{% if services %}
 pub struct ApplicationState {
     {% for service in services %}
     pub {{ service.name|snake_case }}: {{ service.name }}<InMemory{{ service.repository }}>,
@@ -16,3 +17,13 @@ impl ApplicationState {
         }
     }
 }
+{% else %}
+// No services found in ontology
+pub struct ApplicationState {}
+
+impl ApplicationState {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+{% endif %}

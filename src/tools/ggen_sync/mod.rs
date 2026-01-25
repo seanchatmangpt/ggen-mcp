@@ -28,26 +28,25 @@
 pub mod jira_stage;
 pub mod receipt;
 pub mod report;
+pub mod state;
+
+use self::report::SyncMode;
 
 use crate::audit::integration::audit_tool;
-use crate::codegen::validation::{
-    CodeValidationReport, GeneratedCodeValidator, GenerationReceipt, SafeCodeWriter,
-    compute_string_hash,
-};
-use crate::ontology::{GraphIntegrityChecker, IntegrityConfig, ShapeValidator};
+use crate::codegen::validation::compute_string_hash;
 use crate::state::AppState;
 use crate::template::{RenderConfig, SafeRenderer};
 use crate::validation::validate_path_safe;
-use anyhow::{Context, Result, anyhow, ensure};
-use oxigraph::store::Store as OxigraphStore;
-use rayon::prelude::*;
-use schemars::JsonSchema;
+use anyhow::{anyhow, ensure, Result, Context};
+use ggen_ontology_core::TripleStore;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use schemars::JsonSchema;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
+use sha2::{Digest, Sha256};
+use tera::Context as TeraContext;
 
 // ============================================================================
 // Constants
@@ -68,10 +67,7 @@ const MAX_CACHE_AGE_SECS: u64 = 3600;
 ///
 /// Consolidates entire ontology-driven code generation pipeline into
 /// one atomic transaction with automatic rollback on failure.
-pub async fn sync_ggen(
-    _state: Arc<AppState>,
-    params: SyncGgenParams,
-) -> Result<SyncGgenResponse> {
+pub async fn sync_ggen(_state: Arc<AppState>, params: SyncGgenParams) -> Result<SyncGgenResponse> {
     let _span = audit_tool("sync_ggen", &params);
 
     // Validate workspace root
@@ -94,10 +90,10 @@ pub struct SyncGgenParams {
     #[serde(default = "default_workspace_root")]
     pub workspace_root: String,
 
-    /// Preview mode - dry-run without writing files
-    /// Default: true (preview-first safety-by-default)
-    #[serde(default = "default_preview_true")]
-    pub preview: bool,
+    /// Sync execution mode - Preview (dry-run) or Apply (write files)
+    /// Default: Preview (preview-first safety-by-default)
+    #[serde(default = "default_sync_mode_preview")]
+    pub mode: SyncMode,
 
     /// Force regeneration (ignore cache)
     /// Default: false
@@ -123,12 +119,42 @@ fn default_workspace_root() -> String {
     DEFAULT_WORKSPACE_ROOT.to_string()
 }
 
-fn default_preview_true() -> bool {
-    true
+fn default_sync_mode_preview() -> SyncMode {
+    SyncMode::Preview
 }
 
 fn default_true() -> bool {
     true
+}
+
+/// Extract the number of generation rules from ggen.toml config
+fn extract_config_rules_count(config_path: &Path) -> Result<usize> {
+    use std::fs;
+    use toml::Value as TomlValue;
+    use serde_json::Value as JsonValue;
+
+    if !config_path.exists() {
+        return Ok(0);
+    }
+
+    let content = fs::read_to_string(config_path)
+        .context("Failed to read config file")?;
+
+    let toml_value: TomlValue = toml::from_str(&content)
+        .context("Failed to parse config TOML")?;
+
+    let config: JsonValue = serde_json::to_value(&toml_value)
+        .context("Failed to convert TOML to JSON")?;
+
+    // Extract generation rules count
+    let rule_count = config
+        .get("generation")
+        .and_then(|g| g.get("rules"))
+        .and_then(|r| r.as_array())
+        .map(|rules| rules.len())
+        .unwrap_or(0);
+
+    Ok(rule_count)
 }
 
 // ============================================================================
@@ -136,7 +162,7 @@ fn default_true() -> bool {
 // ============================================================================
 
 /// Response from sync_ggen tool
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SyncGgenResponse {
     /// Unique sync execution ID
     pub sync_id: String,
@@ -165,8 +191,8 @@ pub struct SyncGgenResponse {
     /// Errors encountered
     pub errors: Vec<SyncError>,
 
-    /// Preview mode indicator
-    pub preview: bool,
+    /// Sync execution mode
+    pub mode: SyncMode,
 
     /// Jira integration result (optional stage 14)
     pub jira_result: Option<jira_stage::JiraStageResult>,
@@ -313,9 +339,12 @@ impl ResourceDiscovery {
         );
 
         let mut queries = HashMap::new();
-        for entry in std::fs::read_dir(&queries_dir)
-            .with_context(|| format!("Failed to read queries directory: {}", queries_dir.display()))?
-        {
+        for entry in std::fs::read_dir(&queries_dir).with_context(|| {
+            format!(
+                "Failed to read queries directory: {}",
+                queries_dir.display()
+            )
+        })? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("rq") {
@@ -328,7 +357,11 @@ impl ResourceDiscovery {
             }
         }
 
-        ensure!(!queries.is_empty(), "No SPARQL queries found in {}", queries_dir.display());
+        ensure!(
+            !queries.is_empty(),
+            "No SPARQL queries found in {}",
+            queries_dir.display()
+        );
         Ok(queries)
     }
 
@@ -341,9 +374,12 @@ impl ResourceDiscovery {
         );
 
         let mut templates = HashMap::new();
-        for entry in std::fs::read_dir(&templates_dir)
-            .with_context(|| format!("Failed to read templates directory: {}", templates_dir.display()))?
-        {
+        for entry in std::fs::read_dir(&templates_dir).with_context(|| {
+            format!(
+                "Failed to read templates directory: {}",
+                templates_dir.display()
+            )
+        })? {
             let entry = entry?;
             let path = entry.path();
             if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
@@ -361,7 +397,11 @@ impl ResourceDiscovery {
             }
         }
 
-        ensure!(!templates.is_empty(), "No Tera templates found in {}", templates_dir.display());
+        ensure!(
+            !templates.is_empty(),
+            "No Tera templates found in {}",
+            templates_dir.display()
+        );
         Ok(templates)
     }
 
@@ -374,9 +414,12 @@ impl ResourceDiscovery {
         );
 
         let mut ontologies = Vec::new();
-        for entry in std::fs::read_dir(&ontology_dir)
-            .with_context(|| format!("Failed to read ontology directory: {}", ontology_dir.display()))?
-        {
+        for entry in std::fs::read_dir(&ontology_dir).with_context(|| {
+            format!(
+                "Failed to read ontology directory: {}",
+                ontology_dir.display()
+            )
+        })? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("ttl") {
@@ -384,7 +427,11 @@ impl ResourceDiscovery {
             }
         }
 
-        ensure!(!ontologies.is_empty(), "No ontology files found in {}", ontology_dir.display());
+        ensure!(
+            !ontologies.is_empty(),
+            "No ontology files found in {}",
+            ontology_dir.display()
+        );
         Ok(ontologies)
     }
 
@@ -458,8 +505,10 @@ impl FileTransaction {
 
     /// Commit all staged writes (ATOMIC: all succeed or all rollback)
     fn commit(&mut self) -> Result<()> {
-        // Phase 1: Write all files
-        for (path, content) in &self.staged {
+        // Phase 1: Write all files - collect paths first to avoid borrow issues
+        let paths_to_write: Vec<_> = self.staged.keys().cloned().collect();
+        for path in &paths_to_write {
+            let content = &self.staged[path];
             if let Err(e) = std::fs::write(path, content) {
                 // Rollback on first failure
                 self.rollback()?;
@@ -573,7 +622,7 @@ impl QueryCache {
 // 13-Stage Pipeline Executor
 // ============================================================================
 
-struct PipelineExecutor {
+pub struct PipelineExecutor {
     params: SyncGgenParams,
 }
 
@@ -603,9 +652,18 @@ impl PipelineExecutor {
                     stage: "2. Discover Resources".to_string(),
                     severity: ErrorSeverity::Error,
                     message: e.to_string(),
-                    suggestion: Some("Ensure workspace has queries/, templates/, and ontology/ directories".to_string()),
+                    suggestion: Some(
+                        "Ensure workspace has queries/, templates/, and ontology/ directories"
+                            .to_string(),
+                    ),
                 });
-                return Ok(Self::build_failed_response(sync_id, start_time, stages, errors, self.params.preview));
+                return Ok(Self::build_failed_response(
+                    sync_id,
+                    start_time,
+                    stages,
+                    errors,
+                    self.params.mode.clone(),
+                ));
             }
         };
         stages.push(stage2);
@@ -620,7 +678,13 @@ impl PipelineExecutor {
                     message: e.to_string(),
                     suggestion: Some("Check ontology/*.ttl files for syntax errors".to_string()),
                 });
-                return Ok(Self::build_failed_response(sync_id, start_time, stages, errors, self.params.preview));
+                return Ok(Self::build_failed_response(
+                    sync_id,
+                    start_time,
+                    stages,
+                    errors,
+                    self.params.mode.clone(),
+                ));
             }
         };
         stages.push(stage3);
@@ -637,7 +701,9 @@ impl PipelineExecutor {
 
         // Stage 5: Execute queries (with caching)
         let mut cache = QueryCache::new(&resources.cache_dir);
-        let (query_results, stage5) = match self.stage_execute_queries(&store, &resources, &mut cache) {
+        let (query_results, stage5) = match self
+            .stage_execute_queries(&store, &resources, &mut cache)
+        {
             Ok(result) => result,
             Err(e) => {
                 errors.push(SyncError {
@@ -646,7 +712,13 @@ impl PipelineExecutor {
                     message: e.to_string(),
                     suggestion: Some("Check SPARQL query syntax and ontology content".to_string()),
                 });
-                return Ok(Self::build_failed_response(sync_id, start_time, stages, errors, self.params.preview));
+                return Ok(Self::build_failed_response(
+                    sync_id,
+                    start_time,
+                    stages,
+                    errors,
+                    self.params.mode.clone(),
+                ));
             }
         };
         stages.push(stage5);
@@ -662,7 +734,8 @@ impl PipelineExecutor {
         stages.push(stage6);
 
         // Stage 7: Render templates
-        let (rendered_files, stage7) = match self.stage_render_templates(&resources, &query_results) {
+        let (rendered_files, stage7) = match self.stage_render_templates(&resources, &query_results)
+        {
             Ok(result) => result,
             Err(e) => {
                 errors.push(SyncError {
@@ -671,7 +744,13 @@ impl PipelineExecutor {
                     message: e.to_string(),
                     suggestion: Some("Check Tera template syntax and context data".to_string()),
                 });
-                return Ok(Self::build_failed_response(sync_id, start_time, stages, errors, self.params.preview));
+                return Ok(Self::build_failed_response(
+                    sync_id,
+                    start_time,
+                    stages,
+                    errors,
+                    self.params.mode.clone(),
+                ));
             }
         };
         stages.push(stage7);
@@ -685,7 +764,7 @@ impl PipelineExecutor {
         stages.push(stage9);
 
         // Stage 10: Atomic write
-        let stage10 = if !self.params.preview {
+        let stage10 = if matches!(self.params.mode, SyncMode::Apply) {
             match self.stage_write_files(workspace, &formatted_files) {
                 Ok(stage) => stage,
                 Err(e) => {
@@ -695,7 +774,13 @@ impl PipelineExecutor {
                         message: e.to_string(),
                         suggestion: Some("Check file permissions and disk space".to_string()),
                     });
-                    return Ok(Self::build_failed_response(sync_id, start_time, stages, errors, self.params.preview));
+                    return Ok(Self::build_failed_response(
+                        sync_id,
+                        start_time,
+                        stages,
+                        errors,
+                        self.params.mode.clone(),
+                    ));
                 }
             }
         } else {
@@ -711,8 +796,12 @@ impl PipelineExecutor {
 
         // Stage 11: Generate audit receipts
         let total_duration_so_far = start_time.elapsed().as_millis() as u64;
-        let (audit_receipt, comprehensive_receipt, stage11) =
-            self.stage_generate_receipt(&sync_id, &resources, &formatted_files, total_duration_so_far);
+        let (audit_receipt, comprehensive_receipt, stage11) = self.stage_generate_receipt(
+            &sync_id,
+            &resources,
+            &formatted_files,
+            total_duration_so_far,
+        );
         stages.push(stage11);
 
         // Stage 12: Verify determinism (hash check)
@@ -736,7 +825,9 @@ impl PipelineExecutor {
         stages.push(stage13);
 
         // Stage 14: Jira Integration (optional)
-        let jira_result = self.stage_jira_integration(workspace, &formatted_files).await;
+        let jira_result = self
+            .stage_jira_integration(workspace, &formatted_files)
+            .await;
 
         // Build response
         let files_generated: Vec<GeneratedFileInfo> = formatted_files
@@ -799,7 +890,7 @@ impl PipelineExecutor {
             audit_receipt,
             statistics,
             errors,
-            preview: self.params.preview,
+            mode: self.params.mode.clone(),
             jira_result,
         })
     }
@@ -829,7 +920,10 @@ impl PipelineExecutor {
         }
     }
 
-    fn stage_discover_resources(&self, workspace: &Path) -> Result<(ResourceDiscovery, StageResult)> {
+    fn stage_discover_resources(
+        &self,
+        workspace: &Path,
+    ) -> Result<(ResourceDiscovery, StageResult)> {
         let start = Instant::now();
         let resources = ResourceDiscovery::discover(workspace)?;
 
@@ -852,18 +946,19 @@ impl PipelineExecutor {
         ))
     }
 
-    fn stage_load_ontologies(&self, resources: &ResourceDiscovery) -> Result<(OxigraphStore, StageResult)> {
+    fn stage_load_ontologies(
+        &self,
+        resources: &ResourceDiscovery,
+    ) -> Result<(TripleStore, StageResult)> {
         let start = Instant::now();
-        let store = OxigraphStore::new()
-            .map_err(|e| anyhow!("Failed to create RDF store: {}", e))?;
+        let store = TripleStore::new()
+            .map_err(|e| anyhow!("Failed to create TripleStore: {}", e))?;
 
         for ontology_path in &resources.ontologies {
-            let content = std::fs::read_to_string(ontology_path)
-                .with_context(|| format!("Failed to read ontology: {}", ontology_path.display()))?;
-
-            store
-                .load_from_reader(oxigraph::io::RdfFormat::Turtle, content.as_bytes())
-                .with_context(|| format!("Failed to parse ontology: {}", ontology_path.display()))?;
+            store.load_turtle(ontology_path)
+                .with_context(|| {
+                    format!("Failed to parse ontology: {}", ontology_path.display())
+                })?;
         }
 
         Ok((
@@ -880,7 +975,7 @@ impl PipelineExecutor {
 
     fn stage_execute_queries(
         &self,
-        store: &OxigraphStore,
+        store: &TripleStore,
         resources: &ResourceDiscovery,
         cache: &mut QueryCache,
     ) -> Result<(HashMap<String, serde_json::Value>, StageResult)> {
@@ -906,7 +1001,9 @@ impl PipelineExecutor {
                 })
                 .collect()
         } else {
-            // Use cache
+            // Use cache - wrap in Mutex for thread safety
+            use std::sync::Mutex;
+            let cache_mutex = Mutex::new(cache);
             resources
                 .queries
                 .par_iter()
@@ -914,8 +1011,15 @@ impl PipelineExecutor {
                     let query_content = std::fs::read_to_string(query_path)?;
                     let cache_key = QueryCache::compute_key(&ontology_content, &query_content);
 
-                    // Try cache first (note: cache is not thread-safe, so we serialize here)
-                    if let Some(cached) = cache.get(&cache_key) {
+                    // Try cache first
+                    // TPS: Handle poisoned mutex - fail fast instead of panicking
+                    let cached = {
+                        let cache_guard = cache_mutex.lock()
+                            .map_err(|e| anyhow!("Cache mutex poisoned: {}", e))?;
+                        cache_guard.get(&cache_key)
+                    };
+                    
+                    if let Some(cached) = cached {
                         let result: serde_json::Value = serde_json::from_str(&cached)?;
                         return Ok((name.clone(), result));
                     }
@@ -923,7 +1027,14 @@ impl PipelineExecutor {
                     // Cache miss: execute query
                     let result = self.execute_sparql_query(store, &query_content)?;
                     let result_json = serde_json::to_string(&result)?;
-                    cache.set(&cache_key, &result_json)?;
+                    
+                    // Store in cache
+                    // TPS: Handle poisoned mutex - fail fast instead of panicking
+                    {
+                        let mut cache_guard = cache_mutex.lock()
+                            .map_err(|e| anyhow!("Cache mutex poisoned: {}", e))?;
+                        cache_guard.set(&cache_key, &result_json)?;
+                    }
 
                     Ok((name.clone(), result))
                 })
@@ -946,30 +1057,53 @@ impl PipelineExecutor {
 
     fn execute_sparql_query(
         &self,
-        store: &OxigraphStore,
+        store: &TripleStore,
         query: &str,
     ) -> Result<serde_json::Value> {
-        use oxigraph::sparql::QueryResults;
-
-        let results = store
-            .query(query)
+        // Use ggen's query_sparql which returns JSON string
+        let json_result = store.query_sparql(query)
             .map_err(|e| anyhow!("SPARQL query failed: {}", e))?;
-
-        match results {
-            QueryResults::Solutions(solutions) => {
+        
+        // Parse JSON from ggen
+        let parsed: serde_json::Value = serde_json::from_str(&json_result)
+            .map_err(|e| anyhow!("Failed to parse query result JSON: {}", e))?;
+        
+        // Convert ggen's format to our expected format
+        // Ggen returns: {"head": {"vars": [...]}, "results": {"bindings": [...]}} for SELECT
+        // Or: {"boolean": true/false} for ASK
+        // Or: {"type": "graph"} for CONSTRUCT/DESCRIBE
+        
+        if let Some(boolean) = parsed.get("boolean") {
+            // ASK query
+            Ok(serde_json::json!({ "boolean": boolean }))
+        } else if let Some(graph_type) = parsed.get("type") {
+            // Graph query
+            Ok(serde_json::json!({ "graph": "triples" }))
+        } else if let Some(results) = parsed.get("results") {
+            // SELECT query - convert bindings to our format
+            if let Some(bindings) = results.get("bindings").and_then(|b| b.as_array()) {
                 let mut rows = Vec::new();
-                for solution in solutions {
-                    let solution = solution.map_err(|e| anyhow!("Solution error: {}", e))?;
-                    let mut row = serde_json::Map::new();
-                    for (var, value) in solution.iter() {
-                        row.insert(var.as_str().to_string(), serde_json::json!(value.to_string()));
+                for binding_obj in bindings {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let mut row = serde_json::Map::new();
+                        for (key, value) in binding_map {
+                            // Ggen returns terms as strings, convert to JSON
+                            if let Some(str_val) = value.as_str() {
+                                row.insert(key.clone(), serde_json::json!(str_val));
+                            } else {
+                                row.insert(key.clone(), value.clone());
+                            }
+                        }
+                        rows.push(serde_json::Value::Object(row));
                     }
-                    rows.push(serde_json::Value::Object(row));
                 }
                 Ok(serde_json::json!({ "results": rows }))
+            } else {
+                Ok(serde_json::json!({ "results": [] }))
             }
-            QueryResults::Boolean(b) => Ok(serde_json::json!({ "boolean": b })),
-            QueryResults::Graph(_) => Ok(serde_json::json!({ "graph": "triples" })),
+        } else {
+            // Unknown format, return as-is
+            Ok(parsed)
         }
     }
 
@@ -1005,8 +1139,14 @@ impl PipelineExecutor {
                 Ok((
                     name.clone(),
                     output,
-                    query_path.file_name().unwrap().to_string_lossy().to_string(),
-                    template_path.file_name().unwrap().to_string_lossy().to_string(),
+                    query_path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| query_path.to_string_lossy().to_string()),
+                    template_path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| template_path.to_string_lossy().to_string()),
                 ))
             })
             .collect();
@@ -1050,7 +1190,10 @@ impl PipelineExecutor {
         }
     }
 
-    fn stage_format_code(&self, files: Vec<(String, String, String, String)>) -> (Vec<(String, String, String, String)>, StageResult) {
+    fn stage_format_code(
+        &self,
+        files: Vec<(String, String, String, String)>,
+    ) -> (Vec<(String, String, String, String)>, StageResult) {
         let start = Instant::now();
 
         // Best effort formatting with rustfmt (don't fail if unavailable)
@@ -1084,7 +1227,11 @@ impl PipelineExecutor {
         Ok(prettyplease::unparse(&syntax_tree))
     }
 
-    fn stage_write_files(&self, workspace: &Path, files: &[(String, String, String, String)]) -> Result<StageResult> {
+    fn stage_write_files(
+        &self,
+        workspace: &Path,
+        files: &[(String, String, String, String)],
+    ) -> Result<StageResult> {
         let start = Instant::now();
         let mut transaction = FileTransaction::new();
 
@@ -1170,7 +1317,7 @@ impl PipelineExecutor {
                 &query_paths,
                 &template_paths,
                 &output_files,
-                self.params.preview,
+                self.params.mode.clone(),
                 total_duration_ms,
             ) {
                 Ok(receipt_obj) => {
@@ -1253,7 +1400,7 @@ impl PipelineExecutor {
         statistics: &SyncStatistics,
         audit_receipt: &Option<AuditReceipt>,
     ) -> Option<StageResult> {
-        use report::{ReportWriter, ReportFormat, InputDiscovery, OntologyInfo};
+        use report::{InputDiscovery, OntologyInfo, ReportFormat, ReportWriter};
 
         // Skip if report format is None
         if matches!(self.params.report_format, ReportFormat::None) {
@@ -1263,19 +1410,29 @@ impl PipelineExecutor {
         let start = Instant::now();
 
         // Create report writer
-        let mut writer = ReportWriter::new(&self.params.workspace_root, self.params.preview);
+        let mut writer = ReportWriter::new(&self.params.workspace_root, self.params.mode.clone());
 
         // Add input discovery
+        let config_rules = extract_config_rules_count(&self.params.workspace_root.join("ggen.toml"))
+            .unwrap_or(0);
         let discovery = InputDiscovery {
             config_path: "ggen.toml".to_string(),
-            config_rules: 0, // TODO: Extract from actual config
-            ontologies: resources.ontologies.iter().map(|p| {
-                let size = std::fs::metadata(p).map(|m| m.len() as usize).unwrap_or(0);
-                OntologyInfo {
-                    path: p.file_name().unwrap_or_default().to_string_lossy().to_string(),
-                    size_bytes: size,
-                }
-            }).collect(),
+            config_rules,
+            ontologies: resources
+                .ontologies
+                .iter()
+                .map(|p| {
+                    let size = std::fs::metadata(p).map(|m| m.len() as usize).unwrap_or(0);
+                    OntologyInfo {
+                        path: p
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                        size_bytes: size,
+                    }
+                })
+                .collect(),
             queries: resources.queries.len(),
             templates: resources.templates.len(),
         };
@@ -1328,8 +1485,14 @@ impl PipelineExecutor {
         };
 
         let (status, details) = match write_result {
-            Ok(_) => (StageStatus::Completed, format!("Report written to {}", report_path)),
-            Err(e) => (StageStatus::Failed, format!("Failed to write report: {}", e)),
+            Ok(_) => (
+                StageStatus::Completed,
+                format!("Report written to {}", report_path),
+            ),
+            Err(e) => (
+                StageStatus::Failed,
+                format!("Failed to write report: {}", e),
+            ),
         };
 
         // Optionally emit receipt and diff
@@ -1344,7 +1507,11 @@ impl PipelineExecutor {
         if self.params.emit_diff {
             // Generate unified diff (placeholder - would need actual implementation)
             let _ = std::fs::create_dir_all("./ggen.out/diffs");
-            let diff_content = format!("# Diff for sync {}\n# {} files changed\n", sync_id, files.len());
+            let diff_content = format!(
+                "# Diff for sync {}\n# {} files changed\n",
+                sync_id,
+                files.len()
+            );
             let _ = std::fs::write(&diff_path, diff_content);
         }
 
@@ -1361,7 +1528,7 @@ impl PipelineExecutor {
         &self,
         _workspace: &Path,
         _files: &[(String, String, String, String)],
-    ) -> Option<()> {
+    ) -> Option<jira_stage::JiraStageResult> {
         // Jira integration is optional and delegated to jira_stage module
         // Stubbed for now to allow compilation
         None
@@ -1377,7 +1544,7 @@ impl PipelineExecutor {
         start_time: Instant,
         stages: Vec<StageResult>,
         errors: Vec<SyncError>,
-        preview: bool,
+        mode: SyncMode,
     ) -> SyncGgenResponse {
         SyncGgenResponse {
             sync_id,
@@ -1402,7 +1569,7 @@ impl PipelineExecutor {
                 cache_misses: 0,
             },
             errors,
-            preview,
+            mode,
             jira_result: None,
         }
     }
@@ -1422,7 +1589,7 @@ mod tests {
     fn test_default_params() {
         let params = SyncGgenParams {
             workspace_root: default_workspace_root(),
-            preview: default_preview_true(),
+            mode: default_sync_mode_preview(),
             force: false,
             report_format: report::ReportFormat::default(),
             emit_receipt: default_true(),
@@ -1430,9 +1597,12 @@ mod tests {
         };
 
         assert_eq!(params.workspace_root, DEFAULT_WORKSPACE_ROOT);
-        assert!(params.preview);  // Preview is now true by default
+        assert!(matches!(params.mode, SyncMode::Preview)); // Preview is now default
         assert!(!params.force);
-        assert!(matches!(params.report_format, report::ReportFormat::Markdown));
+        assert!(matches!(
+            params.report_format,
+            report::ReportFormat::Markdown
+        ));
         assert!(params.emit_receipt);
         assert!(params.emit_diff);
     }
@@ -1441,14 +1611,14 @@ mod tests {
     fn test_explicit_override_preview_false() {
         let params = SyncGgenParams {
             workspace_root: default_workspace_root(),
-            preview: false,  // Explicitly opt-out of preview
+            mode: SyncMode::Apply, // Explicitly set to Apply
             force: false,
             report_format: report::ReportFormat::Json,
             emit_receipt: false,
             emit_diff: false,
         };
 
-        assert!(!params.preview);  // Can still explicitly set to false
+        assert!(matches!(params.mode, SyncMode::Apply)); // Can still explicitly set to Apply
         assert!(matches!(params.report_format, report::ReportFormat::Json));
         assert!(!params.emit_receipt);
         assert!(!params.emit_diff);

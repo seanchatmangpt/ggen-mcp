@@ -33,6 +33,7 @@ fn to_mcp_error(error: anyhow::Error) -> McpError {
 {%- set tools_seen = [] -%}
 {%- set current_tool = "" -%}
 
+{%- if sparql_results -%}
 {%- for row in sparql_results -%}
 {%- set tool_name = row["?toolName"] | default(value="") -%}
 {%- set tool_desc = row["?toolDescription"] | default(value="") -%}

@@ -30,10 +30,7 @@ impl Guard for OutputOverlapGuard {
         if !duplicates.is_empty() {
             return GuardResult::fail(
                 self.name(),
-                format!(
-                    "Duplicate output paths detected: {}",
-                    duplicates.join(", ")
-                ),
+                format!("Duplicate output paths detected: {}", duplicates.join(", ")),
                 "Ensure each generation rule writes to a unique output path",
             );
         }

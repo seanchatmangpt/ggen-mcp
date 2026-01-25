@@ -19,8 +19,7 @@ async fn test_build_fmt_check_metadata() {
 #[tokio::test]
 async fn test_build_fmt_check_executes() {
     let check = BuildFmtCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(60_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(60_000);
 
     let result = check.execute(&context).await;
     assert!(result.is_ok(), "Check should execute without errors");
@@ -36,8 +35,7 @@ async fn test_build_fmt_check_executes() {
 #[tokio::test]
 async fn test_build_fmt_check_provides_remediation_on_failure() {
     let check = BuildFmtCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(60_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(60_000);
 
     let result = check.execute(&context).await.unwrap();
 
@@ -67,8 +65,7 @@ async fn test_build_clippy_check_metadata() {
 #[tokio::test]
 async fn test_build_clippy_check_executes() {
     let check = BuildClippyCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(120_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(120_000);
 
     let result = check.execute(&context).await;
     assert!(result.is_ok(), "Check should execute without errors");
@@ -87,8 +84,7 @@ async fn test_build_clippy_check_executes() {
 #[tokio::test]
 async fn test_build_clippy_check_counts_warnings() {
     let check = BuildClippyCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(120_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(120_000);
 
     let result = check.execute(&context).await.unwrap();
 
@@ -114,8 +110,7 @@ async fn test_build_check_check_metadata() {
 #[tokio::test]
 async fn test_build_check_check_executes() {
     let check = BuildCheckCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(120_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(120_000);
 
     let result = check.execute(&context).await;
     assert!(result.is_ok(), "Check should execute without errors");
@@ -131,8 +126,7 @@ async fn test_build_check_check_executes() {
 #[tokio::test]
 async fn test_build_check_provides_evidence_on_failure() {
     let check = BuildCheckCheck;
-    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"))
-        .with_timeout(120_000);
+    let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp")).with_timeout(120_000);
 
     let result = check.execute(&context).await.unwrap();
 
@@ -154,11 +148,7 @@ async fn test_all_build_checks_have_unique_ids() {
     ];
 
     let ids: std::collections::HashSet<_> = checks.iter().map(|c| c.id()).collect();
-    assert_eq!(
-        ids.len(),
-        3,
-        "All build checks should have unique IDs"
-    );
+    assert_eq!(ids.len(), 3, "All build checks should have unique IDs");
 }
 
 #[tokio::test]

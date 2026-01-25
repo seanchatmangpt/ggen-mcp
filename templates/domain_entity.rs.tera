@@ -10,6 +10,11 @@ vars:
   fields: array
   invariants: array
 ---
+{#- Validate required variables - ensure entity_name is provided -#}
+{%- if not entity_name -%}
+{# ERROR: entity_name is required for domain entity generation -#}
+//! ERROR: Missing required variable 'entity_name'
+{%- else -%}
 //! {{ description }}
 //!
 //! Domain Entity: {{ entity_name | pascal_case }}

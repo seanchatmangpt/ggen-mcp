@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use ggen_mcp::dod::checks::intent::IntentAlignmentCheck;
+use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use std::fs;
 use std::path::PathBuf;
 
@@ -69,7 +69,10 @@ async fn test_intent_check_discovers_recent_markdown() -> Result<()> {
 
     // Create a recent markdown file
     let prd_path = docs_dir.join("PRD.md");
-    fs::write(&prd_path, "# Product Requirements\n\nWHY: This feature solves X")?;
+    fs::write(
+        &prd_path,
+        "# Product Requirements\n\nWHY: This feature solves X",
+    )?;
 
     let context = CheckContext::new(workspace_root);
 
@@ -82,9 +85,10 @@ async fn test_intent_check_discovers_recent_markdown() -> Result<()> {
     assert!(!result.evidence.is_empty());
 
     // Evidence should reference the file
-    let has_prd_evidence = result.evidence.iter().any(|ev| {
-        ev.content.contains("PRD.md")
-    });
+    let has_prd_evidence = result
+        .evidence
+        .iter()
+        .any(|ev| ev.content.contains("PRD.md"));
     assert!(has_prd_evidence, "Should discover PRD.md");
 
     Ok(())
@@ -122,10 +126,14 @@ async fn test_intent_check_provides_remediation() -> Result<()> {
     assert!(!result.remediation.is_empty());
 
     // Remediation should mention WHY
-    let mentions_why = result.remediation.iter().any(|r| {
-        r.contains("WHY") || r.contains("intent")
-    });
-    assert!(mentions_why, "Remediation should guide toward documenting WHY");
+    let mentions_why = result
+        .remediation
+        .iter()
+        .any(|r| r.contains("WHY") || r.contains("intent"));
+    assert!(
+        mentions_why,
+        "Remediation should guide toward documenting WHY"
+    );
 
     Ok(())
 }

@@ -37,6 +37,7 @@ WHERE {
   }
 }
 ORDER BY ?aggregateName ?propertyLabel
+LIMIT 10000
 
 ---
 
@@ -65,6 +66,7 @@ WHERE {
   }
 }
 ORDER BY ?voName ?propertyLabel
+LIMIT 10000
 
 ---
 
@@ -115,6 +117,7 @@ WHERE {
     GROUP BY ?entity
   }
 }
+LIMIT 10000
 
 ---
 
@@ -137,6 +140,7 @@ WHERE {
   OPTIONAL { ?entityDef ggen:dataClass ?dataClass }
 }
 ORDER BY ?entityName
+LIMIT 10000
 
 ---
 
@@ -164,6 +168,7 @@ WHERE {
   }
 }
 ORDER BY ?contextName ?ownedEntity
+LIMIT 10000
 
 ---
 
@@ -190,6 +195,7 @@ WHERE {
   }
 }
 ORDER BY ?repoName ?methodName
+LIMIT 10000
 
 ---
 
@@ -215,6 +221,7 @@ WHERE {
   }
 }
 ORDER BY ?serviceName ?methodName
+LIMIT 10000
 
 ---
 
@@ -254,6 +261,7 @@ WHERE {
   }
 }
 ORDER BY ?itemType ?itemName
+LIMIT 10000
 
 ---
 
@@ -277,6 +285,7 @@ WHERE {
   }
 }
 ORDER BY ?handlerName
+LIMIT 10000
 
 ---
 
@@ -301,3 +310,4 @@ WHERE {
   OPTIONAL { ?policy ddd:verifies ?verifies }
 }
 ORDER BY ?policyName
+LIMIT 10000

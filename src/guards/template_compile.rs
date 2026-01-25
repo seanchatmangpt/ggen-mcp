@@ -49,7 +49,10 @@ impl Guard for TemplateCompileGuard {
 
         GuardResult::pass(
             self.name(),
-            format!("{} template(s) compiled successfully", ctx.template_contents.len()),
+            format!(
+                "{} template(s) compiled successfully",
+                ctx.template_contents.len()
+            ),
         )
     }
 }

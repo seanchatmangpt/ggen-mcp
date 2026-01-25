@@ -45,10 +45,10 @@ impl DodProfile {
     pub fn load_from_file(path: impl AsRef<Path>) -> Result<Self> {
         let content = std::fs::read_to_string(path.as_ref())
             .context(format!("Failed to read profile from {:?}", path.as_ref()))?;
-        
-        let profile: DodProfile = toml::from_str(&content)
-            .context("Failed to parse profile TOML")?;
-        
+
+        let profile: DodProfile =
+            toml::from_str(&content).context("Failed to parse profile TOML")?;
+
         profile.validate()?;
         Ok(profile)
     }
@@ -154,7 +154,8 @@ impl DodProfile {
         }
 
         // Validate thresholds
-        if self.thresholds.min_readiness_score < 0.0 || self.thresholds.min_readiness_score > 100.0 {
+        if self.thresholds.min_readiness_score < 0.0 || self.thresholds.min_readiness_score > 100.0
+        {
             bail!("min_readiness_score must be between 0 and 100");
         }
 

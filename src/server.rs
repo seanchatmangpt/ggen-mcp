@@ -148,7 +148,7 @@ fn build_instructions(recalc_enabled: bool, vba_enabled: bool) -> String {
 
 #[derive(Clone)]
 pub struct SpreadsheetServer {
-    state: Arc<AppState>,
+    pub state: Arc<AppState>,
     tool_router: ToolRouter<SpreadsheetServer>,
 }
 
@@ -194,7 +194,7 @@ impl SpreadsheetServer {
         self.run_stdio().await
     }
 
-    fn ensure_tool_enabled(&self, tool: &str) -> Result<()> {
+    pub fn ensure_tool_enabled(&self, tool: &str) -> Result<()> {
         tracing::info!(tool = tool, "tool invocation requested");
         if self.state.config().is_tool_enabled(tool) {
             Ok(())
@@ -222,7 +222,7 @@ impl SpreadsheetServer {
         }
     }
 
-    async fn run_tool_with_timeout<T, F>(&self, tool: &str, fut: F) -> Result<T>
+    pub async fn run_tool_with_timeout<T, F>(&self, tool: &str, fut: F) -> Result<T>
     where
         F: Future<Output = Result<T>>,
         T: Serialize,
@@ -713,25 +713,6 @@ impl SpreadsheetServer {
     }
 
     #[tool(
-        name = "validate_generated_code",
-        description = "Validate generated code with multi-language support and golden file comparison"
-    )]
-    pub async fn validate_generated_code(
-        &self,
-        Parameters(params): Parameters<tools::ontology_generation::ValidateGeneratedCodeParams>,
-    ) -> Result<Json<tools::ontology_generation::ValidateGeneratedCodeResponse>, McpError> {
-        self.ensure_tool_enabled("validate_generated_code")
-            .map_err(to_mcp_error)?;
-        self.run_tool_with_timeout(
-            "validate_generated_code",
-            tools::ontology_generation::validate_generated_code(params),
-        )
-        .await
-        .map(Json)
-        .map_err(to_mcp_error)
-    }
-
-    #[tool(
         name = "init_ggen_project",
         description = "Initialize a new ggen project with template scaffolding (rust-mcp-server, api-server, domain-model)"
     )]
@@ -918,7 +899,11 @@ impl SpreadsheetServer {
             .map_err(to_mcp_error)?;
         self.run_tool_with_timeout(
             "read_tera_template",
-            tools::tera_authoring::read_tera_template(self.state.clone(), params),
+            async {
+                tools::tera_authoring::read_tera_template(self.state.clone(), params)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))
+            },
         )
         .await
         .map(Json)
@@ -937,7 +922,11 @@ impl SpreadsheetServer {
             .map_err(to_mcp_error)?;
         self.run_tool_with_timeout(
             "validate_tera_template",
-            tools::tera_authoring::validate_tera_template(self.state.clone(), params),
+            async {
+                tools::tera_authoring::validate_tera_template(self.state.clone(), params)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))
+            },
         )
         .await
         .map(Json)
@@ -956,7 +945,11 @@ impl SpreadsheetServer {
             .map_err(to_mcp_error)?;
         self.run_tool_with_timeout(
             "test_tera_template",
-            tools::tera_authoring::test_tera_template(self.state.clone(), params),
+            async {
+                tools::tera_authoring::test_tera_template(self.state.clone(), params)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))
+            },
         )
         .await
         .map(Json)
@@ -975,7 +968,11 @@ impl SpreadsheetServer {
             .map_err(to_mcp_error)?;
         self.run_tool_with_timeout(
             "create_tera_template",
-            tools::tera_authoring::create_tera_template(self.state.clone(), params),
+            async {
+                tools::tera_authoring::create_tera_template(self.state.clone(), params)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))
+            },
         )
         .await
         .map(Json)
@@ -994,7 +991,11 @@ impl SpreadsheetServer {
             .map_err(to_mcp_error)?;
         self.run_tool_with_timeout(
             "list_template_variables",
-            tools::tera_authoring::list_template_variables(self.state.clone(), params),
+            async {
+                tools::tera_authoring::list_template_variables(self.state.clone(), params)
+                    .await
+                    .map_err(|e| anyhow::anyhow!("{}", e))
+            },
         )
         .await
         .map(Json)

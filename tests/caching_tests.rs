@@ -48,10 +48,7 @@ fn test_ontology_cache_basic_operations() {
     assert!(retrieved.is_some(), "should retrieve cached ontology");
 
     // Test contains
-    assert!(
-        cache.contains(&id),
-        "cache should contain the ontology"
-    );
+    assert!(cache.contains(&id), "cache should contain the ontology");
 }
 
 #[test]
@@ -147,10 +144,7 @@ fn test_ontology_cache_ttl_expiration() {
 
     // Should be expired and evicted on access
     let result = cache.get(&id);
-    assert!(
-        result.is_none(),
-        "should return None for expired entry"
-    );
+    assert!(result.is_none(), "should return None for expired entry");
 }
 
 #[test]
@@ -235,10 +229,7 @@ fn test_ontology_cache_size_estimation() {
     cache.put(id.clone(), store, None, Some(20000));
 
     let stats = cache.stats();
-    assert!(
-        stats.total_size_bytes > 0,
-        "total size should be tracked"
-    );
+    assert!(stats.total_size_bytes > 0, "total size should be tracked");
 }
 
 #[test]
@@ -335,7 +326,10 @@ fn test_query_cache_different_queries_different_fingerprints() {
     let fp1 = QueryResultCache::fingerprint(query1);
     let fp2 = QueryResultCache::fingerprint(query2);
 
-    assert_ne!(fp1, fp2, "different queries should have different fingerprints");
+    assert_ne!(
+        fp1, fp2,
+        "different queries should have different fingerprints"
+    );
 }
 
 #[test]
@@ -403,7 +397,10 @@ fn test_query_cache_invalidation_by_tag() {
 
     assert!(!cache.contains("query1"), "query1 should be invalidated");
     assert!(!cache.contains("query2"), "query2 should be invalidated");
-    assert!(cache.contains("query3"), "query3 should remain (different tag)");
+    assert!(
+        cache.contains("query3"),
+        "query3 should remain (different tag)"
+    );
 }
 
 #[test]

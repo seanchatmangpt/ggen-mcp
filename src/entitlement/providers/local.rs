@@ -33,13 +33,13 @@ impl LocalFileProvider {
     }
 
     fn load_license(path: &Path) -> Result<HashSet<Capability>> {
-        let content =
-            fs::read_to_string(path).context("Failed to read license file")?;
+        let content = fs::read_to_string(path).context("Failed to read license file")?;
 
-        let license: License = serde_json::from_str(&content)
-            .context("Failed to parse license JSON")?;
+        let license: License =
+            serde_json::from_str(&content).context("Failed to parse license JSON")?;
 
-        // TODO: Verify signature (future enhancement with crypto)
+        // FUTURE: Verify signature (requires crypto library integration)
+        // See: https://docs.rs/ring/latest/ring/ for signature verification
         // For now, just log a warning
         tracing::warn!("License signature verification not implemented");
 
@@ -145,14 +145,18 @@ mod tests {
 
         let provider = LocalFileProvider::new(temp_file.path().to_str().unwrap()).unwrap();
 
-        assert!(provider
-            .check_capability(Capability::ApplyMode)
-            .await
-            .unwrap());
-        assert!(!provider
-            .check_capability(Capability::JiraCreate)
-            .await
-            .unwrap());
+        assert!(
+            provider
+                .check_capability(Capability::ApplyMode)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !provider
+                .check_capability(Capability::JiraCreate)
+                .await
+                .unwrap()
+        );
     }
 
     #[tokio::test]

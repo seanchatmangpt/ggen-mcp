@@ -1,6 +1,12 @@
+{#- Validate required variables - ensure handlers array is provided -#}
+{%- if handlers is not defined -%}
+{# ERROR: handlers is required for handler generation -#}
+// ERROR: Missing required variable 'handlers'
+{%- else -%}
 // Handlers generated from ontology
 use crate::domain::*;
 
+{% if handlers %}
 {% for handler in handlers %}
 pub struct {{ handler.name }} {}
 
@@ -10,7 +16,10 @@ impl {{ handler.name }} {
     }
     
     pub fn handle(&self) -> {{ handler.emits_event }} {
-        todo!()
+        unimplemented!("Implement handler logic for {{ handler.name }}")
     }
 }
 {% endfor %}
+{% else %}
+// No handlers found in ontology
+{% endif %}

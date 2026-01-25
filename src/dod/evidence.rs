@@ -102,11 +102,7 @@ impl EvidenceBundleGenerator {
     ///
     /// # Returns
     /// Path to the created bundle directory (or .tar.gz if compressed)
-    pub fn generate(
-        &self,
-        result: &DodValidationResult,
-        workspace_root: &Path,
-    ) -> Result<PathBuf> {
+    pub fn generate(&self, result: &DodValidationResult, workspace_root: &Path) -> Result<PathBuf> {
         // Validate inputs
         self.validate_inputs(result, workspace_root)?;
 
@@ -117,10 +113,8 @@ impl EvidenceBundleGenerator {
         // Create subdirectories
         let logs_dir = bundle_dir.join("logs");
         let artifacts_dir = bundle_dir.join("artifacts");
-        fs::create_dir_all(&logs_dir)
-            .context("Failed to create logs directory")?;
-        fs::create_dir_all(&artifacts_dir)
-            .context("Failed to create artifacts directory")?;
+        fs::create_dir_all(&logs_dir).context("Failed to create logs directory")?;
+        fs::create_dir_all(&artifacts_dir).context("Failed to create artifacts directory")?;
 
         // Track collected files for manifest
         let mut files = HashMap::new();
@@ -159,8 +153,7 @@ impl EvidenceBundleGenerator {
         if self.compress {
             let archive_path = self.compress_bundle(&bundle_dir)?;
             // Remove uncompressed directory
-            fs::remove_dir_all(&bundle_dir)
-                .context("Failed to remove uncompressed bundle")?;
+            fs::remove_dir_all(&bundle_dir).context("Failed to remove uncompressed bundle")?;
             Ok(archive_path)
         } else {
             Ok(bundle_dir)
@@ -171,7 +164,10 @@ impl EvidenceBundleGenerator {
     fn validate_inputs(&self, result: &DodValidationResult, workspace_root: &Path) -> Result<()> {
         // Validate workspace exists
         if !workspace_root.exists() {
-            anyhow::bail!("Workspace root does not exist: {}", workspace_root.display());
+            anyhow::bail!(
+                "Workspace root does not exist: {}",
+                workspace_root.display()
+            );
         }
 
         // Check disk space (ensure at least 100MB available)
@@ -203,8 +199,10 @@ impl EvidenceBundleGenerator {
         let timestamp = Self::generate_timestamp();
         let bundle_dir = self.output_dir.join(timestamp);
 
-        fs::create_dir_all(&bundle_dir)
-            .context(format!("Failed to create bundle directory: {}", bundle_dir.display()))?;
+        fs::create_dir_all(&bundle_dir).context(format!(
+            "Failed to create bundle directory: {}",
+            bundle_dir.display()
+        ))?;
 
         Ok(bundle_dir)
     }
@@ -229,8 +227,11 @@ impl EvidenceBundleGenerator {
             return Ok(());
         }
 
-        fs::copy(src, dest)
-            .context(format!("Failed to copy {} to {}", src.display(), dest.display()))?;
+        fs::copy(src, dest).context(format!(
+            "Failed to copy {} to {}",
+            src.display(),
+            dest.display()
+        ))?;
 
         // Calculate hash and size
         let content = fs::read(dest)?;
@@ -238,17 +239,21 @@ impl EvidenceBundleGenerator {
         let size_bytes = content.len() as u64;
 
         // Get relative path for manifest
-        let rel_path = dest.file_name()
+        let rel_path = dest
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown")
             .to_string();
 
-        files.insert(rel_path.clone(), FileEntry {
-            path: rel_path,
-            size_bytes,
-            hash,
-            file_type,
-        });
+        files.insert(
+            rel_path.clone(),
+            FileEntry {
+                path: rel_path,
+                size_bytes,
+                hash,
+                file_type,
+            },
+        );
 
         Ok(())
     }
@@ -276,12 +281,15 @@ impl EvidenceBundleGenerator {
             let size_bytes = log_content.len() as u64;
             let rel_path = format!("logs/{}", log_filename);
 
-            files.insert(rel_path.clone(), FileEntry {
-                path: rel_path,
-                size_bytes,
-                hash,
-                file_type: FileType::Log,
-            });
+            files.insert(
+                rel_path.clone(),
+                FileEntry {
+                    path: rel_path,
+                    size_bytes,
+                    hash,
+                    file_type: FileType::Log,
+                },
+            );
         }
 
         Ok(())
@@ -300,7 +308,12 @@ impl EvidenceBundleGenerator {
         if !check.evidence.is_empty() {
             log.push_str("Evidence:\n");
             for (i, evidence) in check.evidence.iter().enumerate() {
-                log.push_str(&format!("  {}. {:?}: {}\n", i + 1, evidence.kind, evidence.content));
+                log.push_str(&format!(
+                    "  {}. {:?}: {}\n",
+                    i + 1,
+                    evidence.kind,
+                    evidence.content
+                ));
             }
             log.push('\n');
         }
@@ -351,12 +364,15 @@ impl EvidenceBundleGenerator {
             let size_bytes = content.len() as u64;
             let manifest_path = format!("artifacts/{}", rel_path);
 
-            files.insert(manifest_path.clone(), FileEntry {
-                path: manifest_path,
-                size_bytes,
-                hash,
-                file_type: FileType::Artifact,
-            });
+            files.insert(
+                manifest_path.clone(),
+                FileEntry {
+                    path: manifest_path,
+                    size_bytes,
+                    hash,
+                    file_type: FileType::Artifact,
+                },
+            );
         }
 
         Ok(())
@@ -384,11 +400,13 @@ impl EvidenceBundleGenerator {
     /// Write manifest to bundle directory
     fn write_manifest(&self, manifest: &EvidenceManifest, bundle_dir: &Path) -> Result<()> {
         let manifest_path = bundle_dir.join("manifest.json");
-        let json = serde_json::to_string_pretty(manifest)
-            .context("Failed to serialize manifest")?;
+        let json =
+            serde_json::to_string_pretty(manifest).context("Failed to serialize manifest")?;
 
-        let mut file = fs::File::create(&manifest_path)
-            .context(format!("Failed to create manifest: {}", manifest_path.display()))?;
+        let mut file = fs::File::create(&manifest_path).context(format!(
+            "Failed to create manifest: {}",
+            manifest_path.display()
+        ))?;
         file.write_all(json.as_bytes())?;
 
         tracing::info!(
@@ -402,8 +420,8 @@ impl EvidenceBundleGenerator {
 
     /// Compress bundle into tar.gz archive
     fn compress_bundle(&self, bundle_dir: &Path) -> Result<PathBuf> {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
 
         let bundle_name = bundle_dir
             .file_name()
@@ -415,8 +433,10 @@ impl EvidenceBundleGenerator {
             .unwrap_or_else(|| Path::new("."))
             .join(format!("{}.tar.gz", bundle_name));
 
-        let tar_gz = fs::File::create(&archive_path)
-            .context(format!("Failed to create archive: {}", archive_path.display()))?;
+        let tar_gz = fs::File::create(&archive_path).context(format!(
+            "Failed to create archive: {}",
+            archive_path.display()
+        ))?;
         let enc = GzEncoder::new(tar_gz, Compression::default());
         let mut tar = tar::Builder::new(enc);
 
@@ -424,8 +444,7 @@ impl EvidenceBundleGenerator {
         tar.append_dir_all(bundle_name, bundle_dir)
             .context("Failed to add files to archive")?;
 
-        tar.finish()
-            .context("Failed to finalize archive")?;
+        tar.finish().context("Failed to finalize archive")?;
 
         tracing::info!(archive = %archive_path.display(), "Bundle compressed");
         Ok(archive_path)
@@ -524,8 +543,8 @@ mod tests {
 
     #[test]
     fn with_compression_enables_compression() {
-        let generator = EvidenceBundleGenerator::new(PathBuf::from("test-output"))
-            .with_compression();
+        let generator =
+            EvidenceBundleGenerator::new(PathBuf::from("test-output")).with_compression();
         assert!(generator.compress);
     }
 
@@ -580,6 +599,11 @@ mod tests {
 
         let validation = generator.validate_inputs(&result, &non_existent);
         assert!(validation.is_err());
-        assert!(validation.unwrap_err().to_string().contains("does not exist"));
+        assert!(
+            validation
+                .unwrap_err()
+                .to_string()
+                .contains("does not exist")
+        );
     }
 }

@@ -25,6 +25,7 @@ WHERE {
   OPTIONAL { ?guard ggen:message ?message }
 }
 ORDER BY ?severity DESC ?guardName
+LIMIT 10000
 
 ---
 
@@ -56,6 +57,7 @@ WHERE {
     AS ?proofRequired
   )
 }
+LIMIT 10000
 
 ---
 
@@ -73,6 +75,7 @@ WHERE {
   OPTIONAL { ?guard ggen:priority ?bindingPriority }
 }
 ORDER BY ?toolName ?bindingPriority DESC ?guardName
+LIMIT 10000
 
 ---
 
@@ -92,6 +95,7 @@ WHERE {
   }
 }
 ORDER BY ?category ?guardName
+LIMIT 10000
 
 ---
 
@@ -108,6 +112,7 @@ WHERE {
   FILTER(?severity = "CRITICAL" || ?severity = "HIGH")
 }
 ORDER BY ?severity DESC ?constraintName
+LIMIT 10000
 
 ---
 
@@ -126,6 +131,7 @@ WHERE {
   OPTIONAL { ?field ggen:hashAlgorithm ?hashAlgorithm }
 }
 ORDER BY ?guardName ?proofField
+LIMIT 10000
 
 ---
 
@@ -143,3 +149,4 @@ WHERE {
   OPTIONAL { ?guard ggen:condition ?guardCondition }
 }
 ORDER BY ?policyName ?enforcedGuard
+LIMIT 10000

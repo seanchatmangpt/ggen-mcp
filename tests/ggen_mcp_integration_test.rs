@@ -13,7 +13,7 @@
 use anyhow::{Context, Result};
 use rmcp::transport::Pipe;
 use rmcp::{Model, Protocol};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use spreadsheet_mcp::config::ServerConfig;
 use spreadsheet_mcp::server::SpreadsheetServer;
 use spreadsheet_mcp::state::AppState;
@@ -94,7 +94,9 @@ async fn test_read_config_via_mcp() -> Result<()> {
 
     // Create sample ggen.toml
     let config_path = harness._workspace.path().join("ggen.toml");
-    std::fs::write(&config_path, r#"
+    std::fs::write(
+        &config_path,
+        r#"
 [ontology]
 file = "ontology/mcp-domain.ttl"
 
@@ -105,7 +107,8 @@ query = { file = "queries/test.rq" }
 template = { file = "templates/test.tera" }
 output_file = "src/generated/test.rs"
 mode = "Overwrite"
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ReadConfig operation
     // Arguments: { "operation": { "type": "read_config", "config_path": "ggen.toml" } }
@@ -119,7 +122,9 @@ async fn test_validate_config_via_mcp() -> Result<()> {
 
     // Create sample ggen.toml
     let config_path = harness._workspace.path().join("ggen.toml");
-    std::fs::write(&config_path, r#"
+    std::fs::write(
+        &config_path,
+        r#"
 [ontology]
 file = "ontology/mcp-domain.ttl"
 
@@ -130,7 +135,8 @@ query = { file = "queries/test.rq" }
 template = { file = "templates/test.tera" }
 output_file = "src/generated/test.rs"
 mode = "Overwrite"
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ValidateConfig operation
     // Arguments: { "operation": { "type": "validate_config", "config_path": "ggen.toml" } }
@@ -144,10 +150,13 @@ async fn test_add_rule_via_mcp() -> Result<()> {
 
     // Create sample ggen.toml
     let config_path = harness._workspace.path().join("ggen.toml");
-    std::fs::write(&config_path, r#"
+    std::fs::write(
+        &config_path,
+        r#"
 [ontology]
 file = "ontology/mcp-domain.ttl"
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with AddRule operation
     // Arguments include rule definition
@@ -161,7 +170,9 @@ async fn test_update_rule_via_mcp() -> Result<()> {
 
     // Create sample ggen.toml with existing rule
     let config_path = harness._workspace.path().join("ggen.toml");
-    std::fs::write(&config_path, r#"
+    std::fs::write(
+        &config_path,
+        r#"
 [ontology]
 file = "ontology/mcp-domain.ttl"
 
@@ -172,7 +183,8 @@ query = { file = "queries/test.rq" }
 template = { file = "templates/test.tera" }
 output_file = "src/generated/test.rs"
 mode = "Overwrite"
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with UpdateRule operation
 
@@ -185,7 +197,9 @@ async fn test_remove_rule_via_mcp() -> Result<()> {
 
     // Create sample ggen.toml with rule to remove
     let config_path = harness._workspace.path().join("ggen.toml");
-    std::fs::write(&config_path, r#"
+    std::fs::write(
+        &config_path,
+        r#"
 [ontology]
 file = "ontology/mcp-domain.ttl"
 
@@ -196,7 +210,8 @@ query = { file = "queries/test.rq" }
 template = { file = "templates/test.tera" }
 output_file = "src/generated/test.rs"
 mode = "Overwrite"
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with RemoveRule operation
 
@@ -215,13 +230,16 @@ async fn test_read_template_via_mcp() -> Result<()> {
     let template_dir = harness._workspace.path().join("templates");
     std::fs::create_dir_all(&template_dir)?;
     let template_path = template_dir.join("test.tera");
-    std::fs::write(&template_path, r#"
+    std::fs::write(
+        &template_path,
+        r#"
 struct {{ struct_name }} {
     {%- for field in fields %}
     pub {{ field.name }}: {{ field.type }},
     {%- endfor %}
 }
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ReadTemplate operation
 
@@ -236,13 +254,16 @@ async fn test_validate_template_via_mcp() -> Result<()> {
     let template_dir = harness._workspace.path().join("templates");
     std::fs::create_dir_all(&template_dir)?;
     let template_path = template_dir.join("test.tera");
-    std::fs::write(&template_path, r#"
+    std::fs::write(
+        &template_path,
+        r#"
 struct {{ struct_name }} {
     {%- for field in fields %}
     pub {{ field.name }}: {{ field.type }},
     {%- endfor %}
 }
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ValidateTemplate operation
 
@@ -257,13 +278,16 @@ async fn test_test_template_via_mcp() -> Result<()> {
     let template_dir = harness._workspace.path().join("templates");
     std::fs::create_dir_all(&template_dir)?;
     let template_path = template_dir.join("test.tera");
-    std::fs::write(&template_path, r#"
+    std::fs::write(
+        &template_path,
+        r#"
 struct {{ struct_name }} {
     {%- for field in fields %}
     pub {{ field.name }}: {{ field.type }},
     {%- endfor %}
 }
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with TestTemplate operation
 
@@ -288,13 +312,16 @@ async fn test_list_template_vars_via_mcp() -> Result<()> {
     let template_dir = harness._workspace.path().join("templates");
     std::fs::create_dir_all(&template_dir)?;
     let template_path = template_dir.join("test.tera");
-    std::fs::write(&template_path, r#"
+    std::fs::write(
+        &template_path,
+        r#"
 struct {{ struct_name }} {
     {%- for field in fields %}
     pub {{ field.name }}: {{ field.type }},
     {%- endfor %}
 }
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ListTemplateVars operation
 
@@ -313,14 +340,17 @@ async fn test_read_ontology_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
 @prefix ddd: <http://ggen-mcp.dev/ontology/ddd#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 mcp:TestEntity a ddd:Entity ;
     rdfs:label "Test Entity" .
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ReadOntology operation
 
@@ -335,14 +365,17 @@ async fn test_validate_ontology_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
 @prefix ddd: <http://ggen-mcp.dev/ontology/ddd#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 mcp:TestEntity a ddd:Entity ;
     rdfs:label "Test Entity" .
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ValidateOntology operation
 
@@ -357,9 +390,12 @@ async fn test_add_entity_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with AddEntity operation
 
@@ -374,13 +410,16 @@ async fn test_add_property_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
 @prefix ddd: <http://ggen-mcp.dev/ontology/ddd#> .
 
 mcp:TestEntity a ddd:Entity ;
     rdfs:label "Test Entity" .
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with AddProperty operation
 
@@ -395,14 +434,17 @@ async fn test_query_ontology_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
 @prefix ddd: <http://ggen-mcp.dev/ontology/ddd#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 mcp:TestEntity a ddd:Entity ;
     rdfs:label "Test Entity" .
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with QueryOntology operation
 
@@ -421,9 +463,12 @@ async fn test_sync_ggen_via_mcp() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("mcp-domain.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 @prefix mcp: <http://ggen-mcp.dev/ontology/mcp#> .
-"#)?;
+"#,
+    )?;
 
     // Would call: sync_ggen tool
 
@@ -532,9 +577,12 @@ async fn test_error_on_invalid_template() -> Result<()> {
     let template_dir = harness._workspace.path().join("templates");
     std::fs::create_dir_all(&template_dir)?;
     let template_path = template_dir.join("invalid.tera");
-    std::fs::write(&template_path, r#"
+    std::fs::write(
+        &template_path,
+        r#"
 {{ unclosed_block
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ValidateTemplate
     // Expected: error response about unmatched block
@@ -550,9 +598,12 @@ async fn test_error_on_malformed_ontology() -> Result<()> {
     let ontology_dir = harness._workspace.path().join("ontology");
     std::fs::create_dir_all(&ontology_dir)?;
     let ontology_path = ontology_dir.join("invalid.ttl");
-    std::fs::write(&ontology_path, r#"
+    std::fs::write(
+        &ontology_path,
+        r#"
 invalid turtle syntax !@#$
-"#)?;
+"#,
+    )?;
 
     // Would call: manage_ggen_resource with ValidateOntology
     // Expected: error response about invalid syntax

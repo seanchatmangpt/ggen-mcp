@@ -9,8 +9,8 @@
 //! - Profile weight application
 //! - Verdict computation logic
 
-use ggen_mcp::dod::*;
 use async_trait::async_trait;
+use ggen_mcp::dod::*;
 use std::path::PathBuf;
 
 // ============================================================================
@@ -553,15 +553,21 @@ async fn scoring_multiple_categories() {
     assert_eq!(result.score, 70.0);
 
     assert_eq!(result.category_scores.len(), 8); // All categories present
-    assert!(result
-        .category_scores
-        .contains_key(&CheckCategory::BuildCorrectness));
-    assert!(result
-        .category_scores
-        .contains_key(&CheckCategory::TestTruth));
-    assert!(result
-        .category_scores
-        .contains_key(&CheckCategory::GgenPipeline));
+    assert!(
+        result
+            .category_scores
+            .contains_key(&CheckCategory::BuildCorrectness)
+    );
+    assert!(
+        result
+            .category_scores
+            .contains_key(&CheckCategory::TestTruth)
+    );
+    assert!(
+        result
+            .category_scores
+            .contains_key(&CheckCategory::GgenPipeline)
+    );
 }
 
 // ============================================================================

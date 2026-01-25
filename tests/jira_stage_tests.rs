@@ -306,5 +306,10 @@ fn test_get_auth_token_failure() {
 
     let result = config.get_auth_token();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("AUTH_TOKEN_MISSING"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("AUTH_TOKEN_MISSING")
+    );
 }

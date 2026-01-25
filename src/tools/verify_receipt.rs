@@ -181,8 +181,8 @@ impl ReceiptVerifier {
         let receipt_content = fs::read_to_string(receipt_path)
             .context(format!("Failed to read receipt from '{}'", receipt_path))?;
 
-        let receipt: Receipt = serde_json::from_str(&receipt_content)
-            .context("Failed to parse receipt JSON")?;
+        let receipt: Receipt =
+            serde_json::from_str(&receipt_content).context("Failed to parse receipt JSON")?;
 
         let mut checks = Vec::new();
 
@@ -215,7 +215,11 @@ impl ReceiptVerifier {
             format!("✅ Receipt valid ({} checks passed)", checks.len())
         } else {
             let failed = checks.iter().filter(|c| !c.passed).count();
-            format!("❌ Receipt invalid ({} of {} checks failed)", failed, checks.len())
+            format!(
+                "❌ Receipt invalid ({} of {} checks failed)",
+                failed,
+                checks.len()
+            )
         };
 
         let receipt_info = Some(ReceiptInfo {
@@ -294,7 +298,9 @@ impl ReceiptVerifier {
         let mut mismatched = Vec::new();
 
         // Verify config hash
-        if let Err(e) = Self::verify_file_hash(&receipt.inputs.config.path, &receipt.inputs.config.hash) {
+        if let Err(e) =
+            Self::verify_file_hash(&receipt.inputs.config.path, &receipt.inputs.config.hash)
+        {
             mismatched.push(format!("config: {}", e));
         } else {
             verified += 1;
@@ -404,7 +410,11 @@ impl ReceiptVerifier {
         Ok(VerificationCheck {
             name: "Output File Hashes".to_string(),
             passed: true,
-            message: format!("{} of {} output files verified", verified, receipt.outputs.len()),
+            message: format!(
+                "{} of {} output files verified",
+                verified,
+                receipt.outputs.len()
+            ),
         })
     }
 
@@ -575,7 +585,11 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.valid, "Expected valid receipt, got: {}", result.summary);
+        assert!(
+            result.valid,
+            "Expected valid receipt, got: {}",
+            result.summary
+        );
         assert_eq!(result.checks.len(), 7);
         assert!(result.checks.iter().all(|c| c.passed));
     }

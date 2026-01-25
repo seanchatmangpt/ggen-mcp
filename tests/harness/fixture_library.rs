@@ -47,7 +47,7 @@ use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tempfile::{tempdir, TempDir};
+use tempfile::{TempDir, tempdir};
 
 // =============================================================================
 // Core Types and Traits

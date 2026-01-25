@@ -234,13 +234,13 @@ impl QueryAnalyzer {
 
     fn calculate_nesting_depth(&self, query: &str) -> usize {
         let mut max_depth = 0;
-        let mut current_depth = 0;
+        let mut current_depth: i32 = 0;
 
         for ch in query.chars() {
             match ch {
                 '{' => {
                     current_depth += 1;
-                    max_depth = max_depth.max(current_depth);
+                    max_depth = max_depth.max(current_depth as usize);
                 }
                 '}' => {
                     current_depth = current_depth.saturating_sub(1);
@@ -296,7 +296,7 @@ impl QueryAnalyzer {
         let has_specific_predicates = query.contains("rdfs:label") || query.contains("rdf:type");
         let has_literals = query.contains('\"');
 
-        let mut selectivity = 0.3; // Base selectivity
+        let mut selectivity: f32 = 0.3; // Base selectivity
 
         if has_filters {
             selectivity += 0.2;
@@ -814,9 +814,10 @@ impl SlowQueryDetector {
                 history.remove(0);
             }
 
-            // Check for regression
+            // Check for regression - need to avoid borrowing self mutably while calling calculate_average
             if self.config.alert_on_regression && history.len() > 1 {
-                let avg_previous = self.calculate_average(&history[..history.len() - 1]);
+                let history_slice: Vec<_> = history[..history.len() - 1].to_vec();
+                let avg_previous = self.calculate_average(&history_slice);
                 let current = metrics.execution_time.as_secs_f64();
                 let regression = (current - avg_previous) / avg_previous;
 

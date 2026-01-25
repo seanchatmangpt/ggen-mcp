@@ -463,7 +463,7 @@ pub fn load_aggregate_roots(
     solutions: Vec<QuerySolution>,
 ) -> Result<Vec<AggregateRootResult>, MappingError> {
     // Validate first
-    AggregateRootResult::validator().validate_results(solutions.clone())?;
+    AggregateRootResult::validator().validate_results(&solutions)?;
 
     // Then map
     super::result_mapper::ResultMapper::map_many(solutions)
@@ -471,13 +471,13 @@ pub fn load_aggregate_roots(
 
 /// Load and validate MCP tools from query results
 pub fn load_mcp_tools(solutions: Vec<QuerySolution>) -> Result<Vec<McpToolResult>, MappingError> {
-    McpToolResult::validator().validate_results(solutions.clone())?;
+    McpToolResult::validator().validate_results(&solutions)?;
     super::result_mapper::ResultMapper::map_many(solutions)
 }
 
 /// Load and validate guards from query results
 pub fn load_guards(solutions: Vec<QuerySolution>) -> Result<Vec<GuardResult>, MappingError> {
-    GuardResult::validator().validate_results(solutions.clone())?;
+    GuardResult::validator().validate_results(&solutions)?;
     super::result_mapper::ResultMapper::map_many(solutions)
 }
 

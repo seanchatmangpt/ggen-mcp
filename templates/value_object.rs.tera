@@ -1,3 +1,8 @@
+{#- Validate required variables - ensure vo_name is provided -#}
+{%- if not vo_name -%}
+{# ERROR: vo_name is required for value object generation -#}
+// ERROR: Missing required variable 'vo_name'
+{%- else -%}
 // Generated ValueObject: {{ vo_name }}
 use std::fmt;
 

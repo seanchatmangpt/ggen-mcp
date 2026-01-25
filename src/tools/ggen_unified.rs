@@ -33,7 +33,6 @@ pub enum ResourceOperation {
     // ========================================================================
     // ggen.toml operations (5)
     // ========================================================================
-
     /// Read and parse ggen.toml configuration
     ReadConfig {
         /// Path to ggen.toml (default: "ggen.toml")
@@ -98,7 +97,6 @@ pub enum ResourceOperation {
     // ========================================================================
     // Turtle ontology operations (5)
     // ========================================================================
-
     /// Read and parse Turtle ontology
     ReadOntology {
         /// Path to Turtle (.ttl) file
@@ -175,7 +173,6 @@ pub enum ResourceOperation {
     // ========================================================================
     // Tera template operations (5)
     // ========================================================================
-
     /// Read and analyze Tera template
     ReadTemplate {
         /// Template name or inline content (use "inline:<content>")

@@ -238,10 +238,22 @@ async fn test_metrics_collection_overhead() -> Result<()> {
     // Build validation result
     let summary = ValidationSummary {
         checks_total: results.len(),
-        checks_passed: results.iter().filter(|r| r.status == CheckStatus::Pass).count(),
-        checks_failed: results.iter().filter(|r| r.status == CheckStatus::Fail).count(),
-        checks_warned: results.iter().filter(|r| r.status == CheckStatus::Warn).count(),
-        checks_skipped: results.iter().filter(|r| r.status == CheckStatus::Skip).count(),
+        checks_passed: results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Pass)
+            .count(),
+        checks_failed: results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Fail)
+            .count(),
+        checks_warned: results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Warn)
+            .count(),
+        checks_skipped: results
+            .iter()
+            .filter(|r| r.status == CheckStatus::Skip)
+            .count(),
     };
 
     let validation_result = DodValidationResult {
@@ -262,7 +274,8 @@ async fn test_metrics_collection_overhead() -> Result<()> {
 
     // Collect metrics
     let start_metrics = Instant::now();
-    let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
+    let metrics =
+        spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
     let duration_metrics = start_metrics.elapsed();
 
     println!(
@@ -279,7 +292,10 @@ async fn test_metrics_collection_overhead() -> Result<()> {
     );
 
     // Verify metrics are correct
-    assert_eq!(metrics.checks_executed, validation_result.check_results.len());
+    assert_eq!(
+        metrics.checks_executed,
+        validation_result.check_results.len()
+    );
     assert!(metrics.total_duration.as_millis() > 0);
 
     Ok(())
@@ -373,7 +389,8 @@ async fn test_evidence_size_limits() -> Result<()> {
         duration_ms: 100,
     };
 
-    let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
+    let metrics =
+        spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
 
     // Verify evidence size is tracked
     assert!(
@@ -446,7 +463,10 @@ async fn test_concurrent_executions() -> Result<()> {
     }
     let total_duration = start.elapsed();
 
-    println!("Concurrent executions completed in {:.2}s", total_duration.as_secs_f64());
+    println!(
+        "Concurrent executions completed in {:.2}s",
+        total_duration.as_secs_f64()
+    );
 
     // All should complete successfully
     for (i, result, duration) in results {

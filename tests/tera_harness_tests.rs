@@ -100,10 +100,7 @@ fn test_context_builder() {
 fn test_render_domain_entity_template() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "domain_entity.rs.tera",
-        "user_aggregate.json",
-    );
+    let result = harness.render_with_context_file("domain_entity.rs.tera", "user_aggregate.json");
 
     assert!(result.is_ok(), "Should render domain entity template");
 
@@ -149,10 +146,7 @@ fn test_render_command_template() {
 fn test_render_domain_service_template() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "domain_service.rs.tera",
-        "domain_service.json",
-    );
+    let result = harness.render_with_context_file("domain_service.rs.tera", "domain_service.json");
 
     assert!(result.is_ok(), "Should render domain service template");
 
@@ -166,10 +160,7 @@ fn test_render_domain_service_template() {
 fn test_render_mcp_tool_handler_template() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "mcp_tool_handler.rs.tera",
-        "mcp_tool.json",
-    );
+    let result = harness.render_with_context_file("mcp_tool_handler.rs.tera", "mcp_tool.json");
 
     assert!(result.is_ok(), "Should render MCP tool handler template");
 
@@ -343,7 +334,10 @@ fn test_validate_rust_syntax_security_checks() {
     let result = harness.validate_rust_syntax(unsafe_code);
     assert!(result.is_ok());
     let validation = result.unwrap();
-    assert!(!validation.warnings.is_empty(), "Should warn about unsafe code");
+    assert!(
+        !validation.warnings.is_empty(),
+        "Should warn about unsafe code"
+    );
 }
 
 #[test]
@@ -483,7 +477,10 @@ fn test_verify_output_not_contains() {
         .expect("Failed to render");
 
     let result = harness.verify_not_contains("not_contain_test", &["Goodbye", "Error"]);
-    assert!(result.is_ok(), "Output should not contain forbidden strings");
+    assert!(
+        result.is_ok(),
+        "Output should not contain forbidden strings"
+    );
 }
 
 // ============================================================================
@@ -549,11 +546,11 @@ fn test_coverage_mcp_templates_render() {
     let mut harness = create_harness().expect("Failed to create harness");
 
     // Test MCP tool handler with pagination
-    let result = harness.render_with_context_file(
-        "mcp_tool_handler.rs.tera",
-        "list_tools.json",
+    let result = harness.render_with_context_file("mcp_tool_handler.rs.tera", "list_tools.json");
+    assert!(
+        result.is_ok(),
+        "MCP tool handler with pagination should render"
     );
-    assert!(result.is_ok(), "MCP tool handler with pagination should render");
 
     let output = result.unwrap();
     assert!(output.contains("DEFAULT_LIMIT"));
@@ -606,10 +603,7 @@ fn test_full_ddd_entity_generation() {
 fn test_full_mcp_tool_generation() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "mcp_tool_handler.rs.tera",
-        "mcp_tool.json",
-    );
+    let result = harness.render_with_context_file("mcp_tool_handler.rs.tera", "mcp_tool.json");
     assert!(result.is_ok(), "Should generate complete MCP tool");
 
     let output = result.unwrap();
@@ -663,10 +657,7 @@ fn test_invalid_context_json() {
 fn test_domain_entity_with_invariants() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "domain_entity.rs.tera",
-        "user_aggregate.json",
-    );
+    let result = harness.render_with_context_file("domain_entity.rs.tera", "user_aggregate.json");
     assert!(result.is_ok());
 
     let output = result.unwrap();
@@ -679,10 +670,7 @@ fn test_domain_entity_with_invariants() {
 fn test_domain_entity_with_builder_pattern() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "domain_entity.rs.tera",
-        "user_aggregate.json",
-    );
+    let result = harness.render_with_context_file("domain_entity.rs.tera", "user_aggregate.json");
     assert!(result.is_ok());
 
     let output = result.unwrap();
@@ -695,10 +683,7 @@ fn test_domain_entity_with_builder_pattern() {
 fn test_domain_service_with_async() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "domain_service.rs.tera",
-        "domain_service.json",
-    );
+    let result = harness.render_with_context_file("domain_service.rs.tera", "domain_service.json");
     assert!(result.is_ok());
 
     let output = result.unwrap();
@@ -710,10 +695,7 @@ fn test_domain_service_with_async() {
 fn test_mcp_tool_with_filters() {
     let mut harness = create_harness().expect("Failed to create harness");
 
-    let result = harness.render_with_context_file(
-        "mcp_tool_handler.rs.tera",
-        "list_tools.json",
-    );
+    let result = harness.render_with_context_file("mcp_tool_handler.rs.tera", "list_tools.json");
     assert!(result.is_ok());
 
     let output = result.unwrap();

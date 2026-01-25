@@ -47,8 +47,8 @@ async fn define_tool_in_ontology(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures/workflows/mcp_tool/01_ontology.ttl");
+    let fixture_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/workflows/mcp_tool/01_ontology.ttl");
 
     let ontology = if fixture_path.exists() {
         load_ontology_fixture(&fixture_path).await?
@@ -66,20 +66,20 @@ async fn define_tool_in_ontology(
     let tool_definition = parse_tool_definition(&ontology)?;
     store_data(context.clone(), "tool_definition", tool_definition.clone()).await;
 
-    harness.emit_event(
-        "tool_defined",
-        json!({
-            "tool_name": tool_definition["name"],
-            "ontology_size": ontology.len()
-        }),
-        "define_tool_in_ontology"
-    ).await;
+    harness
+        .emit_event(
+            "tool_defined",
+            json!({
+                "tool_name": tool_definition["name"],
+                "ontology_size": ontology.len()
+            }),
+            "define_tool_in_ontology",
+        )
+        .await;
 
-    harness.audit(
-        "tool_defined_in_ontology",
-        "developer",
-        tool_definition
-    ).await;
+    harness
+        .audit("tool_defined_in_ontology", "developer", tool_definition)
+        .await;
 
     transition_state(context.clone(), "tool_defined", "define_tool_in_ontology").await;
 
@@ -93,11 +93,13 @@ async fn generate_tool_handler(
 ) -> Result<()> {
     let ontology = {
         let ctx = context.read().await;
-        ctx.ontology.clone()
+        ctx.ontology
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("Ontology not loaded"))?
     };
 
-    let tool_definition = get_data(context.clone(), "tool_definition").await
+    let tool_definition = get_data(context.clone(), "tool_definition")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Tool definition not found"))?;
 
     // Generate handler code from ontology
@@ -105,16 +107,23 @@ async fn generate_tool_handler(
 
     save_generated_code(context.clone(), "tool_handler", handler_code.clone()).await;
 
-    harness.emit_event(
-        "handler_generated",
-        json!({
-            "tool_name": tool_definition["name"],
-            "lines": handler_code.lines().count()
-        }),
-        "generate_tool_handler"
-    ).await;
+    harness
+        .emit_event(
+            "handler_generated",
+            json!({
+                "tool_name": tool_definition["name"],
+                "lines": handler_code.lines().count()
+            }),
+            "generate_tool_handler",
+        )
+        .await;
 
-    transition_state(context.clone(), "handler_generated", "generate_tool_handler").await;
+    transition_state(
+        context.clone(),
+        "handler_generated",
+        "generate_tool_handler",
+    )
+    .await;
 
     Ok(())
 }
@@ -126,7 +135,8 @@ async fn compile_handler(
 ) -> Result<()> {
     let handler_code = {
         let ctx = context.read().await;
-        ctx.generated_code.get("tool_handler")
+        ctx.generated_code
+            .get("tool_handler")
             .ok_or_else(|| anyhow::anyhow!("Handler code not found"))?
             .clone()
     };
@@ -141,11 +151,13 @@ async fn compile_handler(
         return Err(anyhow::anyhow!("Failed to write handler code"));
     }
 
-    harness.emit_event(
-        "handler_compiled",
-        json!({ "path": handler_file.to_string_lossy() }),
-        "compile_handler"
-    ).await;
+    harness
+        .emit_event(
+            "handler_compiled",
+            json!({ "path": handler_file.to_string_lossy() }),
+            "compile_handler",
+        )
+        .await;
 
     transition_state(context.clone(), "handler_compiled", "compile_handler").await;
 
@@ -157,10 +169,12 @@ async fn register_with_mcp(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let tool_definition = get_data(context.clone(), "tool_definition").await
+    let tool_definition = get_data(context.clone(), "tool_definition")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Tool definition not found"))?;
 
-    let tool_name = tool_definition["name"].as_str()
+    let tool_name = tool_definition["name"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("Tool name not found"))?;
 
     // Create tool registration
@@ -176,23 +190,27 @@ async fn register_with_mcp(
 
     register_tool(context.clone(), registration.clone()).await;
 
-    harness.emit_event(
-        "tool_registered",
-        json!({
-            "tool_name": tool_name,
-            "input_schema": registration.input_schema
-        }),
-        "register_with_mcp"
-    ).await;
+    harness
+        .emit_event(
+            "tool_registered",
+            json!({
+                "tool_name": tool_name,
+                "input_schema": registration.input_schema
+            }),
+            "register_with_mcp",
+        )
+        .await;
 
-    harness.audit(
-        "tool_registered_with_mcp",
-        "system",
-        json!({
-            "tool_name": tool_name,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        })
-    ).await;
+    harness
+        .audit(
+            "tool_registered_with_mcp",
+            "system",
+            json!({
+                "tool_name": tool_name,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }),
+        )
+        .await;
 
     transition_state(context.clone(), "tool_registered", "register_with_mcp").await;
 
@@ -204,10 +222,12 @@ async fn invoke_tool_via_protocol(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let tool_definition = get_data(context.clone(), "tool_definition").await
+    let tool_definition = get_data(context.clone(), "tool_definition")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Tool definition not found"))?;
 
-    let tool_name = tool_definition["name"].as_str()
+    let tool_name = tool_definition["name"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("Tool name not found"))?;
 
     // Create MCP protocol tester
@@ -227,24 +247,28 @@ async fn invoke_tool_via_protocol(
     store_data(context.clone(), "invocation_request", arguments).await;
     store_data(context.clone(), "invocation_response", response.clone()).await;
 
-    harness.emit_event(
-        "tool_invoked",
-        json!({
-            "tool_name": tool_name,
-            "request_id": response["id"]
-        }),
-        "invoke_tool_via_protocol"
-    ).await;
+    harness
+        .emit_event(
+            "tool_invoked",
+            json!({
+                "tool_name": tool_name,
+                "request_id": response["id"]
+            }),
+            "invoke_tool_via_protocol",
+        )
+        .await;
 
-    harness.audit(
-        "tool_invoked_via_protocol",
-        "client",
-        json!({
-            "tool_name": tool_name,
-            "request": arguments,
-            "response_id": response["id"]
-        })
-    ).await;
+    harness
+        .audit(
+            "tool_invoked_via_protocol",
+            "client",
+            json!({
+                "tool_name": tool_name,
+                "request": arguments,
+                "response_id": response["id"]
+            }),
+        )
+        .await;
 
     transition_state(context.clone(), "tool_invoked", "invoke_tool_via_protocol").await;
 
@@ -256,7 +280,8 @@ async fn validate_tool_response(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let response = get_data(context.clone(), "invocation_response").await
+    let response = get_data(context.clone(), "invocation_response")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Invocation response not found"))?;
 
     // Validate JSON-RPC 2.0 response structure
@@ -270,7 +295,8 @@ async fn validate_tool_response(
 
     // Check for errors
     if !response["error"].is_null() {
-        let error_msg = response["error"]["message"].as_str()
+        let error_msg = response["error"]["message"]
+            .as_str()
             .unwrap_or("Unknown error");
         return Err(anyhow::anyhow!("Tool invocation failed: {}", error_msg));
     }
@@ -280,21 +306,33 @@ async fn validate_tool_response(
         return Err(anyhow::anyhow!("Missing result in response"));
     }
 
-    store_data(context.clone(), "validation_result", json!({
-        "valid": true,
-        "response_id": response["id"]
-    })).await;
-
-    harness.emit_event(
-        "response_validated",
+    store_data(
+        context.clone(),
+        "validation_result",
         json!({
             "valid": true,
             "response_id": response["id"]
         }),
-        "validate_tool_response"
-    ).await;
+    )
+    .await;
 
-    transition_state(context.clone(), "response_validated", "validate_tool_response").await;
+    harness
+        .emit_event(
+            "response_validated",
+            json!({
+                "valid": true,
+                "response_id": response["id"]
+            }),
+            "validate_tool_response",
+        )
+        .await;
+
+    transition_state(
+        context.clone(),
+        "response_validated",
+        "validate_tool_response",
+    )
+    .await;
 
     Ok(())
 }
@@ -324,11 +362,13 @@ async fn verify_audit_log(
 
     store_data(context.clone(), "audit_verified", json!(true)).await;
 
-    harness.emit_event(
-        "audit_verified",
-        json!({ "entries": audit_log.len() }),
-        "verify_audit_log"
-    ).await;
+    harness
+        .emit_event(
+            "audit_verified",
+            json!({ "entries": audit_log.len() }),
+            "verify_audit_log",
+        )
+        .await;
 
     transition_state(context.clone(), "audit_verified", "verify_audit_log").await;
 
@@ -356,7 +396,8 @@ async fn assert_invocation_succeeded(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let response = get_data(context.clone(), "invocation_response").await
+    let response = get_data(context.clone(), "invocation_response")
+        .await
         .ok_or_else(|| anyhow::anyhow!("No invocation response found"))?;
 
     if !response["error"].is_null() {
@@ -374,7 +415,8 @@ async fn assert_response_valid(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let validation = get_data(context.clone(), "validation_result").await
+    let validation = get_data(context.clone(), "validation_result")
+        .await
         .ok_or_else(|| anyhow::anyhow!("Validation result not found"))?;
 
     if validation["valid"] != json!(true) {
@@ -388,7 +430,8 @@ async fn assert_audit_complete(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let audit_verified = get_data(context.clone(), "audit_verified").await
+    let audit_verified = get_data(context.clone(), "audit_verified")
+        .await
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
@@ -448,10 +491,12 @@ fn parse_tool_definition(ontology: &str) -> Result<serde_json::Value> {
 
 /// Generate tool handler code
 fn generate_tool_handler_code(_ontology: &str, tool_def: &serde_json::Value) -> Result<String> {
-    let tool_name = tool_def["name"].as_str()
+    let tool_name = tool_def["name"]
+        .as_str()
         .ok_or_else(|| anyhow::anyhow!("Tool name not found"))?;
 
-    Ok(format!(r#"
+    Ok(format!(
+        r#"
 use anyhow::Result;
 use serde::{{Deserialize, Serialize}};
 use serde_json::Value;

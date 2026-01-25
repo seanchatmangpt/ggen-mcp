@@ -6,7 +6,7 @@
 use ggen_mcp::state::AppState;
 use ggen_mcp::tools::ggen_config::{GenerationMode, GenerationRule};
 use ggen_mcp::tools::ggen_unified::{
-    manage_ggen_resource, ManageGgenResourceParams, ResourceOperation,
+    ManageGgenResourceParams, ResourceOperation, manage_ggen_resource,
 };
 use ggen_mcp::tools::tera_authoring;
 use ggen_mcp::tools::turtle_authoring::{EntityName, EntityType, PropertyName, PropertySpec};
@@ -444,7 +444,12 @@ async fn test_create_template_operation() {
     assert_eq!(response.operation, "create_template");
     assert_eq!(response.metadata.category, "template");
     assert!(response.result["template"].is_string());
-    assert!(response.result["template"].as_str().unwrap().contains("struct"));
+    assert!(
+        response.result["template"]
+            .as_str()
+            .unwrap()
+            .contains("struct")
+    );
 }
 
 #[tokio::test]

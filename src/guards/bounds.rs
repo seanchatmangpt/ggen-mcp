@@ -132,16 +132,10 @@ impl Guard for BoundsGuard {
             ("max_query_size", MAX_QUERY_SIZE.to_string()),
             ("max_total_output_size", MAX_TOTAL_OUTPUT_SIZE.to_string()),
             ("actual_rules", ctx.generation_rules.len().to_string()),
-            (
-                "actual_ontologies",
-                ctx.ontology_contents.len().to_string(),
-            ),
+            ("actual_ontologies", ctx.ontology_contents.len().to_string()),
             ("actual_templates", ctx.template_contents.len().to_string()),
             ("actual_queries", ctx.query_contents.len().to_string()),
-            (
-                "estimated_output_size",
-                estimated_output_size.to_string(),
-            ),
+            ("estimated_output_size", estimated_output_size.to_string()),
         ];
 
         GuardResult::pass_with_metadata(

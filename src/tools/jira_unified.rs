@@ -48,7 +48,7 @@ const MAX_RESULTS_DEFAULT: usize = 100;
 // Unified Tool Parameters
 // =============================================================================
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ManageJiraParams {
     /// Workbook or Fork ID
     pub workbook_or_fork_id: String,
@@ -238,10 +238,8 @@ pub async fn manage_jira_integration(
     validate_common_params(&params)?;
 
     // Create Jira client
-    let jira_client = JiraClient::new(
-        params.jira_base_url.clone(),
-        params.jira_auth_token.clone(),
-    )?;
+    let jira_client =
+        JiraClient::new(params.jira_base_url.clone(), params.jira_auth_token.clone())?;
 
     // Dispatch to operation-specific handler
     let (operation_name, result, api_calls) = match params.operation.clone() {
@@ -250,7 +248,8 @@ pub async fn manage_jira_integration(
             max_results,
             fields,
         } => {
-            let (result, calls) = handle_query_tickets(&jira_client, jql_query, max_results, fields).await?;
+            let (result, calls) =
+                handle_query_tickets(&jira_client, jql_query, max_results, fields).await?;
             ("query_tickets".to_string(), result, calls)
         }
         JiraOperation::CreateTickets {
@@ -350,7 +349,11 @@ pub async fn manage_jira_integration(
     let duration_ms = start.elapsed().as_millis() as u64;
     let items_processed = match &result {
         JiraOperationResult::Query { total_count, .. } => *total_count,
-        JiraOperationResult::CreateTickets { tickets_created, tickets_failed, .. } => tickets_created + tickets_failed,
+        JiraOperationResult::CreateTickets {
+            tickets_created,
+            tickets_failed,
+            ..
+        } => tickets_created + tickets_failed,
         JiraOperationResult::Import { rows_imported, .. } => *rows_imported,
         JiraOperationResult::Sync { report } => report.created + report.updated + report.skipped,
         JiraOperationResult::Dashboard { total_rows, .. } => *total_rows,
@@ -379,7 +382,12 @@ async fn handle_query_tickets(
 ) -> Result<(JiraOperationResult, usize)> {
     info!("Querying Jira: {}", jql_query);
 
-    let default_fields = vec!["summary".to_string(), "status".to_string(), "created".to_string(), "updated".to_string()];
+    let default_fields = vec![
+        "summary".to_string(),
+        "status".to_string(),
+        "created".to_string(),
+        "updated".to_string(),
+    ];
     let query_fields = if fields.is_empty() {
         default_fields
     } else {
@@ -393,11 +401,37 @@ async fn handle_query_tickets(
         .into_iter()
         .take(max_results)
         .map(|issue| {
-            let summary = issue.fields.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let status = issue.fields.get("status").and_then(|v| v.get("name")).and_then(|v| v.as_str()).unwrap_or("Unknown").to_string();
-            let assignee = issue.fields.get("assignee").and_then(|v| v.get("displayName")).and_then(|v| v.as_str()).map(|s| s.to_string());
-            let created = issue.fields.get("created").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let updated = issue.fields.get("updated").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let summary = issue
+                .fields
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let status = issue
+                .fields
+                .get("status")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown")
+                .to_string();
+            let assignee = issue
+                .fields
+                .get("assignee")
+                .and_then(|v| v.get("displayName"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let created = issue
+                .fields
+                .get("created")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let updated = issue
+                .fields
+                .get("updated")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
 
             let mut fields_map = HashMap::new();
             for (key, value) in issue.fields.as_object().unwrap_or(&serde_json::Map::new()) {
@@ -437,7 +471,10 @@ async fn handle_create_tickets(
     start_row: u32,
     max_tickets: usize,
 ) -> Result<(JiraOperationResult, usize)> {
-    info!("Creating Jira tickets from {} sheet {} (dry_run: {})", workbook_id, sheet_name, dry_run);
+    info!(
+        "Creating Jira tickets from {} sheet {} (dry_run: {})",
+        workbook_id, sheet_name, dry_run
+    );
 
     // Delegate to existing jira_export logic
     let params = crate::tools::jira_export::CreateJiraTicketsParams {
@@ -455,7 +492,8 @@ async fn handle_create_tickets(
         max_tickets,
     };
 
-    let response = crate::tools::jira_export::create_jira_tickets_from_spreadsheet(state, params).await?;
+    let response =
+        crate::tools::jira_export::create_jira_tickets_from_spreadsheet(state, params).await?;
 
     let results = response
         .results
@@ -490,9 +528,16 @@ async fn handle_import_tickets(
     fields: Vec<String>,
     start_row: usize,
 ) -> Result<(JiraOperationResult, usize)> {
-    info!("Importing Jira tickets to {} sheet {}", workbook_or_fork_id, sheet_name);
+    info!(
+        "Importing Jira tickets to {} sheet {}",
+        workbook_or_fork_id, sheet_name
+    );
 
-    let default_fields = vec!["summary".to_string(), "status".to_string(), "priority".to_string()];
+    let default_fields = vec![
+        "summary".to_string(),
+        "status".to_string(),
+        "priority".to_string(),
+    ];
     let import_fields = if fields.is_empty() {
         default_fields
     } else {
@@ -533,30 +578,41 @@ async fn handle_sync_to_spreadsheet(
     start_row: usize,
     conflict_resolution: ConflictResolution,
 ) -> Result<(JiraOperationResult, usize)> {
-    info!("Syncing Jira → Spreadsheet (fork: {}, sheet: {})", fork_id, sheet_name);
+    info!(
+        "Syncing Jira → Spreadsheet (fork: {}, sheet: {})",
+        fork_id, sheet_name
+    );
 
     // Delegate to existing jira_integration logic
-    let params = crate::tools::jira_integration::SyncJiraToSpreadsheetParams {
-        fork_id: fork_id.to_string(),
-        sheet_name: sheet_name.to_string(),
-        jira_base_url: _client.base_url.clone(),
-        jira_auth_token: _client.auth_token.clone(),
-        jql_query,
-        column_mapping,
-        start_row,
-        conflict_resolution,
-    };
+    #[cfg(not(feature = "recalc"))]
+    {
+        return Err(anyhow!("Sync to spreadsheet requires fork support (enable recalc feature)"));
+    }
 
-    let response = crate::tools::jira_integration::sync_jira_to_spreadsheet(state, params).await?;
+    #[cfg(feature = "recalc")]
+    {
+        let params = crate::tools::jira_integration::SyncJiraToSpreadsheetParams {
+            fork_id: fork_id.to_string(),
+            sheet_name: sheet_name.to_string(),
+            jira_base_url: _client.base_url.clone(),
+            jira_auth_token: _client.auth_token.clone(),
+            jql_query,
+            column_mapping,
+            start_row,
+            conflict_resolution,
+        };
 
-    let api_calls = response.report.created + response.report.updated;
+        let response = crate::tools::jira_integration::sync_jira_to_spreadsheet(state, params).await?;
 
-    Ok((
-        JiraOperationResult::Sync {
-            report: response.report,
-        },
-        api_calls,
-    ))
+        let api_calls = response.report.created + response.report.updated;
+
+        Ok((
+            JiraOperationResult::Sync {
+                report: response.report,
+            },
+            api_calls,
+        ))
+    }
 }
 
 async fn handle_sync_to_jira(
@@ -570,7 +626,10 @@ async fn handle_sync_to_jira(
     end_row: Option<usize>,
     conflict_resolution: ConflictResolution,
 ) -> Result<(JiraOperationResult, usize)> {
-    info!("Syncing Spreadsheet → Jira (workbook: {}, sheet: {})", workbook_or_fork_id, sheet_name);
+    info!(
+        "Syncing Spreadsheet → Jira (workbook: {}, sheet: {})",
+        workbook_or_fork_id, sheet_name
+    );
 
     // Delegate to existing jira_integration logic
     let params = crate::tools::jira_integration::SyncSpreadsheetToJiraParams {
@@ -605,7 +664,10 @@ async fn handle_create_dashboard(
     jql_query: String,
     views: Vec<DashboardView>,
 ) -> Result<(JiraOperationResult, usize)> {
-    info!("Creating Jira dashboard in {} sheet {}", workbook_or_fork_id, sheet_name);
+    info!(
+        "Creating Jira dashboard in {} sheet {}",
+        workbook_or_fork_id, sheet_name
+    );
 
     let default_views = if views.is_empty() {
         vec![DashboardView::Summary, DashboardView::ByStatus]
@@ -658,7 +720,8 @@ fn validate_common_params(params: &ManageJiraParams) -> Result<()> {
     validate_non_empty_string("jira_base_url", &params.jira_base_url)?;
     validate_non_empty_string("jira_auth_token", &params.jira_auth_token)?;
 
-    if !params.jira_base_url.starts_with("http://") && !params.jira_base_url.starts_with("https://") {
+    if !params.jira_base_url.starts_with("http://") && !params.jira_base_url.starts_with("https://")
+    {
         return Err(anyhow!("jira_base_url must start with http:// or https://"));
     }
 
@@ -682,36 +745,55 @@ fn write_tickets_to_sheet(
     let sheet = if book.get_sheet_by_name(sheet_name).is_some() {
         book.get_sheet_by_name_mut(sheet_name).unwrap()
     } else {
-        book.new_sheet(sheet_name).map_err(|e| anyhow!("Failed to create sheet: {}", e))?;
+        book.new_sheet(sheet_name)
+            .map_err(|e| anyhow!("Failed to create sheet: {}", e))?;
         book.get_sheet_by_name_mut(sheet_name).unwrap()
     };
 
     // Write header row
     let header_row = start_row - 1;
-    sheet.get_cell_mut(&format!("A{}", header_row)).set_value("Key");
+    let cell_ref = format!("A{}", header_row);
+    sheet
+        .get_cell_mut(cell_ref.as_str())
+        .set_value("Key");
     for (idx, field) in fields.iter().enumerate() {
         let col = column_letter(idx + 1);
-        sheet.get_cell_mut(&format!("{}{}", col, header_row)).set_value(field);
+        let cell_ref = format!("{}{}", col, header_row);
+        sheet
+            .get_cell_mut(cell_ref.as_str())
+            .set_value(field);
     }
 
     // Write data rows
     for (row_idx, issue) in issues.iter().enumerate() {
         let row_num = start_row + row_idx;
-        sheet.get_cell_mut(&format!("A{}", row_num)).set_value(&issue.key);
+        let cell_ref = format!("A{}", row_num);
+        sheet
+            .get_cell_mut(cell_ref.as_str())
+            .set_value(&issue.key);
 
         for (col_idx, field) in fields.iter().enumerate() {
             let col = column_letter(col_idx + 1);
-            let value = issue.fields.get(field).and_then(|v| {
-                if let Some(s) = v.as_str() {
-                    Some(s.to_string())
-                } else if let Some(obj) = v.as_object() {
-                    obj.get("name").and_then(|n| n.as_str()).map(|s| s.to_string())
-                } else {
-                    Some(v.to_string())
-                }
-            }).unwrap_or_default();
+            let value = issue
+                .fields
+                .get(field)
+                .and_then(|v| {
+                    if let Some(s) = v.as_str() {
+                        Some(s.to_string())
+                    } else if let Some(obj) = v.as_object() {
+                        obj.get("name")
+                            .and_then(|n| n.as_str())
+                            .map(|s| s.to_string())
+                    } else {
+                        Some(v.to_string())
+                    }
+                })
+                .unwrap_or_default();
 
-            sheet.get_cell_mut(&format!("{}{}", col, row_num)).set_value(value);
+            let cell_ref = format!("{}{}", col, row_num);
+            sheet
+                .get_cell_mut(cell_ref.as_str())
+                .set_value(value);
         }
     }
 
@@ -739,7 +821,8 @@ fn create_dashboard_views(
         let sheet = if book.get_sheet_by_name(&view_sheet_name).is_some() {
             book.get_sheet_by_name_mut(&view_sheet_name).unwrap()
         } else {
-            book.new_sheet(&view_sheet_name).map_err(|e| anyhow!("Failed to create sheet: {}", e))?;
+            book.new_sheet(&view_sheet_name)
+                .map_err(|e| anyhow!("Failed to create sheet: {}", e))?;
             book.get_sheet_by_name_mut(&view_sheet_name).unwrap()
         };
 
@@ -777,17 +860,33 @@ fn create_summary_view(
     sheet.get_cell_mut("A2").set_value("Total Tickets");
     sheet.get_cell_mut("B2").set_value(issues.len().to_string());
 
-    let open_count = issues.iter().filter(|i| {
-        i.fields.get("status").and_then(|v| v.get("name")).and_then(|v| v.as_str()) == Some("Open")
-    }).count();
+    let open_count = issues
+        .iter()
+        .filter(|i| {
+            i.fields
+                .get("status")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str())
+                == Some("Open")
+        })
+        .count();
     sheet.get_cell_mut("A3").set_value("Open");
     sheet.get_cell_mut("B3").set_value(open_count.to_string());
 
-    let in_progress_count = issues.iter().filter(|i| {
-        i.fields.get("status").and_then(|v| v.get("name")).and_then(|v| v.as_str()) == Some("In Progress")
-    }).count();
+    let in_progress_count = issues
+        .iter()
+        .filter(|i| {
+            i.fields
+                .get("status")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str())
+                == Some("In Progress")
+        })
+        .count();
     sheet.get_cell_mut("A4").set_value("In Progress");
-    sheet.get_cell_mut("B4").set_value(in_progress_count.to_string());
+    sheet
+        .get_cell_mut("B4")
+        .set_value(in_progress_count.to_string());
 
     Ok(())
 }
@@ -798,7 +897,9 @@ fn create_by_status_view(
 ) -> Result<()> {
     let mut status_counts: HashMap<String, usize> = HashMap::new();
     for issue in issues {
-        let status = issue.fields.get("status")
+        let status = issue
+            .fields
+            .get("status")
             .and_then(|v| v.get("name"))
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
@@ -811,8 +912,12 @@ fn create_by_status_view(
 
     for (idx, (status, count)) in status_counts.iter().enumerate() {
         let row = idx + 2;
-        sheet.get_cell_mut(&format!("A{}", row)).set_value(status);
-        sheet.get_cell_mut(&format!("B{}", row)).set_value(count.to_string());
+        let cell_a = format!("A{}", row);
+        let cell_b = format!("B{}", row);
+        sheet.get_cell_mut(cell_a.as_str()).set_value(status);
+        sheet
+            .get_cell_mut(cell_b.as_str())
+            .set_value(count.to_string());
     }
 
     Ok(())
@@ -824,7 +929,9 @@ fn create_by_priority_view(
 ) -> Result<()> {
     let mut priority_counts: HashMap<String, usize> = HashMap::new();
     for issue in issues {
-        let priority = issue.fields.get("priority")
+        let priority = issue
+            .fields
+            .get("priority")
             .and_then(|v| v.get("name"))
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
@@ -837,8 +944,12 @@ fn create_by_priority_view(
 
     for (idx, (priority, count)) in priority_counts.iter().enumerate() {
         let row = idx + 2;
-        sheet.get_cell_mut(&format!("A{}", row)).set_value(priority);
-        sheet.get_cell_mut(&format!("B{}", row)).set_value(count.to_string());
+        let cell_a = format!("A{}", row);
+        let cell_b = format!("B{}", row);
+        sheet.get_cell_mut(cell_a.as_str()).set_value(priority);
+        sheet
+            .get_cell_mut(cell_b.as_str())
+            .set_value(count.to_string());
     }
 
     Ok(())
@@ -850,7 +961,9 @@ fn create_by_assignee_view(
 ) -> Result<()> {
     let mut assignee_counts: HashMap<String, usize> = HashMap::new();
     for issue in issues {
-        let assignee = issue.fields.get("assignee")
+        let assignee = issue
+            .fields
+            .get("assignee")
             .and_then(|v| v.get("displayName"))
             .and_then(|v| v.as_str())
             .unwrap_or("Unassigned")
@@ -863,8 +976,12 @@ fn create_by_assignee_view(
 
     for (idx, (assignee, count)) in assignee_counts.iter().enumerate() {
         let row = idx + 2;
-        sheet.get_cell_mut(&format!("A{}", row)).set_value(assignee);
-        sheet.get_cell_mut(&format!("B{}", row)).set_value(count.to_string());
+        let cell_a = format!("A{}", row);
+        let cell_b = format!("B{}", row);
+        sheet.get_cell_mut(cell_a.as_str()).set_value(assignee);
+        sheet
+            .get_cell_mut(cell_b.as_str())
+            .set_value(count.to_string());
     }
 
     Ok(())
@@ -882,22 +999,43 @@ fn create_timeline_view(
 
     for (idx, issue) in issues.iter().enumerate() {
         let row = idx + 2;
-        sheet.get_cell_mut(&format!("A{}", row)).set_value(&issue.key);
+        let cell_a = format!("A{}", row);
+        sheet
+            .get_cell_mut(cell_a.as_str())
+            .set_value(&issue.key);
 
-        let summary = issue.fields.get("summary").and_then(|v| v.as_str()).unwrap_or("");
-        sheet.get_cell_mut(&format!("B{}", row)).set_value(summary);
+        let summary = issue
+            .fields
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let cell_b = format!("B{}", row);
+        sheet.get_cell_mut(cell_b.as_str()).set_value(summary);
 
-        let created = issue.fields.get("created").and_then(|v| v.as_str()).unwrap_or("");
-        sheet.get_cell_mut(&format!("C{}", row)).set_value(created);
+        let created = issue
+            .fields
+            .get("created")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let cell_c = format!("C{}", row);
+        sheet.get_cell_mut(cell_c.as_str()).set_value(created);
 
-        let updated = issue.fields.get("updated").and_then(|v| v.as_str()).unwrap_or("");
-        sheet.get_cell_mut(&format!("D{}", row)).set_value(updated);
+        let updated = issue
+            .fields
+            .get("updated")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let cell_d = format!("D{}", row);
+        sheet.get_cell_mut(cell_d.as_str()).set_value(updated);
 
-        let status = issue.fields.get("status")
+        let status = issue
+            .fields
+            .get("status")
             .and_then(|v| v.get("name"))
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        sheet.get_cell_mut(&format!("E{}", row)).set_value(status);
+        let cell_e = format!("E{}", row);
+        sheet.get_cell_mut(cell_e.as_str()).set_value(status);
     }
 
     Ok(())

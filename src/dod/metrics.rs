@@ -155,24 +155,44 @@ impl DodMetrics {
         summary.push_str(&format!("DoD Metrics Summary\n"));
         summary.push_str(&format!("==================\n\n"));
 
-        summary.push_str(&format!("Total Duration: {:.2}s\n", self.total_duration.as_secs_f64()));
+        summary.push_str(&format!(
+            "Total Duration: {:.2}s\n",
+            self.total_duration.as_secs_f64()
+        ));
         summary.push_str(&format!("Checks Executed: {}\n", self.checks_executed));
         summary.push_str(&format!("  - Passed: {}\n", self.checks_passed));
         summary.push_str(&format!("  - Failed: {}\n", self.checks_failed));
         summary.push_str(&format!("  - Warned: {}\n", self.checks_warned));
         summary.push_str(&format!("  - Skipped: {}\n", self.checks_skipped));
-        summary.push_str(&format!("Success Rate: {:.1}%\n", self.success_rate() * 100.0));
-        summary.push_str(&format!("Evidence Size: {} bytes\n\n", self.evidence_size_bytes));
+        summary.push_str(&format!(
+            "Success Rate: {:.1}%\n",
+            self.success_rate() * 100.0
+        ));
+        summary.push_str(&format!(
+            "Evidence Size: {} bytes\n\n",
+            self.evidence_size_bytes
+        ));
 
         if let Some((check_id, duration)) = self.slowest_check() {
-            summary.push_str(&format!("Slowest Check: {} ({:.2}s)\n", check_id, duration.as_secs_f64()));
+            summary.push_str(&format!(
+                "Slowest Check: {} ({:.2}s)\n",
+                check_id,
+                duration.as_secs_f64()
+            ));
         }
 
         if let Some((category, duration)) = self.slowest_category() {
-            summary.push_str(&format!("Slowest Category: {:?} ({:.2}s)\n", category, duration.as_secs_f64()));
+            summary.push_str(&format!(
+                "Slowest Category: {:?} ({:.2}s)\n",
+                category,
+                duration.as_secs_f64()
+            ));
         }
 
-        summary.push_str(&format!("Average Check Duration: {:.2}s\n", self.average_check_duration().as_secs_f64()));
+        summary.push_str(&format!(
+            "Average Check Duration: {:.2}s\n",
+            self.average_check_duration().as_secs_f64()
+        ));
 
         summary
     }
@@ -183,7 +203,10 @@ impl DodMetrics {
 
         output.push_str("# HELP dod_validation_duration_seconds Total DoD validation duration\n");
         output.push_str("# TYPE dod_validation_duration_seconds gauge\n");
-        output.push_str(&format!("dod_validation_duration_seconds {}\n", self.total_duration.as_secs_f64()));
+        output.push_str(&format!(
+            "dod_validation_duration_seconds {}\n",
+            self.total_duration.as_secs_f64()
+        ));
 
         output.push_str("# HELP dod_checks_total Total number of checks executed\n");
         output.push_str("# TYPE dod_checks_total counter\n");
@@ -199,7 +222,10 @@ impl DodMetrics {
 
         output.push_str("# HELP dod_evidence_bytes Total evidence size in bytes\n");
         output.push_str("# TYPE dod_evidence_bytes gauge\n");
-        output.push_str(&format!("dod_evidence_bytes {}\n", self.evidence_size_bytes));
+        output.push_str(&format!(
+            "dod_evidence_bytes {}\n",
+            self.evidence_size_bytes
+        ));
 
         output.push_str("# HELP dod_success_rate Success rate (0.0 to 1.0)\n");
         output.push_str("# TYPE dod_success_rate gauge\n");
@@ -312,7 +338,10 @@ impl MetricsRecorder {
             OverallVerdict::NotReady => "not_ready",
         };
 
-        *self.verdict_counts.entry(verdict_str.to_string()).or_insert(0) += 1;
+        *self
+            .verdict_counts
+            .entry(verdict_str.to_string())
+            .or_insert(0) += 1;
     }
 
     /// Get percentile for check duration (p50, p95, p99)
@@ -450,7 +479,10 @@ mod tests {
         let result = create_test_validation_result();
         let metrics = DodMetrics::from_validation_result(&result);
 
-        assert_eq!(metrics.average_check_duration(), Duration::from_millis(1500));
+        assert_eq!(
+            metrics.average_check_duration(),
+            Duration::from_millis(1500)
+        );
     }
 
     #[test]

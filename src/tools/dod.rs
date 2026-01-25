@@ -16,7 +16,8 @@ use crate::dod::executor::CheckExecutor;
 use crate::dod::profile::DodProfile;
 use crate::dod::remediation::RemediationGenerator;
 use crate::dod::scoring::Scorer;
-use crate::dod::types::{CheckContext, DodCheckResult, CheckStatus};
+use crate::dod::check::CheckContext;
+use crate::dod::types::{CheckStatus, DodCheckResult};
 use crate::dod::verdict::VerdictRenderer;
 use crate::state::AppState;
 use crate::validation::validate_path_safe;
@@ -188,21 +189,22 @@ impl DodValidator {
         let profile = Self::load_profile(&params.profile)?;
 
         // 2. Build check registry
-        let registry = CheckRegistry::default_registry();
+        let registry = CheckRegistry::with_all_checks();
 
         // 3. Create executor
         let executor = CheckExecutor::new(registry, profile);
 
         // 4. Create check context
-        let workspace_path = params
-            .workspace_path
-            .clone()
-            .unwrap_or_else(|| std::env::current_dir()
-                .expect("Failed to get current directory")
-                .to_string_lossy()
-                .to_string());
+        let workspace_path = params.workspace_path.clone().unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|e| {
+                    tracing::warn!("Failed to get current directory: {}, using '.'", e);
+                    ".".to_string()
+                })
+        });
 
-        let context = CheckContext::new(&workspace_path)?;
+        let context = CheckContext::new(workspace_path.into());
 
         // 5. Execute checks
         let check_results = executor
@@ -222,17 +224,16 @@ impl DodValidator {
 
         // 8. Generate remediation (if requested)
         let remediation = if params.include_remediation {
-            let generator = RemediationGenerator;
-            let suggestions = generator.generate_remediation(&check_results);
+            let suggestions = RemediationGenerator::generate(&check_results);
             Some(
                 suggestions
                     .into_iter()
                     .map(|s| RemediationSuggestion {
                         check_id: s.check_id,
                         priority: format!("{:?}", s.priority),
-                        action: s.action,
-                        rationale: s.rationale,
-                        automation_script: s.automation_script,
+                        action: s.title.clone(),
+                        rationale: s.steps.join(" "),
+                        automation_script: s.automation.clone(),
                     })
                     .collect(),
             )
@@ -244,13 +245,13 @@ impl DodValidator {
         let checks: Vec<CheckResult> = check_results
             .iter()
             .map(|r| CheckResult {
-                id: r.check_id.clone(),
-                category: r.category.clone(),
+                id: r.id.clone(),
+                category: format!("{:?}", r.category),
                 status: Self::format_status(&r.status),
                 message: r.message.clone(),
                 duration_ms: r.duration_ms,
                 evidence: if params.include_evidence {
-                    r.evidence.clone()
+                    serde_json::to_value(&r.evidence).ok()
                 } else {
                     None
                 },
@@ -280,7 +281,10 @@ impl DodValidator {
             "minimal" => Ok(DodProfile::minimal()),
             "standard" => Ok(DodProfile::standard()),
             "comprehensive" => Ok(DodProfile::comprehensive()),
-            _ => Err(anyhow!("Unknown profile: {}. Valid options: minimal, standard, comprehensive", name)),
+            _ => Err(anyhow!(
+                "Unknown profile: {}. Valid options: minimal, standard, comprehensive",
+                name
+            )),
         }
     }
 
@@ -289,9 +293,8 @@ impl DodValidator {
         match status {
             CheckStatus::Pass => "Pass".to_string(),
             CheckStatus::Fail => "Fail".to_string(),
-            CheckStatus::Warning => "Warning".to_string(),
-            CheckStatus::Skipped => "Skipped".to_string(),
-            CheckStatus::Error => "Error".to_string(),
+            CheckStatus::Warn => "Warning".to_string(),
+            CheckStatus::Skip => "Skipped".to_string(),
         }
     }
 
@@ -308,15 +311,15 @@ impl DodValidator {
             .count();
         let warnings = results
             .iter()
-            .filter(|r| matches!(r.status, CheckStatus::Warning))
+            .filter(|r| matches!(r.status, CheckStatus::Warn))
             .count();
         let skipped = results
             .iter()
-            .filter(|r| matches!(r.status, CheckStatus::Skipped))
+            .filter(|r| matches!(r.status, CheckStatus::Skip))
             .count();
         let errors = results
             .iter()
-            .filter(|r| matches!(r.status, CheckStatus::Error))
+            .filter(|r| matches!(r.status, CheckStatus::Fail))
             .count();
 
         ValidationSummary {
@@ -389,7 +392,10 @@ mod tests {
 
         let response = result.unwrap();
         assert!(response.remediation.is_none());
-        assert!(response.summary.total_checks >= 10, "Comprehensive should run many checks");
+        assert!(
+            response.summary.total_checks >= 10,
+            "Comprehensive should run many checks"
+        );
     }
 
     #[tokio::test]
@@ -411,9 +417,15 @@ mod tests {
     fn test_format_status() {
         assert_eq!(DodValidator::format_status(&CheckStatus::Pass), "Pass");
         assert_eq!(DodValidator::format_status(&CheckStatus::Fail), "Fail");
-        assert_eq!(DodValidator::format_status(&CheckStatus::Warning), "Warning");
-        assert_eq!(DodValidator::format_status(&CheckStatus::Skipped), "Skipped");
-        assert_eq!(DodValidator::format_status(&CheckStatus::Error), "Error");
+        assert_eq!(
+                DodValidator::format_status(&CheckStatus::Warn),
+            "Warning"
+        );
+        assert_eq!(
+            DodValidator::format_status(&CheckStatus::Skip),
+            "Skipped"
+        );
+        assert_eq!(DodValidator::format_status(&CheckStatus::Fail), "Fail");
     }
 
     #[test]
@@ -438,7 +450,7 @@ mod tests {
             DodCheckResult {
                 check_id: "test3".to_string(),
                 category: "tests".to_string(),
-                status: CheckStatus::Warning,
+                status: CheckStatus::Warn,
                 message: "Warning".to_string(),
                 duration_ms: 5,
                 evidence: None,

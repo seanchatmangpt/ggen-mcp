@@ -120,6 +120,7 @@ impl DodValidator {
             workspace_root,
             mode,
             timeout_ms: self.profile.timeouts_ms.default,
+            metadata: HashMap::new(),
         };
 
         let check_results = self.executor.execute_all(&context).await?;
@@ -173,6 +174,7 @@ impl DodValidator {
             workspace_root,
             mode: ValidationMode::Fast,
             timeout_ms: self.profile.timeouts_ms.default,
+            metadata: HashMap::new(),
         })
     }
 
@@ -409,12 +411,16 @@ mod tests {
         let result = validator.validate(workspace).await.unwrap();
 
         // Should have category scores
-        assert!(result
-            .category_scores
-            .contains_key(&CheckCategory::BuildCorrectness));
-        assert!(result
-            .category_scores
-            .contains_key(&CheckCategory::TestTruth));
+        assert!(
+            result
+                .category_scores
+                .contains_key(&CheckCategory::BuildCorrectness)
+        );
+        assert!(
+            result
+                .category_scores
+                .contains_key(&CheckCategory::TestTruth)
+        );
 
         let build_score = &result.category_scores[&CheckCategory::BuildCorrectness];
         assert_eq!(build_score.checks_passed, 2);
@@ -518,10 +524,7 @@ mod tests {
         let result = validator.validate(invalid_workspace).await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("does not exist"));
+        assert!(result.unwrap_err().to_string().contains("does not exist"));
     }
 
     #[tokio::test]

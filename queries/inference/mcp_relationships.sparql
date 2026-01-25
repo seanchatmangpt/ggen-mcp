@@ -382,3 +382,5 @@ WHERE {
   }
   BIND(COALESCE(?depLabel, "none") AS ?depHealth)
 }
+
+LIMIT 10000

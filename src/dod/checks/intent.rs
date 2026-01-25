@@ -20,7 +20,7 @@ impl DodCheck for IntentAlignmentCheck {
     }
 
     fn severity(&self) -> CheckSeverity {
-        CheckSeverity::Warning  // Not fatal, but important
+        CheckSeverity::Warning // Not fatal, but important
     }
 
     fn description(&self) -> &str {

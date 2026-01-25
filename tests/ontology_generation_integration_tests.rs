@@ -96,11 +96,7 @@ fn test_full_workflow() -> Result<()> {
 
     // Assert: Outputs are non-empty
     for (name, output) in &result.rendered_outputs {
-        assert!(
-            !output.content.is_empty(),
-            "Output {} is empty",
-            name
-        );
+        assert!(!output.content.is_empty(), "Output {} is empty", name);
         assert!(
             output.content.len() > 100,
             "Output {} too small: {} bytes",
@@ -121,8 +117,14 @@ fn test_full_workflow() -> Result<()> {
     // Metrics verification
     println!("\n📊 Workflow Metrics:");
     println!("  Ontology load: {:?}", result.metrics.ontology_load_time);
-    println!("  Query execution: {:?}", result.metrics.query_execution_time);
-    println!("  Template render: {:?}", result.metrics.template_render_time);
+    println!(
+        "  Query execution: {:?}",
+        result.metrics.query_execution_time
+    );
+    println!(
+        "  Template render: {:?}",
+        result.metrics.template_render_time
+    );
     println!("  Total time: {:?}", result.metrics.total_workflow_time);
 
     // Teardown
@@ -192,8 +194,7 @@ fn test_cache_hit() -> Result<()> {
     assert!(
         cache_result.all_cached,
         "Not all queries were cached: {}/{} from cache",
-        cache_result.cache_hits,
-        cache_result.total_queries
+        cache_result.cache_hits, cache_result.total_queries
     );
 
     // Assert: Cache improved performance (second execution should be faster)
@@ -201,7 +202,10 @@ fn test_cache_hit() -> Result<()> {
         println!("  Query '{}': first={:?}", query_name, first_time);
     }
 
-    println!("  Cache hits: {}/{}", cache_result.cache_hits, cache_result.total_queries);
+    println!(
+        "  Cache hits: {}/{}",
+        cache_result.cache_hits, cache_result.total_queries
+    );
     println!("✅ Cache test passed\n");
     Ok(())
 }
@@ -273,8 +277,7 @@ fn test_golden_file_comparison() -> Result<()> {
 fn test_error_recovery_missing_ontology() -> Result<()> {
     println!("\n=== TEST: Error Recovery - Missing Ontology ===\n");
 
-    let mut harness = OntologyGenerationHarness::new()
-        .with_fixture("nonexistent-ontology");
+    let mut harness = OntologyGenerationHarness::new().with_fixture("nonexistent-ontology");
 
     // Attempt to load non-existent ontology
     let result = harness.load_ontology("nonexistent-ontology");
@@ -293,8 +296,7 @@ fn test_error_recovery_missing_ontology() -> Result<()> {
 fn test_error_recovery_missing_query() -> Result<()> {
     println!("\n=== TEST: Error Recovery - Missing Query ===\n");
 
-    let mut harness = OntologyGenerationHarness::new()
-        .with_fixture("test-api");
+    let mut harness = OntologyGenerationHarness::new().with_fixture("test-api");
 
     // Attempt to register non-existent query
     let result = harness.register_query("missing", "nonexistent.rq");
@@ -313,8 +315,7 @@ fn test_error_recovery_missing_query() -> Result<()> {
 fn test_error_recovery_missing_template() -> Result<()> {
     println!("\n=== TEST: Error Recovery - Missing Template ===\n");
 
-    let mut harness = OntologyGenerationHarness::new()
-        .with_fixture("test-api");
+    let mut harness = OntologyGenerationHarness::new().with_fixture("test-api");
 
     // Attempt to register non-existent template
     let result = harness.register_template("missing", "nonexistent.tera");
@@ -357,8 +358,7 @@ fn test_error_recovery_no_fixture_set() -> Result<()> {
 fn test_state_after_load() -> Result<()> {
     println!("\n=== TEST: State After Load ===\n");
 
-    let mut harness = OntologyGenerationHarness::new()
-        .with_fixture("test-api");
+    let mut harness = OntologyGenerationHarness::new().with_fixture("test-api");
 
     // Load ontology
     harness.load_ontology("test-api")?;
@@ -413,12 +413,13 @@ fn test_deterministic_output() -> Result<()> {
 
     // Assert: Outputs are identical
     for (name, output1) in &result1.rendered_outputs {
-        let output2 = result2.rendered_outputs.get(name)
+        let output2 = result2
+            .rendered_outputs
+            .get(name)
             .expect(&format!("Output {} missing in second run", name));
 
         assert_eq!(
-            output1.content,
-            output2.content,
+            output1.content, output2.content,
             "Output {} differs between runs",
             name
         );

@@ -102,14 +102,16 @@ test!(test_context_scoping, {
 
     // Act & Assert - child can access root variables
     assert_eq!(
-        child.get("root_var")
+        child
+            .get("root_var")
             .ok_or("root_var not found")?
             .as_str()
             .ok_or("root_var not a string")?,
         "root_value"
     );
     assert_eq!(
-        child.get("child_var")
+        child
+            .get("child_var")
             .ok_or("child_var not found")?
             .as_str()
             .ok_or("child_var not a string")?,

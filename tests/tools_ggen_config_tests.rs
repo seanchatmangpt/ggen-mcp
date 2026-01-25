@@ -228,8 +228,16 @@ async fn test_update_generation_rule() -> Result<()> {
         config_path: Some(config_path),
     };
     let read_response = read_ggen_config(state, read_params).await?;
-    assert!(read_response.rule_names.contains(&"test-rule-1-updated".to_string()));
-    assert!(!read_response.rule_names.contains(&"test-rule-1".to_string()));
+    assert!(
+        read_response
+            .rule_names
+            .contains(&"test-rule-1-updated".to_string())
+    );
+    assert!(
+        !read_response
+            .rule_names
+            .contains(&"test-rule-1".to_string())
+    );
 
     Ok(())
 }
@@ -292,8 +300,16 @@ async fn test_remove_generation_rule() -> Result<()> {
     };
     let read_response = read_ggen_config(state, read_params).await?;
     assert_eq!(read_response.rule_count, 1);
-    assert!(!read_response.rule_names.contains(&"test-rule-1".to_string()));
-    assert!(read_response.rule_names.contains(&"test-rule-2".to_string()));
+    assert!(
+        !read_response
+            .rule_names
+            .contains(&"test-rule-1".to_string())
+    );
+    assert!(
+        read_response
+            .rule_names
+            .contains(&"test-rule-2".to_string())
+    );
 
     Ok(())
 }
@@ -397,8 +413,7 @@ mode = "Overwrite"
 
     // Check for overlap error
     let has_overlap_error = response.issues.iter().any(|issue| {
-        matches!(issue.severity, IssueSeverity::Error)
-            && issue.message.contains("overlap")
+        matches!(issue.severity, IssueSeverity::Error) && issue.message.contains("overlap")
     });
     assert!(has_overlap_error);
 

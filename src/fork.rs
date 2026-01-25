@@ -1,7 +1,7 @@
 use crate::utils::make_short_random_id;
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
-use parking_lot::{Mutex, MutexGuard, RwLock};
+use parking_lot::{Mutex, RwLock};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -65,7 +65,6 @@ impl Drop for TempFileGuard {
 }
 
 /// RAII guard for fork creation - ensures rollback on error
-#[derive(Debug)]
 pub struct ForkCreationGuard<'a> {
     fork_id: String,
     work_path: PathBuf,
@@ -135,14 +134,8 @@ impl Drop for CheckpointGuard {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct EditOp {
-    pub timestamp: DateTime<Utc>,
-    pub sheet: String,
-    pub address: String,
-    pub value: String,
-    pub is_formula: bool,
-}
+// Re-export EditOp from model for backward compatibility
+pub use crate::model::EditOp;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StagedOp {
@@ -184,7 +177,7 @@ pub struct ForkContext {
     pub base_path: PathBuf,
     pub work_path: PathBuf,
     pub created_at: Instant,
-    pub last_accessed: Instant,
+    pub last_accessed: Mutex<Instant>,
     pub edits: Vec<EditOp>,
     pub staged_changes: Vec<StagedChange>,
     pub checkpoints: Vec<Checkpoint>,
@@ -205,7 +198,7 @@ impl ForkContext {
             base_path,
             work_path,
             created_at: Instant::now(),
-            last_accessed: Instant::now(),
+            last_accessed: Mutex::new(Instant::now()),
             edits: Vec::new(),
             staged_changes: Vec::new(),
             checkpoints: Vec::new(),
@@ -219,11 +212,11 @@ impl ForkContext {
         if ttl.is_zero() {
             return false;
         }
-        self.last_accessed.elapsed() > ttl
+        self.last_accessed.lock().elapsed() > ttl
     }
 
-    pub fn touch(&mut self) {
-        self.last_accessed = Instant::now();
+    pub fn touch(&self) {
+        *self.last_accessed.lock() = Instant::now();
     }
 
     /// Get current version for optimistic locking
@@ -445,17 +438,17 @@ impl ForkRegistry {
     pub fn get_fork(&self, fork_id: &str) -> Result<Arc<ForkContext>> {
         self.evict_expired();
 
-        let mut forks = self.forks.write();
+        let forks = self.forks.read();
         let ctx = forks
-            .get_mut(fork_id)
+            .get(fork_id)
             .ok_or_else(|| anyhow!("fork not found: {}", fork_id))?;
         ctx.touch();
         Ok(Arc::new(ctx.clone()))
     }
 
     pub fn get_fork_path(&self, fork_id: &str) -> Option<PathBuf> {
-        let mut forks = self.forks.write();
-        if let Some(ctx) = forks.get_mut(fork_id) {
+        let forks = self.forks.read();
+        if let Some(ctx) = forks.get(fork_id) {
             ctx.touch();
             return Some(ctx.work_path.clone());
         }
@@ -605,12 +598,15 @@ impl ForkRegistry {
         let forks = self.forks.read();
         forks
             .values()
-            .map(|ctx| ForkInfo {
-                fork_id: ctx.fork_id.clone(),
-                base_path: ctx.base_path.display().to_string(),
-                created_at: ctx.created_at,
-                edit_count: ctx.edits.len(),
-                version: ctx.version(),
+            .map(|ctx| {
+                ctx.touch(); // Update last_accessed
+                ForkInfo {
+                    fork_id: ctx.fork_id.clone(),
+                    base_path: ctx.base_path.display().to_string(),
+                    created_at: ctx.created_at,
+                    edit_count: ctx.edits.len(),
+                    version: ctx.version(),
+                }
             })
             .collect()
     }
@@ -891,7 +887,7 @@ impl Clone for ForkContext {
             base_path: self.base_path.clone(),
             work_path: self.work_path.clone(),
             created_at: self.created_at,
-            last_accessed: self.last_accessed,
+            last_accessed: Mutex::new(*self.last_accessed.lock()),
             edits: self.edits.clone(),
             staged_changes: self.staged_changes.clone(),
             checkpoints: self.checkpoints.clone(),

@@ -68,12 +68,21 @@ impl TemplateSafety {
         config.validate()?;
 
         // Create validator (loads templates from directory)
-        let validator = TemplateValidator::new(&template_dir)
-            .with_context(|| format!("Failed to create template validator for {:?}", template_dir.as_ref()))?;
+        let validator = TemplateValidator::new(&template_dir).with_context(|| {
+            format!(
+                "Failed to create template validator for {:?}",
+                template_dir.as_ref()
+            )
+        })?;
 
         // Create safe renderer
-        let renderer = SafeRenderer::from_directory(&template_dir, config.clone())
-            .with_context(|| format!("Failed to create safe renderer for {:?}", template_dir.as_ref()))?;
+        let renderer =
+            SafeRenderer::from_directory(&template_dir, config.clone()).with_context(|| {
+                format!(
+                    "Failed to create safe renderer for {:?}",
+                    template_dir.as_ref()
+                )
+            })?;
 
         Ok(Self {
             renderer: Arc::new(RwLock::new(renderer)),
@@ -128,11 +137,11 @@ impl TemplateSafety {
 
         // Step 2: Validate parameters against schema (if registered)
         if let Some(schema) = self.schemas.read().get(template_name) {
-            schema
-                .validate_context(context.inner())
-                .map_err(|errors| RenderingError::ValidationFailed {
+            schema.validate_context(context.inner()).map_err(|errors| {
+                RenderingError::ValidationFailed {
                     errors: errors.iter().map(|e| e.to_string()).collect(),
-                })?;
+                }
+            })?;
         }
 
         // Step 3: Convert TemplateContext to RenderContext
@@ -154,7 +163,7 @@ impl TemplateSafety {
         let metrics = RenderMetrics {
             duration,
             output_size: output.len(),
-            includes_count: 0, // TODO: Track includes
+            includes_count: render_context.recursion_depth(), // Track includes via recursion depth
             macro_expansions: render_context.macro_count(),
             max_recursion_reached: render_context.recursion_depth(),
             validation_errors: 0,
@@ -261,9 +270,15 @@ fn process_sparql_results(results: &[JsonValue]) -> Result<HashMap<String, JsonV
 
     // Convert grouped results to JSON
     if !tools.is_empty() {
-        processed.insert("tools".to_string(), JsonValue::Object(
-            tools.into_iter().map(|(k, v)| (k, JsonValue::Array(v))).collect()
-        ));
+        processed.insert(
+            "tools".to_string(),
+            JsonValue::Object(
+                tools
+                    .into_iter()
+                    .map(|(k, v)| (k, JsonValue::Array(v)))
+                    .collect(),
+            ),
+        );
     }
 
     Ok(processed)
@@ -303,16 +318,17 @@ pub fn validate_and_render_from_sparql(
     config: RenderConfig,
 ) -> Result<(String, RenderMetrics), RenderingError> {
     // Create safety wrapper
-    let safety = TemplateSafety::new(template_dir, config)
-        .map_err(|e| RenderingError::Internal {
+    let safety =
+        TemplateSafety::new(template_dir, config).map_err(|e| RenderingError::Internal {
             message: format!("Failed to create template safety: {}", e),
         })?;
 
     // Build context from SPARQL results
-    let context = build_context_from_sparql(template_name, sparql_results)
-        .map_err(|e| RenderingError::ContextError {
+    let context = build_context_from_sparql(template_name, sparql_results).map_err(|e| {
+        RenderingError::ContextError {
             message: format!("Failed to build context: {}", e),
-        })?;
+        }
+    })?;
 
     // Validate and render
     safety.validate_and_render(template_name, context)

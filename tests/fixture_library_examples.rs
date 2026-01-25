@@ -5,11 +5,11 @@
 
 mod harness;
 
+use anyhow::Result;
 use harness::{
     AAAPattern, AggregateBuilder, ConfigBuilder, FixtureComposer, Fixtures, OntologyBuilder,
     TemplateContextBuilder, TestWorkspace,
 };
-use anyhow::Result;
 
 // =============================================================================
 // Domain Fixture Examples
@@ -60,11 +60,21 @@ fn example_order_fixtures() {
 fn example_product_fixtures() {
     // In stock product
     let product = Fixtures::product().in_stock();
-    assert!(product.invariants.iter().any(|i| i.contains("quantity > 0")));
+    assert!(
+        product
+            .invariants
+            .iter()
+            .any(|i| i.contains("quantity > 0"))
+    );
 
     // Out of stock product
     let product = Fixtures::product().out_of_stock();
-    assert!(product.invariants.iter().any(|i| i.contains("quantity == 0")));
+    assert!(
+        product
+            .invariants
+            .iter()
+            .any(|i| i.contains("quantity == 0"))
+    );
 }
 
 #[test]
@@ -141,7 +151,10 @@ fn example_config_builder() {
         .description("Custom test configuration")
         .build();
 
-    assert_eq!(config.workspace_root.to_str().unwrap(), "/tmp/test-workspace");
+    assert_eq!(
+        config.workspace_root.to_str().unwrap(),
+        "/tmp/test-workspace"
+    );
     assert_eq!(config.cache_capacity, 15);
     assert!(config.recalc_enabled);
     assert!(config.vba_enabled);
@@ -178,7 +191,10 @@ fn example_template_context_builder() {
         .add_field("unit_price", "Money")
         .add_import("serde", vec!["Deserialize", "Serialize"])
         .add_import("uuid", vec!["Uuid"])
-        .add_custom("derive_traits", serde_json::json!(["Debug", "Clone", "PartialEq"]))
+        .add_custom(
+            "derive_traits",
+            serde_json::json!(["Debug", "Clone", "PartialEq"]),
+        )
         .description("Order item template context")
         .build();
 

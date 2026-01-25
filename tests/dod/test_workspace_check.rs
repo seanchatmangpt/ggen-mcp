@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use ggen_mcp::dod::checks::workspace::WorkspaceIntegrityCheck;
+use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use std::path::PathBuf;
 
 #[tokio::test]
@@ -95,9 +95,10 @@ async fn test_workspace_check_evidence_includes_environment() -> Result<()> {
     let result = check.execute(&context).await?;
 
     // Check for environment evidence
-    let has_env_evidence = result.evidence.iter().any(|ev| {
-        ev.content.contains("rustc") || ev.content.contains("platform")
-    });
+    let has_env_evidence = result
+        .evidence
+        .iter()
+        .any(|ev| ev.content.contains("rustc") || ev.content.contains("platform"));
 
     assert!(has_env_evidence, "Should capture environment information");
 

@@ -136,7 +136,7 @@ impl EntitlementGate {
                 return Err(anyhow!(
                     "Unknown entitlement provider: {}",
                     config.provider_type
-                ))
+                ));
             }
         };
 
@@ -163,10 +163,7 @@ impl EntitlementGate {
 
     /// Check capability without requiring (returns bool)
     pub async fn has_capability(&self, cap: Capability) -> bool {
-        self.provider
-            .check_capability(cap)
-            .await
-            .unwrap_or(false)
+        self.provider.check_capability(cap).await.unwrap_or(false)
     }
 
     /// Report usage (fire-and-forget, errors logged only)

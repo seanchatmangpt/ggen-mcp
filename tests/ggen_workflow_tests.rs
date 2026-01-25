@@ -191,14 +191,21 @@ async fn test_ggen_sync_with_valid_config() -> Result<()> {
     let result = simulate_ggen_sync(harness.workspace_path()).await;
 
     // THEN: Sync completes successfully
-    assert!(result.is_ok(), "ggen_sync should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "ggen_sync should succeed: {:?}",
+        result.err()
+    );
 
     // AND: Generated file exists
     assert!(harness.has_generated("user.rs"), "Should generate user.rs");
 
     // AND: Generated code is valid
     let generated = harness.read_generated("user.rs")?;
-    assert!(generated.contains("pub struct User"), "Should contain User struct");
+    assert!(
+        generated.contains("pub struct User"),
+        "Should contain User struct"
+    );
 
     Ok(())
 }
@@ -341,12 +348,18 @@ async fn test_ggen_init_minimal_project() -> Result<()> {
     let result = simulate_ggen_init(workspace.path(), "minimal").await?;
 
     // THEN: Project structure created
-    assert!(workspace.path().join("ggen.toml").exists(), "Should create ggen.toml");
+    assert!(
+        workspace.path().join("ggen.toml").exists(),
+        "Should create ggen.toml"
+    );
     assert!(
         workspace.path().join("ontology").exists(),
         "Should create ontology dir"
     );
-    assert!(workspace.path().join("queries").exists(), "Should create queries dir");
+    assert!(
+        workspace.path().join("queries").exists(),
+        "Should create queries dir"
+    );
     assert!(
         workspace.path().join("templates").exists(),
         "Should create templates dir"
@@ -377,12 +390,18 @@ async fn test_ggen_init_ddd_template() -> Result<()> {
         "Should create aggregate query"
     );
     assert!(
-        workspace.path().join("templates/aggregate.rs.tera").exists(),
+        workspace
+            .path()
+            .join("templates/aggregate.rs.tera")
+            .exists(),
         "Should create aggregate template"
     );
 
     // AND: More files than minimal
-    assert!(result.files_created >= 6, "DDD template should create 6+ files");
+    assert!(
+        result.files_created >= 6,
+        "DDD template should create 6+ files"
+    );
 
     Ok(())
 }
@@ -406,7 +425,10 @@ async fn test_ggen_init_mcp_server_template() -> Result<()> {
         "Should create tools query"
     );
     assert!(
-        workspace.path().join("templates/tool_handler.rs.tera").exists(),
+        workspace
+            .path()
+            .join("templates/tool_handler.rs.tera")
+            .exists(),
         "Should create tool template"
     );
 
@@ -419,19 +441,18 @@ async fn test_ggen_init_with_starter_entities() -> Result<()> {
     let workspace = tempfile::tempdir()?;
 
     // WHEN: We initialize with starter entities
-    let result = simulate_ggen_init_with_entities(
-        workspace.path(),
-        "ddd",
-        &["User", "Order", "Product"],
-    )
-    .await?;
+    let result =
+        simulate_ggen_init_with_entities(workspace.path(), "ddd", &["User", "Order", "Product"])
+            .await?;
 
     // THEN: Ontology contains entities
-    let ontology_content =
-        fs::read_to_string(workspace.path().join("ontology/domain.ttl"))?;
+    let ontology_content = fs::read_to_string(workspace.path().join("ontology/domain.ttl"))?;
     assert!(ontology_content.contains("User"), "Should contain User");
     assert!(ontology_content.contains("Order"), "Should contain Order");
-    assert!(ontology_content.contains("Product"), "Should contain Product");
+    assert!(
+        ontology_content.contains("Product"),
+        "Should contain Product"
+    );
 
     // AND: Queries generated for each entity
     assert!(workspace.path().join("queries/user.rq").exists());
@@ -542,15 +563,9 @@ async fn simulate_ggen_init(workspace: &Path, template: &str) -> Result<GgenInit
         "minimal" => {
             fs::write(workspace.join("ontology/domain.ttl"), minimal_ontology())?;
             files_created += 1;
-            fs::write(
-                workspace.join("queries/basic.rq"),
-                extract_user_query(),
-            )?;
+            fs::write(workspace.join("queries/basic.rq"), extract_user_query())?;
             files_created += 1;
-            fs::write(
-                workspace.join("templates/entity.rs.tera"),
-                user_template(),
-            )?;
+            fs::write(workspace.join("templates/entity.rs.tera"), user_template())?;
             files_created += 1;
         }
         "ddd" => {

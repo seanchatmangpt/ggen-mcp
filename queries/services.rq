@@ -11,3 +11,4 @@ WHERE {
   }
 }
 ORDER BY ?service_name
+LIMIT 10000

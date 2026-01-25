@@ -1,10 +1,11 @@
 //! G4: Turtle Parse Guard
 //!
-//! Validates RDF/Turtle ontology syntax using Oxigraph.
+//! Validates RDF/Turtle ontology syntax using ggen's TripleStore.
 
 use crate::guards::{Guard, GuardResult, SyncContext};
-use oxigraph::io::RdfFormat;
-use oxigraph::store::Store;
+use ggen_ontology_core::TripleStore;
+use std::path::PathBuf;
+use std::fs;
 
 /// G4: Turtle Parse Guard
 pub struct TurtleParseGuard;
@@ -22,26 +23,49 @@ impl Guard for TurtleParseGuard {
         let mut errors = Vec::new();
 
         // Validate each ontology file
-        for (idx, content) in ctx.ontology_contents.iter().enumerate() {
-            let ontology_name = ctx
-                .discovered_ontologies
-                .get(idx)
-                .and_then(|p| p.file_name())
+        for (idx, ontology_path) in ctx.discovered_ontologies.iter().enumerate() {
+            let ontology_name = ontology_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown");
 
-            // Try to parse with Oxigraph
-            let store = match Store::new() {
+            // Use ggen's TripleStore to validate
+            let store = match TripleStore::new() {
                 Ok(s) => s,
                 Err(e) => {
-                    errors.push(format!("Store creation failed: {}", e));
+                    errors.push(format!("TripleStore creation failed: {}", e));
                     continue;
                 }
             };
 
-            if let Err(e) = store.load_from_reader(RdfFormat::Turtle, content.as_bytes()) {
+            // Write content to temp file for loading (ggen's load_turtle requires a file path)
+            let temp_path = std::env::temp_dir().join(format!("validate_{}_{}.ttl", std::process::id(), idx));
+            
+            // Get content from ctx or read from file
+            let content = if idx < ctx.ontology_contents.len() {
+                ctx.ontology_contents[idx].clone()
+            } else {
+                // Fallback: read from file
+                match fs::read_to_string(ontology_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        errors.push(format!("{}: Failed to read file: {}", ontology_name, e));
+                        continue;
+                    }
+                }
+            };
+            
+            if let Err(e) = fs::write(&temp_path, &content) {
+                errors.push(format!("{}: Failed to write temp file: {}", ontology_name, e));
+                continue;
+            }
+
+            if let Err(e) = store.load_turtle(&temp_path) {
                 errors.push(format!("{}: {}", ontology_name, e));
             }
+            
+            // Clean up temp file
+            let _ = fs::remove_file(&temp_path);
         }
 
         if !errors.is_empty() {
@@ -60,7 +84,7 @@ impl Guard for TurtleParseGuard {
             self.name(),
             format!(
                 "{} ontology file(s) parsed successfully",
-                ctx.ontology_contents.len()
+                ctx.discovered_ontologies.len()
             ),
         )
     }

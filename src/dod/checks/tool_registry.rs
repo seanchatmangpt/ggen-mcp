@@ -219,10 +219,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_registry_check() {
         let check = ToolRegistryCheck;
-        let context = CheckContext::new(
-            PathBuf::from("/home/user/ggen-mcp"),
-            ValidationMode::Fast,
-        );
+        let context = CheckContext::new(PathBuf::from("/home/user/ggen-mcp"), ValidationMode::Fast);
 
         let result = check.execute(&context).await.unwrap();
         assert_eq!(result.category, CheckCategory::ToolRegistry);

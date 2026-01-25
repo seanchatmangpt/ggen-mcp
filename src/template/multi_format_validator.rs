@@ -142,12 +142,7 @@ impl TypeScriptValidator {
     }
 
     /// Validate import/export statements
-    fn validate_imports_exports(
-        &self,
-        code: &str,
-        report: &mut ValidationReport,
-        file_name: &str,
-    ) {
+    fn validate_imports_exports(&self, code: &str, report: &mut ValidationReport, file_name: &str) {
         let import_regex = Regex::new(r"^\s*import\s+").unwrap();
         let export_regex = Regex::new(r"^\s*export\s+").unwrap();
 
@@ -162,7 +157,10 @@ impl TypeScriptValidator {
                         report.add_warning(
                             "Import statement may be incomplete".to_string(),
                             Some(format!("{}:{}", file_name, line_num + 1)),
-                            Some("Import should have 'from' clause or be a type-only import".to_string()),
+                            Some(
+                                "Import should have 'from' clause or be a type-only import"
+                                    .to_string(),
+                            ),
                         );
                     }
                 }
@@ -209,7 +207,10 @@ impl TypeScriptValidator {
                         || line.contains(&format!("var {}", identifier))
                     {
                         report.add_error(
-                            format!("Reserved word '{}' cannot be used as identifier", identifier),
+                            format!(
+                                "Reserved word '{}' cannot be used as identifier",
+                                identifier
+                            ),
                             Some(format!("{}:{}", file_name, line_num + 1)),
                             Some("Use a different identifier name".to_string()),
                         );
@@ -225,7 +226,10 @@ impl TypeScriptValidator {
                         report.add_warning(
                             format!("Duplicate type identifier: {}", identifier),
                             Some(format!("{}:{}", file_name, line_num + 1)),
-                            Some("Consider using a unique name or extending existing type".to_string()),
+                            Some(
+                                "Consider using a unique name or extending existing type"
+                                    .to_string(),
+                            ),
                         );
                     } else {
                         self.seen_identifiers.insert(identifier.to_string());
@@ -249,7 +253,10 @@ impl TypeScriptValidator {
             }
 
             // Missing semicolons (warning, not error in TS)
-            if self.should_have_semicolon(trimmed) && !trimmed.ends_with(';') && !trimmed.ends_with('{') {
+            if self.should_have_semicolon(trimmed)
+                && !trimmed.ends_with(';')
+                && !trimmed.ends_with('{')
+            {
                 report.add_info(
                     "Statement may benefit from explicit semicolon".to_string(),
                     Some(format!("{}:{}", file_name, line_num + 1)),
@@ -257,12 +264,18 @@ impl TypeScriptValidator {
             }
 
             // Assignment in conditional
-            if (trimmed.contains("if (") || trimmed.contains("while (")) && trimmed.contains(" = ") && !trimmed.contains("==") {
+            if (trimmed.contains("if (") || trimmed.contains("while ("))
+                && trimmed.contains(" = ")
+                && !trimmed.contains("==")
+            {
                 if !trimmed.contains("===") {
                     report.add_warning(
                         "Possible assignment in conditional (use === for comparison)".to_string(),
                         Some(format!("{}:{}", file_name, line_num + 1)),
-                        Some("Use '===' for comparison or wrap assignment in parentheses".to_string()),
+                        Some(
+                            "Use '===' for comparison or wrap assignment in parentheses"
+                                .to_string(),
+                        ),
                     );
                 }
             }
@@ -284,7 +297,8 @@ impl TypeScriptValidator {
         report: &mut ValidationReport,
         file_name: &str,
     ) {
-        let interface_regex = Regex::new(r"^\s*interface\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\{?").unwrap();
+        let interface_regex =
+            Regex::new(r"^\s*interface\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\{?").unwrap();
         let type_regex = Regex::new(r"^\s*type\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=").unwrap();
 
         for (line_num, line) in code.lines().enumerate() {
@@ -325,7 +339,10 @@ impl TypeScriptValidator {
         report: &mut ValidationReport,
         file_name: &str,
     ) {
-        let function_regex = Regex::new(r"^\s*(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(").unwrap();
+        let function_regex = Regex::new(
+            r"^\s*(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(",
+        )
+        .unwrap();
         let arrow_function_regex = Regex::new(r"^\s*(?:export\s+)?(?:const|let|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)\s*=\s*(?:async\s+)?\(").unwrap();
 
         for (line_num, line) in code.lines().enumerate() {
@@ -352,7 +369,10 @@ impl TypeScriptValidator {
                         report.add_warning(
                             "Arrow function may be incomplete".to_string(),
                             Some(format!("{}:{}", file_name, line_num + 1)),
-                            Some("Check arrow function syntax: const fn = (params) => body".to_string()),
+                            Some(
+                                "Check arrow function syntax: const fn = (params) => body"
+                                    .to_string(),
+                            ),
                         );
                     }
                 }
@@ -396,13 +416,13 @@ impl TypeScriptValidator {
         let trimmed = line.trim();
 
         // Lines that typically need semicolons
-        (trimmed.starts_with("const ") ||
-         trimmed.starts_with("let ") ||
-         trimmed.starts_with("var ") ||
-         trimmed.starts_with("return ") ||
-         trimmed.starts_with("throw ")) &&
-        !trimmed.ends_with('{') &&
-        !trimmed.ends_with('(')
+        (trimmed.starts_with("const ")
+            || trimmed.starts_with("let ")
+            || trimmed.starts_with("var ")
+            || trimmed.starts_with("return ")
+            || trimmed.starts_with("throw "))
+            && !trimmed.ends_with('{')
+            && !trimmed.ends_with('(')
     }
 
     /// Reset state for new validation
@@ -441,9 +461,9 @@ impl YamlValidator {
                 );
             }
             Err(e) => {
-                let location = e.location().map(|loc| {
-                    format!("{}:{}:{}", file_name, loc.line(), loc.column())
-                });
+                let location = e
+                    .location()
+                    .map(|loc| format!("{}:{}:{}", file_name, loc.line(), loc.column()));
 
                 report.add_error(
                     format!("YAML syntax error: {}", e),
@@ -544,12 +564,7 @@ impl JsonValidator {
                 );
             }
             Err(e) => {
-                let location = Some(format!(
-                    "{}:{}:{}",
-                    file_name,
-                    e.line(),
-                    e.column()
-                ));
+                let location = Some(format!("{}:{}:{}", file_name, e.line(), e.column()));
 
                 report.add_error(
                     format!("JSON syntax error: {}", e),
@@ -649,7 +664,9 @@ impl OpenApiValidator {
                 );
             } else {
                 // Validate info section
-                if let Some(YamlValue::Mapping(info)) = map.get(&YamlValue::String("info".to_string())) {
+                if let Some(YamlValue::Mapping(info)) =
+                    map.get(&YamlValue::String("info".to_string()))
+                {
                     if !info.contains_key(&YamlValue::String("title".to_string())) {
                         report.add_error(
                             "Missing required field 'info.title'".to_string(),
@@ -677,7 +694,9 @@ impl OpenApiValidator {
             }
 
             // Validate OpenAPI version format
-            if let Some(YamlValue::String(version)) = map.get(&YamlValue::String("openapi".to_string())) {
+            if let Some(YamlValue::String(version)) =
+                map.get(&YamlValue::String("openapi".to_string()))
+            {
                 if !version.starts_with("3.") {
                     report.add_warning(
                         format!("OpenAPI version '{}' may not be supported", version),
@@ -709,16 +728,78 @@ impl Default for OpenApiValidator {
 /// Get TypeScript reserved words
 fn get_typescript_reserved_words() -> HashSet<&'static str> {
     [
-        "abstract", "any", "as", "async", "await", "boolean", "break", "case",
-        "catch", "class", "const", "continue", "debugger", "declare", "default",
-        "delete", "do", "else", "enum", "export", "extends", "false", "finally",
-        "for", "from", "function", "get", "if", "implements", "import", "in",
-        "infer", "instanceof", "interface", "is", "keyof", "let", "module",
-        "namespace", "never", "new", "null", "number", "object", "of", "package",
-        "private", "protected", "public", "readonly", "require", "return", "set",
-        "static", "string", "super", "switch", "symbol", "this", "throw", "true",
-        "try", "type", "typeof", "undefined", "unique", "unknown", "var", "void",
-        "while", "with", "yield",
+        "abstract",
+        "any",
+        "as",
+        "async",
+        "await",
+        "boolean",
+        "break",
+        "case",
+        "catch",
+        "class",
+        "const",
+        "continue",
+        "debugger",
+        "declare",
+        "default",
+        "delete",
+        "do",
+        "else",
+        "enum",
+        "export",
+        "extends",
+        "false",
+        "finally",
+        "for",
+        "from",
+        "function",
+        "get",
+        "if",
+        "implements",
+        "import",
+        "in",
+        "infer",
+        "instanceof",
+        "interface",
+        "is",
+        "keyof",
+        "let",
+        "module",
+        "namespace",
+        "never",
+        "new",
+        "null",
+        "number",
+        "object",
+        "of",
+        "package",
+        "private",
+        "protected",
+        "public",
+        "readonly",
+        "require",
+        "return",
+        "set",
+        "static",
+        "string",
+        "super",
+        "switch",
+        "symbol",
+        "this",
+        "throw",
+        "true",
+        "try",
+        "type",
+        "typeof",
+        "undefined",
+        "unique",
+        "unknown",
+        "var",
+        "void",
+        "while",
+        "with",
+        "yield",
     ]
     .iter()
     .copied()

@@ -57,6 +57,7 @@ WHERE {
     GROUP BY ?receipt
   }
 }
+LIMIT 10000
 
 ---
 
@@ -71,6 +72,7 @@ WHERE {
   BIND(?capability AS ?capabilityDescription)
 }
 ORDER BY ?capability
+LIMIT 1000
 
 ---
 
@@ -110,6 +112,7 @@ WHERE {
   OPTIONAL { ?field ggen:description ?fieldDescription }
 }
 ORDER BY ?proposalField
+LIMIT 1000
 
 ---
 
@@ -127,3 +130,4 @@ WHERE {
   OPTIONAL { ?field ggen:enum ?enumValues }
 }
 ORDER BY ?planField
+LIMIT 1000

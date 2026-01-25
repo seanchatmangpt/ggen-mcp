@@ -77,15 +77,27 @@ async fn main() -> Result<()> {
     };
 
     let response = generate_from_schema(params).await?;
-    println!("✓ Generated {} lines of code", response.statistics.lines_of_code);
-    println!("✓ {} fields generated", response.statistics.fields_generated);
-    println!("✓ {} validation rules", response.statistics.validation_rules);
+    println!(
+        "✓ Generated {} lines of code",
+        response.statistics.lines_of_code
+    );
+    println!(
+        "✓ {} fields generated",
+        response.statistics.fields_generated
+    );
+    println!(
+        "✓ {} validation rules",
+        response.statistics.validation_rules
+    );
     println!("✓ Features: {}\n", response.features_applied.join(", "));
 
     // Step 4: Preview generated code
     println!("Step 4: Preview generated code");
     println!("Output path: {}\n", response.output_path.display());
-    println!("Generated code (preview):\n{}", &response.generated_code[..500.min(response.generated_code.len())]);
+    println!(
+        "Generated code (preview):\n{}",
+        &response.generated_code[..500.min(response.generated_code.len())]
+    );
     println!("... (truncated)\n");
 
     // Step 5: Validate generated code
@@ -124,14 +136,17 @@ async fn validate_schema(schema: &str) -> Result<()> {
 }
 
 /// Simulate code generation from schema
-async fn generate_from_schema(params: GenerateFromSchemaParams) -> Result<GenerateFromSchemaResponse> {
+async fn generate_from_schema(
+    params: GenerateFromSchemaParams,
+) -> Result<GenerateFromSchemaResponse> {
     println!("  Parsing {} schema...", params.schema_type);
     println!("  Extracting fields and constraints...");
     println!("  Rendering template with features: {:?}", params.features);
     println!("  Formatting with rustfmt...");
 
     // Simulated generated code
-    let generated_code = format!(r#"use chrono::{{DateTime, Utc}};
+    let generated_code = format!(
+        r#"use chrono::{{DateTime, Utc}};
 use serde::{{Deserialize, Serialize}};
 use uuid::Uuid;
 
@@ -247,8 +262,12 @@ fn validate_email(email: &str) -> Result<(), ValidationError> {{
         Err(ValidationError::InvalidEmail)
     }}
 }}"#,
-        params.entity_name, params.entity_name, params.entity_name, params.entity_name,
-        params.entity_name, params.entity_name
+        params.entity_name,
+        params.entity_name,
+        params.entity_name,
+        params.entity_name,
+        params.entity_name,
+        params.entity_name
     );
 
     Ok(GenerateFromSchemaResponse {
@@ -297,7 +316,8 @@ async fn validate_generated_code(code: &str) -> Result<()> {
 
 /// Demonstrate usage of generated code
 fn demonstrate_usage() {
-    println!(r#"  Example usage:
+    println!(
+        r#"  Example usage:
 
   use crate::generated::user::{{User, UserBuilder}};
   use uuid::Uuid;
@@ -326,7 +346,8 @@ fn demonstrate_usage() {
     "age": 25,
     "created_at": "2026-01-20T10:23:45Z",
     "is_active": true
-  }}"#);
+  }}"#
+    );
 }
 
 /// Demonstrate full ontology sync workflow (13 steps)
@@ -359,7 +380,11 @@ async fn demonstrate_full_sync() -> Result<()> {
     }
 
     println!("\n  Pipeline completed successfully!");
-    println!("  Total duration: {}ms (~{}s)", total_duration, total_duration / 1000);
+    println!(
+        "  Total duration: {}ms (~{}s)",
+        total_duration,
+        total_duration / 1000
+    );
     println!("  Audit receipt: .ggen/receipts/receipt-20260120-102345-a7b9c1d2.json");
 
     Ok(())

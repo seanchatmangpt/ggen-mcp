@@ -728,7 +728,11 @@ pub fn to_rmcp_error(error: McpError) -> rmcp::ErrorData {
         | ErrorCode::FormulaParseError => rmcp::ErrorData::invalid_params(error.message, data),
         ErrorCode::MethodNotFound => {
             // Use ErrorData::new directly since method_not_found is a generic function
-            rmcp::ErrorData::new(rmcp::model::ErrorCode::METHOD_NOT_FOUND, error.message, data)
+            rmcp::ErrorData::new(
+                rmcp::model::ErrorCode::METHOD_NOT_FOUND,
+                error.message,
+                data,
+            )
         }
         _ => rmcp::ErrorData::internal_error(error.message, data),
     }

@@ -10,3 +10,4 @@ WHERE {
         ddd:type ?propertyType .
 }
 ORDER BY ?aggregate ?propertyLabel
+LIMIT 10000

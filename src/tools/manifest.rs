@@ -2,7 +2,7 @@
 //! Generates JSON schema manifest for all MCP tools for breaking change detection.
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Tool manifest with version tracking and breaking change detection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,7 +110,12 @@ impl ManifestGenerator {
     }
 
     /// Create tool schema with default parameter/response shapes.
-    fn tool_schema(name: &str, category: &str, description: &str, capabilities: Vec<&str>) -> ToolInfo {
+    fn tool_schema(
+        name: &str,
+        category: &str,
+        description: &str,
+        capabilities: Vec<&str>,
+    ) -> ToolInfo {
         ToolInfo {
             name: name.to_string(),
             category: category.to_string(),
@@ -169,7 +174,11 @@ mod tests {
     fn test_tool_categories() {
         let manifest = ManifestGenerator::generate();
         let categories: Vec<_> = manifest.tools.iter().map(|t| &t.category).collect();
-        assert!(categories.iter().all(|c| c == "core" || c == "authoring" || c == "jira" || c == "vba" || c == "verification"));
+        assert!(categories.iter().all(|c| c == "core"
+            || c == "authoring"
+            || c == "jira"
+            || c == "vba"
+            || c == "verification"));
     }
 
     #[test]

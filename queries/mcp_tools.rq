@@ -46,3 +46,4 @@ WHERE {
   }
 }
 ORDER BY ?toolName ?paramOrder ?paramName
+LIMIT 10000

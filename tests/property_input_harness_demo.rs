@@ -100,8 +100,10 @@ mod harness_tests {
         println!("  Standard property tests: {} cases", STANDARD_CASES);
         println!("  Security critical tests: {} cases", SECURITY_CASES);
         println!("  Performance tests: {} cases", PERFORMANCE_CASES);
-        println!("\nTotal coverage: {} test cases across all properties",
-                 STANDARD_CASES + SECURITY_CASES + PERFORMANCE_CASES);
+        println!(
+            "\nTotal coverage: {} test cases across all properties",
+            STANDARD_CASES + SECURITY_CASES + PERFORMANCE_CASES
+        );
     }
 
     /// Example: Demonstrating generator patterns
@@ -110,8 +112,7 @@ mod harness_tests {
         let mut runner = proptest::test_runner::TestRunner::default();
 
         // Pattern 1: Simple value generator
-        let simple_strategy = prop::string::string_regex(r"[a-z]{3,10}")
-            .expect("valid regex");
+        let simple_strategy = prop::string::string_regex(r"[a-z]{3,10}").expect("valid regex");
         let sample = simple_strategy.new_tree(&mut runner).unwrap().current();
         assert!(sample.len() >= 3 && sample.len() <= 10);
         println!("Simple generator produced: '{}'", sample);
@@ -128,7 +129,10 @@ mod harness_tests {
             Just("invalid".to_string()),
             Just("edge_case".to_string()),
         ];
-        let conditional_sample = conditional_strategy.new_tree(&mut runner).unwrap().current();
+        let conditional_sample = conditional_strategy
+            .new_tree(&mut runner)
+            .unwrap()
+            .current();
         println!("Conditional generator produced: '{}'", conditional_sample);
     }
 

@@ -3,8 +3,8 @@
 //! Generates formatted markdown reports from DoD validation results.
 //! Reports include: summary, scores, checks by category, and remediation.
 
+use crate::dod::remediation::{Priority, RemediationGenerator};
 use crate::dod::types::*;
-use crate::dod::remediation::{RemediationGenerator, Priority};
 use anyhow::Result;
 
 /// Report generator for DoD validation results
@@ -46,7 +46,10 @@ impl ReportGenerator {
             OverallVerdict::NotReady => "FAIL",
         };
 
-        report.push_str(&format!("**Verdict**: {} {}\n", verdict_emoji, verdict_text));
+        report.push_str(&format!(
+            "**Verdict**: {} {}\n",
+            verdict_emoji, verdict_text
+        ));
         report.push_str(&format!("**Score**: {:.1}/100.0\n", result.readiness_score));
         report.push_str(&format!("**Profile**: {}\n", result.profile));
         report.push_str(&format!("**Mode**: {:?}\n", result.mode));
@@ -56,11 +59,26 @@ impl ReportGenerator {
     /// Write summary statistics
     fn write_summary(report: &mut String, result: &DodValidationResult) {
         report.push_str("## Summary\n\n");
-        report.push_str(&format!("- **Total Checks**: {}\n", result.summary.checks_total));
-        report.push_str(&format!("- **Passed**: {} ✅\n", result.summary.checks_passed));
-        report.push_str(&format!("- **Failed**: {} ❌\n", result.summary.checks_failed));
-        report.push_str(&format!("- **Warnings**: {} ⚠️\n", result.summary.checks_warned));
-        report.push_str(&format!("- **Skipped**: {} ⏭️\n\n", result.summary.checks_skipped));
+        report.push_str(&format!(
+            "- **Total Checks**: {}\n",
+            result.summary.checks_total
+        ));
+        report.push_str(&format!(
+            "- **Passed**: {} ✅\n",
+            result.summary.checks_passed
+        ));
+        report.push_str(&format!(
+            "- **Failed**: {} ❌\n",
+            result.summary.checks_failed
+        ));
+        report.push_str(&format!(
+            "- **Warnings**: {} ⚠️\n",
+            result.summary.checks_warned
+        ));
+        report.push_str(&format!(
+            "- **Skipped**: {} ⏭️\n\n",
+            result.summary.checks_skipped
+        ));
     }
 
     /// Write checks grouped by category
@@ -69,14 +87,20 @@ impl ReportGenerator {
 
         // Define category order and labels
         let categories = vec![
-            (CheckCategory::WorkspaceIntegrity, "A. Workspace Integrity (G0)"),
+            (
+                CheckCategory::WorkspaceIntegrity,
+                "A. Workspace Integrity (G0)",
+            ),
             (CheckCategory::IntentAlignment, "B. Intent Alignment (WHY)"),
             (CheckCategory::ToolRegistry, "C. Tool Registry (WHAT)"),
             (CheckCategory::BuildCorrectness, "D. Build Correctness"),
             (CheckCategory::TestTruth, "E. Test Truth"),
             (CheckCategory::GgenPipeline, "F. Ggen Pipeline"),
             (CheckCategory::SafetyInvariants, "G. Safety Invariants"),
-            (CheckCategory::DeploymentReadiness, "H. Deployment Readiness"),
+            (
+                CheckCategory::DeploymentReadiness,
+                "H. Deployment Readiness",
+            ),
         ];
 
         for (category, label) in categories {
@@ -150,10 +174,22 @@ impl ReportGenerator {
         report.push_str("Address the following issues to pass all checks:\n\n");
 
         // Group by priority
-        let mut critical: Vec<_> = suggestions.iter().filter(|s| s.priority == Priority::Critical).collect();
-        let mut high: Vec<_> = suggestions.iter().filter(|s| s.priority == Priority::High).collect();
-        let mut medium: Vec<_> = suggestions.iter().filter(|s| s.priority == Priority::Medium).collect();
-        let mut low: Vec<_> = suggestions.iter().filter(|s| s.priority == Priority::Low).collect();
+        let mut critical: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.priority == Priority::Critical)
+            .collect();
+        let mut high: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.priority == Priority::High)
+            .collect();
+        let mut medium: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.priority == Priority::Medium)
+            .collect();
+        let mut low: Vec<_> = suggestions
+            .iter()
+            .filter(|s| s.priority == Priority::Low)
+            .collect();
 
         if !critical.is_empty() {
             report.push_str("### 🚨 Critical Priority\n\n");

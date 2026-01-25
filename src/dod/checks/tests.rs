@@ -61,14 +61,13 @@ impl DodCheck for TestUnitCheck {
                 category: self.category(),
                 status: CheckStatus::Pass,
                 severity: self.severity(),
-                message: format!(
-                    "All unit tests passed ({} tests)",
-                    test_summary.passed
-                ),
+                message: format!("All unit tests passed ({} tests)", test_summary.passed),
                 evidence: vec![Evidence {
                     kind: EvidenceKind::Metric,
-                    content: format!("Passed: {}, Failed: {}, Ignored: {}",
-                        test_summary.passed, test_summary.failed, test_summary.ignored),
+                    content: format!(
+                        "Passed: {}, Failed: {}, Ignored: {}",
+                        test_summary.passed, test_summary.failed, test_summary.ignored
+                    ),
                     file_path: None,
                     line_number: None,
                     hash: String::new(),
@@ -84,15 +83,13 @@ impl DodCheck for TestUnitCheck {
                 status: CheckStatus::Fail,
                 severity: self.severity(),
                 message: format!("{} unit test(s) failed", test_summary.failed),
-                evidence: vec![
-                    Evidence {
-                        kind: EvidenceKind::CommandOutput,
-                        content: format!("STDOUT:\n{}\n\nSTDERR:\n{}", stdout, stderr),
-                        file_path: None,
-                        line_number: None,
-                        hash: String::new(),
-                    },
-                ],
+                evidence: vec![Evidence {
+                    kind: EvidenceKind::CommandOutput,
+                    content: format!("STDOUT:\n{}\n\nSTDERR:\n{}", stdout, stderr),
+                    file_path: None,
+                    line_number: None,
+                    hash: String::new(),
+                }],
                 remediation: vec![
                     "Review test failures above".to_string(),
                     "Run `cargo test --lib` to reproduce locally".to_string(),
@@ -156,11 +153,16 @@ impl DodCheck for TestIntegrationCheck {
                 category: self.category(),
                 status: CheckStatus::Pass,
                 severity: self.severity(),
-                message: format!("All integration tests passed ({} tests)", test_summary.passed),
+                message: format!(
+                    "All integration tests passed ({} tests)",
+                    test_summary.passed
+                ),
                 evidence: vec![Evidence {
                     kind: EvidenceKind::Metric,
-                    content: format!("Passed: {}, Failed: {}, Ignored: {}",
-                        test_summary.passed, test_summary.failed, test_summary.ignored),
+                    content: format!(
+                        "Passed: {}, Failed: {}, Ignored: {}",
+                        test_summary.passed, test_summary.failed, test_summary.ignored
+                    ),
                     file_path: None,
                     line_number: None,
                     hash: String::new(),
@@ -294,9 +296,7 @@ impl DodCheck for TestSnapshotCheck {
                     line_number: None,
                     hash: String::new(),
                 }],
-                remediation: vec![
-                    "Fix failing snapshot tests".to_string(),
-                ],
+                remediation: vec!["Fix failing snapshot tests".to_string()],
                 duration_ms,
                 check_hash: String::new(),
             })
@@ -356,7 +356,8 @@ mod tests {
 
     #[test]
     fn parse_test_output_with_failures() {
-        let output = "test result: FAILED. 38 passed; 4 failed; 3 ignored; 0 measured; 0 filtered out";
+        let output =
+            "test result: FAILED. 38 passed; 4 failed; 3 ignored; 0 measured; 0 filtered out";
         let summary = parse_test_output(output);
         assert_eq!(summary.passed, 38);
         assert_eq!(summary.failed, 4);

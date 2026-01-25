@@ -10,6 +10,11 @@ vars:
   params: array
   response_fields: array
 ---
+{#- Validate required variables - ensure tool_name is provided -#}
+{%- if not tool_name -%}
+{# ERROR: tool_name is required for tool handler generation -#}
+//! ERROR: Missing required variable 'tool_name'
+{%- else -%}
 //! MCP Tool Handler: {{ tool_name | snake_case }}
 //!
 //! {{ description }}
@@ -288,7 +293,7 @@ async fn execute_{{ tool_name | snake_case }}_impl(
     //     {% if has_pagination %}items: vec![], total_count: 0,{% endif %}
     // });
 
-    todo!("Implement {{ tool_name | snake_case }} tool logic")
+    unimplemented!("Implement {{ tool_name | snake_case }} tool logic - see frozen section for example")
     // # end frozen
 }
 

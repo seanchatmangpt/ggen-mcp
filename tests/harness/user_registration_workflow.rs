@@ -60,11 +60,13 @@ async fn load_user_ontology(
     }
 
     // Emit event
-    harness.emit_event(
-        "ontology_loaded",
-        json!({ "size_bytes": ontology.len() }),
-        "load_user_ontology"
-    ).await;
+    harness
+        .emit_event(
+            "ontology_loaded",
+            json!({ "size_bytes": ontology.len() }),
+            "load_user_ontology",
+        )
+        .await;
 
     // Transition state
     transition_state(context.clone(), "ontology_loaded", "load_user_ontology").await;
@@ -79,7 +81,8 @@ async fn generate_user_code(
 ) -> Result<()> {
     let ontology = {
         let ctx = context.read().await;
-        ctx.ontology.clone()
+        ctx.ontology
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("Ontology not loaded"))?
     };
 
@@ -91,14 +94,16 @@ async fn generate_user_code(
     save_generated_code(context.clone(), "user_aggregate", generated_code.clone()).await;
 
     // Emit event
-    harness.emit_event(
-        "code_generated",
-        json!({
-            "artifact": "user_aggregate",
-            "lines": generated_code.lines().count()
-        }),
-        "generate_user_code"
-    ).await;
+    harness
+        .emit_event(
+            "code_generated",
+            json!({
+                "artifact": "user_aggregate",
+                "lines": generated_code.lines().count()
+            }),
+            "generate_user_code",
+        )
+        .await;
 
     // Transition state
     transition_state(context.clone(), "code_generated", "generate_user_code").await;
@@ -113,7 +118,8 @@ async fn compile_generated_code(
 ) -> Result<()> {
     let code = {
         let ctx = context.read().await;
-        ctx.generated_code.get("user_aggregate")
+        ctx.generated_code
+            .get("user_aggregate")
             .ok_or_else(|| anyhow::anyhow!("Generated code not found"))?
             .clone()
     };
@@ -129,11 +135,13 @@ async fn compile_generated_code(
     }
 
     // Emit event
-    harness.emit_event(
-        "code_compiled",
-        json!({ "artifact": "user_aggregate" }),
-        "compile_generated_code"
-    ).await;
+    harness
+        .emit_event(
+            "code_compiled",
+            json!({ "artifact": "user_aggregate" }),
+            "compile_generated_code",
+        )
+        .await;
 
     // Transition state
     transition_state(context.clone(), "code_compiled", "compile_generated_code").await;
@@ -164,14 +172,21 @@ async fn register_create_user_tool(
     register_tool(context.clone(), registration).await;
 
     // Emit event
-    harness.emit_event(
-        "tool_registered",
-        json!({ "tool": "create_user" }),
-        "register_create_user_tool"
-    ).await;
+    harness
+        .emit_event(
+            "tool_registered",
+            json!({ "tool": "create_user" }),
+            "register_create_user_tool",
+        )
+        .await;
 
     // Transition state
-    transition_state(context.clone(), "tool_registered", "register_create_user_tool").await;
+    transition_state(
+        context.clone(),
+        "tool_registered",
+        "register_create_user_tool",
+    )
+    .await;
 
     Ok(())
 }
@@ -197,14 +212,16 @@ async fn execute_create_user(
     store_data(context.clone(), "user_id", json!(user_id)).await;
 
     // Emit event
-    harness.emit_event(
-        "user_created",
-        json!({
-            "user_id": user_id,
-            "username": "john_doe"
-        }),
-        "execute_create_user"
-    ).await;
+    harness
+        .emit_event(
+            "user_created",
+            json!({
+                "user_id": user_id,
+                "username": "john_doe"
+            }),
+            "execute_create_user",
+        )
+        .await;
 
     // Transition state
     transition_state(context.clone(), "user_created", "execute_create_user").await;
@@ -217,7 +234,8 @@ async fn verify_user_persisted(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let user_id = get_data(context.clone(), "user_id").await
+    let user_id = get_data(context.clone(), "user_id")
+        .await
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .ok_or_else(|| anyhow::anyhow!("User ID not found"))?;
 
@@ -230,11 +248,13 @@ async fn verify_user_persisted(
     store_data(context.clone(), "persistence_verified", json!(true)).await;
 
     // Emit event
-    harness.emit_event(
-        "persistence_verified",
-        json!({ "user_id": user_id }),
-        "verify_user_persisted"
-    ).await;
+    harness
+        .emit_event(
+            "persistence_verified",
+            json!({ "user_id": user_id }),
+            "verify_user_persisted",
+        )
+        .await;
 
     // Transition state
     transition_state(context.clone(), "verified", "verify_user_persisted").await;
@@ -251,14 +271,16 @@ async fn assert_user_created(
     context: std::sync::Arc<tokio::sync::RwLock<WorkflowContext>>,
     _harness: &IntegrationWorkflowHarness,
 ) -> Result<()> {
-    let user_id = get_data(context.clone(), "user_id").await
+    let user_id = get_data(context.clone(), "user_id")
+        .await
         .ok_or_else(|| anyhow::anyhow!("User ID not found in context"))?;
 
     if !user_id.is_string() {
         return Err(anyhow::anyhow!("User ID is not a string"));
     }
 
-    let persistence_verified = get_data(context.clone(), "persistence_verified").await
+    let persistence_verified = get_data(context.clone(), "persistence_verified")
+        .await
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
@@ -351,7 +373,8 @@ pub fn handle_create_user(
     }
     Ok(user)
 }
-"#.to_string())
+"#
+    .to_string())
 }
 
 #[cfg(test)]
@@ -397,7 +420,9 @@ mod tests {
     async fn test_user_creation_events() {
         let harness = IntegrationWorkflowHarness::new().unwrap();
 
-        harness.emit_event("user_created", json!({"user_id": "123"}), "test").await;
+        harness
+            .emit_event("user_created", json!({"user_id": "123"}), "test")
+            .await;
 
         let events = harness.events().await;
         assert_eq!(events.len(), 1);

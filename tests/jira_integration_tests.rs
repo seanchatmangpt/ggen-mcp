@@ -43,7 +43,12 @@ impl MockJiraServer {
         }
     }
 
-    async fn create_ticket(&self, summary: &str, description: &str, priority: &str) -> Result<JiraTicket> {
+    async fn create_ticket(
+        &self,
+        summary: &str,
+        description: &str,
+        priority: &str,
+    ) -> Result<JiraTicket> {
         let mut next_id = self.next_id.write().await;
         let id = *next_id;
         *next_id += 1;
@@ -59,19 +64,27 @@ impl MockJiraServer {
             updated: chrono::Utc::now().to_rfc3339(),
         };
 
-        self.tickets.write().await.insert(ticket.key.clone(), ticket.clone());
+        self.tickets
+            .write()
+            .await
+            .insert(ticket.key.clone(), ticket.clone());
 
         Ok(ticket)
     }
 
     async fn get_ticket(&self, key: &str) -> Result<JiraTicket> {
         let tickets = self.tickets.read().await;
-        tickets.get(key).cloned().ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", key))
+        tickets
+            .get(key)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", key))
     }
 
     async fn update_ticket(&self, key: &str, updates: JiraTicketUpdate) -> Result<JiraTicket> {
         let mut tickets = self.tickets.write().await;
-        let ticket = tickets.get_mut(key).ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", key))?;
+        let ticket = tickets
+            .get_mut(key)
+            .ok_or_else(|| anyhow::anyhow!("Ticket not found: {}", key))?;
 
         if let Some(summary) = updates.summary {
             ticket.summary = summary;
@@ -99,9 +112,17 @@ impl MockJiraServer {
 
         // Simple JQL parsing (in production would use proper parser)
         let results: Vec<JiraTicket> = if jql.contains("status=Open") {
-            tickets.values().filter(|t| t.status == "Open").cloned().collect()
+            tickets
+                .values()
+                .filter(|t| t.status == "Open")
+                .cloned()
+                .collect()
         } else if jql.contains("priority=High") {
-            tickets.values().filter(|t| t.priority == "High").cloned().collect()
+            tickets
+                .values()
+                .filter(|t| t.priority == "High")
+                .cloned()
+                .collect()
         } else {
             tickets.values().cloned().collect()
         };
@@ -154,7 +175,9 @@ impl JiraIntegrationHarness {
     }
 
     async fn create_test_ticket(&self, summary: &str) -> Result<JiraTicket> {
-        self.mock_server.create_ticket(summary, "Test description", "Medium").await
+        self.mock_server
+            .create_ticket(summary, "Test description", "Medium")
+            .await
     }
 }
 
@@ -167,14 +190,20 @@ fn sample_spreadsheet_rows() -> Vec<HashMap<String, String>> {
         HashMap::from([
             ("Key".to_string(), "TEST-1".to_string()),
             ("Summary".to_string(), "Implement login".to_string()),
-            ("Description".to_string(), "Add user login feature".to_string()),
+            (
+                "Description".to_string(),
+                "Add user login feature".to_string(),
+            ),
             ("Status".to_string(), "Open".to_string()),
             ("Priority".to_string(), "High".to_string()),
         ]),
         HashMap::from([
             ("Key".to_string(), "TEST-2".to_string()),
             ("Summary".to_string(), "Fix bug in dashboard".to_string()),
-            ("Description".to_string(), "Dashboard not loading".to_string()),
+            (
+                "Description".to_string(),
+                "Dashboard not loading".to_string(),
+            ),
             ("Status".to_string(), "In Progress".to_string()),
             ("Priority".to_string(), "Critical".to_string()),
         ]),
@@ -192,11 +221,7 @@ async fn test_create_tickets_from_spreadsheet() -> Result<()> {
     let rows = sample_spreadsheet_rows();
 
     // WHEN: We create tickets from spreadsheet
-    let result = simulate_create_tickets_from_spreadsheet(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_create_tickets_from_spreadsheet(&harness.mock_server, rows).await?;
 
     // THEN: Tickets created successfully
     assert_eq!(result.created_count, 2);
@@ -217,18 +242,14 @@ async fn test_create_tickets_skips_existing() -> Result<()> {
     harness.create_test_ticket("Existing ticket").await?;
 
     let mut rows = sample_spreadsheet_rows();
-    rows[0].insert("Key".to_string(), "TEST-1".to_string());  // Already exists
+    rows[0].insert("Key".to_string(), "TEST-1".to_string()); // Already exists
 
     // WHEN: We create tickets (with skip_existing flag)
-    let result = simulate_create_tickets_from_spreadsheet(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_create_tickets_from_spreadsheet(&harness.mock_server, rows).await?;
 
     // THEN: Only new tickets created
-    assert_eq!(result.created_count, 1);  // Only TEST-2
-    assert_eq!(result.skipped_count, 1);  // TEST-1 skipped
+    assert_eq!(result.created_count, 1); // Only TEST-2
+    assert_eq!(result.skipped_count, 1); // TEST-1 skipped
 
     Ok(())
 }
@@ -237,19 +258,13 @@ async fn test_create_tickets_skips_existing() -> Result<()> {
 async fn test_create_tickets_with_validation_errors() -> Result<()> {
     // GIVEN: Spreadsheet with invalid data
     let harness = JiraIntegrationHarness::new()?;
-    let rows = vec![
-        HashMap::from([
-            ("Summary".to_string(), "".to_string()),  // Empty summary
-            ("Description".to_string(), "Test".to_string()),
-        ]),
-    ];
+    let rows = vec![HashMap::from([
+        ("Summary".to_string(), "".to_string()), // Empty summary
+        ("Description".to_string(), "Test".to_string()),
+    ])];
 
     // WHEN: We try to create tickets
-    let result = simulate_create_tickets_from_spreadsheet(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_create_tickets_from_spreadsheet(&harness.mock_server, rows).await?;
 
     // THEN: Creation fails with validation errors
     assert_eq!(result.created_count, 0);
@@ -268,8 +283,14 @@ async fn test_create_tickets_with_validation_errors() -> Result<()> {
 async fn test_sync_jira_to_spreadsheet() -> Result<()> {
     // GIVEN: Jira tickets exist
     let harness = JiraIntegrationHarness::new()?;
-    harness.mock_server.create_ticket("Ticket 1", "Description 1", "High").await?;
-    harness.mock_server.create_ticket("Ticket 2", "Description 2", "Medium").await?;
+    harness
+        .mock_server
+        .create_ticket("Ticket 1", "Description 1", "High")
+        .await?;
+    harness
+        .mock_server
+        .create_ticket("Ticket 2", "Description 2", "Medium")
+        .await?;
 
     // WHEN: We sync from Jira to spreadsheet
     let result = simulate_sync_jira_to_spreadsheet(
@@ -293,13 +314,25 @@ async fn test_sync_jira_to_spreadsheet() -> Result<()> {
 async fn test_sync_jira_to_spreadsheet_filters_by_jql() -> Result<()> {
     // GIVEN: Mix of open and closed tickets
     let harness = JiraIntegrationHarness::new()?;
-    harness.mock_server.create_ticket("Open ticket", "Description", "High").await?;
+    harness
+        .mock_server
+        .create_ticket("Open ticket", "Description", "High")
+        .await?;
 
-    let closed_ticket = harness.mock_server.create_ticket("Closed ticket", "Description", "Low").await?;
-    harness.mock_server.update_ticket(&closed_ticket.key, JiraTicketUpdate {
-        status: Some("Closed".to_string()),
-        ..Default::default()
-    }).await?;
+    let closed_ticket = harness
+        .mock_server
+        .create_ticket("Closed ticket", "Description", "Low")
+        .await?;
+    harness
+        .mock_server
+        .update_ticket(
+            &closed_ticket.key,
+            JiraTicketUpdate {
+                status: Some("Closed".to_string()),
+                ..Default::default()
+            },
+        )
+        .await?;
 
     // WHEN: We sync only open tickets
     let result = simulate_sync_jira_to_spreadsheet(
@@ -319,7 +352,10 @@ async fn test_sync_jira_to_spreadsheet_filters_by_jql() -> Result<()> {
 async fn test_sync_jira_to_spreadsheet_updates_existing() -> Result<()> {
     // GIVEN: Spreadsheet with older ticket data
     let harness = JiraIntegrationHarness::new()?;
-    let ticket = harness.mock_server.create_ticket("Original summary", "Original desc", "Low").await?;
+    let ticket = harness
+        .mock_server
+        .create_ticket("Original summary", "Original desc", "Low")
+        .await?;
 
     // Create initial spreadsheet
     simulate_sync_jira_to_spreadsheet(
@@ -330,11 +366,17 @@ async fn test_sync_jira_to_spreadsheet_updates_existing() -> Result<()> {
     .await?;
 
     // WHEN: Ticket updated in Jira
-    harness.mock_server.update_ticket(&ticket.key, JiraTicketUpdate {
-        summary: Some("Updated summary".to_string()),
-        priority: Some("High".to_string()),
-        ..Default::default()
-    }).await?;
+    harness
+        .mock_server
+        .update_ticket(
+            &ticket.key,
+            JiraTicketUpdate {
+                summary: Some("Updated summary".to_string()),
+                priority: Some("High".to_string()),
+                ..Default::default()
+            },
+        )
+        .await?;
 
     // AND: We sync again
     let result = simulate_sync_jira_to_spreadsheet(
@@ -358,20 +400,20 @@ async fn test_sync_jira_to_spreadsheet_updates_existing() -> Result<()> {
 async fn test_sync_spreadsheet_to_jira_creates_new() -> Result<()> {
     // GIVEN: Spreadsheet with new ticket (no Key)
     let harness = JiraIntegrationHarness::new()?;
-    let rows = vec![
-        HashMap::from([
-            ("Summary".to_string(), "New ticket from spreadsheet".to_string()),
-            ("Description".to_string(), "Description from spreadsheet".to_string()),
-            ("Priority".to_string(), "High".to_string()),
-        ]),
-    ];
+    let rows = vec![HashMap::from([
+        (
+            "Summary".to_string(),
+            "New ticket from spreadsheet".to_string(),
+        ),
+        (
+            "Description".to_string(),
+            "Description from spreadsheet".to_string(),
+        ),
+        ("Priority".to_string(), "High".to_string()),
+    ])];
 
     // WHEN: We sync to Jira
-    let result = simulate_sync_spreadsheet_to_jira(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_sync_spreadsheet_to_jira(&harness.mock_server, rows).await?;
 
     // THEN: Ticket created in Jira
     assert_eq!(result.created_count, 1);
@@ -392,20 +434,17 @@ async fn test_sync_spreadsheet_to_jira_updates_existing() -> Result<()> {
     let ticket = harness.create_test_ticket("Original summary").await?;
 
     // AND: Spreadsheet with updated data
-    let rows = vec![
-        HashMap::from([
-            ("Key".to_string(), ticket.key.clone()),
-            ("Summary".to_string(), "Updated from spreadsheet".to_string()),
-            ("Status".to_string(), "In Progress".to_string()),
-        ]),
-    ];
+    let rows = vec![HashMap::from([
+        ("Key".to_string(), ticket.key.clone()),
+        (
+            "Summary".to_string(),
+            "Updated from spreadsheet".to_string(),
+        ),
+        ("Status".to_string(), "In Progress".to_string()),
+    ])];
 
     // WHEN: We sync to Jira
-    let result = simulate_sync_spreadsheet_to_jira(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_sync_spreadsheet_to_jira(&harness.mock_server, rows).await?;
 
     // THEN: Ticket updated
     assert_eq!(result.updated_count, 1);
@@ -426,26 +465,29 @@ async fn test_sync_spreadsheet_to_jira_conflict_detection() -> Result<()> {
     let ticket = harness.create_test_ticket("Original").await?;
 
     // Update in Jira
-    harness.mock_server.update_ticket(&ticket.key, JiraTicketUpdate {
-        summary: Some("Updated in Jira".to_string()),
-        ..Default::default()
-    }).await?;
+    harness
+        .mock_server
+        .update_ticket(
+            &ticket.key,
+            JiraTicketUpdate {
+                summary: Some("Updated in Jira".to_string()),
+                ..Default::default()
+            },
+        )
+        .await?;
 
     // Spreadsheet has different update
-    let rows = vec![
-        HashMap::from([
-            ("Key".to_string(), ticket.key.clone()),
-            ("Summary".to_string(), "Updated in spreadsheet".to_string()),
-            ("_LastSyncTime".to_string(), "2024-01-01T00:00:00Z".to_string()),  // Old sync time
-        ]),
-    ];
+    let rows = vec![HashMap::from([
+        ("Key".to_string(), ticket.key.clone()),
+        ("Summary".to_string(), "Updated in spreadsheet".to_string()),
+        (
+            "_LastSyncTime".to_string(),
+            "2024-01-01T00:00:00Z".to_string(),
+        ), // Old sync time
+    ])];
 
     // WHEN: We sync to Jira
-    let result = simulate_sync_spreadsheet_to_jira(
-        &harness.mock_server,
-        rows,
-    )
-    .await?;
+    let result = simulate_sync_spreadsheet_to_jira(&harness.mock_server, rows).await?;
 
     // THEN: Conflict detected
     assert_eq!(result.conflict_count, 1);
@@ -463,16 +505,21 @@ async fn test_sync_spreadsheet_to_jira_conflict_detection() -> Result<()> {
 async fn test_query_tickets_by_jql() -> Result<()> {
     // GIVEN: Mix of tickets with different priorities
     let harness = JiraIntegrationHarness::new()?;
-    harness.mock_server.create_ticket("High priority", "Desc", "High").await?;
-    harness.mock_server.create_ticket("Medium priority", "Desc", "Medium").await?;
-    harness.mock_server.create_ticket("Another high", "Desc", "High").await?;
+    harness
+        .mock_server
+        .create_ticket("High priority", "Desc", "High")
+        .await?;
+    harness
+        .mock_server
+        .create_ticket("Medium priority", "Desc", "Medium")
+        .await?;
+    harness
+        .mock_server
+        .create_ticket("Another high", "Desc", "High")
+        .await?;
 
     // WHEN: We query for high priority tickets
-    let result = simulate_query_jira_tickets(
-        &harness.mock_server,
-        "priority=High",
-    )
-    .await?;
+    let result = simulate_query_jira_tickets(&harness.mock_server, "priority=High").await?;
 
     // THEN: Only high priority tickets returned
     assert_eq!(result.tickets.len(), 2);
@@ -488,11 +535,7 @@ async fn test_query_tickets_returns_empty_on_no_matches() -> Result<()> {
     harness.create_test_ticket("Test ticket").await?;
 
     // WHEN: We query for non-matching criteria
-    let result = simulate_query_jira_tickets(
-        &harness.mock_server,
-        "status=Closed",
-    )
-    .await?;
+    let result = simulate_query_jira_tickets(&harness.mock_server, "status=Closed").await?;
 
     // THEN: No tickets returned
     assert_eq!(result.tickets.len(), 0);
@@ -508,18 +551,34 @@ async fn test_query_tickets_returns_empty_on_no_matches() -> Result<()> {
 async fn test_import_all_fields() -> Result<()> {
     // GIVEN: Jira tickets with complete data
     let harness = JiraIntegrationHarness::new()?;
-    let mut ticket = harness.mock_server.create_ticket("Complete ticket", "Full description", "High").await?;
+    let mut ticket = harness
+        .mock_server
+        .create_ticket("Complete ticket", "Full description", "High")
+        .await?;
     ticket.assignee = Some("user@example.com".to_string());
-    harness.mock_server.update_ticket(&ticket.key, JiraTicketUpdate {
-        assignee: Some("user@example.com".to_string()),
-        ..Default::default()
-    }).await?;
+    harness
+        .mock_server
+        .update_ticket(
+            &ticket.key,
+            JiraTicketUpdate {
+                assignee: Some("user@example.com".to_string()),
+                ..Default::default()
+            },
+        )
+        .await?;
 
     // WHEN: We import to spreadsheet
     let result = simulate_import_jira_to_spreadsheet(
         &harness.mock_server,
         harness.spreadsheet_path().as_path(),
-        &["Key", "Summary", "Description", "Status", "Priority", "Assignee"],
+        &[
+            "Key",
+            "Summary",
+            "Description",
+            "Status",
+            "Priority",
+            "Assignee",
+        ],
     )
     .await?;
 
@@ -644,7 +703,7 @@ async fn simulate_sync_jira_to_spreadsheet(
     // Simulate spreadsheet write
     Ok(SyncResult {
         synced_count: tickets.len(),
-        updated_count: 0,  // Would track updates in real implementation
+        updated_count: 0, // Would track updates in real implementation
         created_count: tickets.len(),
         conflict_count: 0,
         conflicts: Vec::new(),
@@ -675,13 +734,18 @@ async fn simulate_sync_spreadsheet_to_jira(
                     }
                 }
 
-                server.update_ticket(key, JiraTicketUpdate {
-                    summary: row.get("Summary").cloned(),
-                    description: row.get("Description").cloned(),
-                    status: row.get("Status").cloned(),
-                    priority: row.get("Priority").cloned(),
-                    assignee: row.get("Assignee").cloned(),
-                }).await?;
+                server
+                    .update_ticket(
+                        key,
+                        JiraTicketUpdate {
+                            summary: row.get("Summary").cloned(),
+                            description: row.get("Description").cloned(),
+                            status: row.get("Status").cloned(),
+                            priority: row.get("Priority").cloned(),
+                            assignee: row.get("Assignee").cloned(),
+                        },
+                    )
+                    .await?;
                 updated_count += 1;
             }
         } else {
@@ -705,10 +769,7 @@ async fn simulate_sync_spreadsheet_to_jira(
     })
 }
 
-async fn simulate_query_jira_tickets(
-    server: &MockJiraServer,
-    jql: &str,
-) -> Result<QueryResult> {
+async fn simulate_query_jira_tickets(server: &MockJiraServer, jql: &str) -> Result<QueryResult> {
     let tickets = server.query_tickets(jql).await?;
     Ok(QueryResult { tickets })
 }

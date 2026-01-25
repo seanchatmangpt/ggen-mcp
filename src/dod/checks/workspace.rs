@@ -156,10 +156,7 @@ fn compute_file_hash(path: &Path) -> Result<String> {
 }
 
 fn check_symlink_safety(root: &Path) -> Result<()> {
-    for entry in walkdir::WalkDir::new(root)
-        .follow_links(false)
-        .max_depth(3)
-    {
+    for entry in walkdir::WalkDir::new(root).follow_links(false).max_depth(3) {
         let entry = entry?;
         if entry.path_is_symlink() {
             let target = fs::read_link(entry.path())?;

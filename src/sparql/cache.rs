@@ -3,6 +3,7 @@
 // =============================================================================
 // Cache validated query results with TTL, memory bounds, and invalidation strategies
 
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Duration, Utc};
 use lru::LruCache;
 use oxigraph::sparql::QuerySolution;
@@ -58,8 +59,8 @@ pub enum CacheInvalidationStrategy {
 struct CacheEntry {
     /// Query fingerprint (hash)
     fingerprint: String,
-    /// Cached solutions
-    solutions: Vec<QuerySolution>,
+    /// Cached solutions (stored as serialized JSON since QuerySolution doesn't implement Clone)
+    solutions_json: String,
     /// Timestamp when cached
     cached_at: DateTime<Utc>,
     /// Time-to-live in seconds
@@ -105,22 +106,33 @@ pub struct QueryResultCache {
 
 impl QueryResultCache {
     /// Create a new query result cache
-    pub fn new(config: CacheConfig) -> Self {
-        let capacity = NonZeroUsize::new(config.max_entries).unwrap();
+    ///
+    /// # Errors
+    /// Returns `Err` if `config.max_entries` is 0 (invalid configuration)
+    pub fn new(config: CacheConfig) -> Result<Self> {
+        // TPS: Fail fast on invalid config - no fallback to default capacity
+        let capacity = NonZeroUsize::new(config.max_entries)
+            .ok_or_else(|| anyhow!("Cache max_entries must be > 0, got {}", config.max_entries))?;
 
-        Self {
+        Ok(Self {
             config,
             cache: Arc::new(RwLock::new(LruCache::new(capacity))),
             total_size: Arc::new(RwLock::new(0)),
             hits: Arc::new(RwLock::new(0)),
             misses: Arc::new(RwLock::new(0)),
             evictions: Arc::new(RwLock::new(0)),
-        }
+        })
     }
 
     /// Create cache with default configuration
+    ///
+    /// # Panics
+    /// Panics if default configuration is invalid (should never happen - programming error)
     pub fn default() -> Self {
+        // Default config has max_entries: 1000, so this should never fail
+        // If it does, it's a programming error in CacheConfig::default()
         Self::new(CacheConfig::default())
+            .expect("Default cache configuration is invalid - this is a programming error")
     }
 
     /// Generate fingerprint for a query using ahash (5-10x faster than SHA256)
@@ -152,7 +164,13 @@ impl QueryResultCache {
 
         let entry = CacheEntry {
             fingerprint: fingerprint.clone(),
-            solutions,
+            solutions_json: serde_json::to_string(&solutions.iter().map(|s| {
+                let mut row = serde_json::Map::new();
+                for (var, term) in s.iter() {
+                    row.insert(var.as_str().to_string(), serde_json::json!(term.to_string()));
+                }
+                serde_json::Value::Object(row)
+            }).collect::<Vec<_>>()).unwrap_or_default(),
             cached_at: Utc::now(),
             ttl: ttl.unwrap_or(self.config.default_ttl),
             tags,
@@ -186,7 +204,8 @@ impl QueryResultCache {
             }
 
             *self.hits.write() += 1;
-            Some(entry.solutions.clone())
+            // Deserialize solutions from JSON
+            serde_json::from_str(&entry.solutions_json).ok()
         } else {
             *self.misses.write() += 1;
             None

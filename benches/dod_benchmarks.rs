@@ -3,7 +3,7 @@
 //! Benchmarks for Definition of Done validation system.
 //! Targets: <5s development profile, <10s enterprise profile
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use spreadsheet_mcp::dod::*;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -107,11 +107,21 @@ fn bench_individual_checks(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     let categories = [
-        ("workspace", || spreadsheet_mcp::dod::checks::workspace::get_workspace_checks()),
-        ("build", || spreadsheet_mcp::dod::checks::build::get_build_checks()),
-        ("tests", || spreadsheet_mcp::dod::checks::tests::get_test_checks()),
-        ("safety", || spreadsheet_mcp::dod::checks::safety::get_safety_checks()),
-        ("ggen", || spreadsheet_mcp::dod::checks::ggen::get_ggen_checks()),
+        ("workspace", || {
+            spreadsheet_mcp::dod::checks::workspace::get_workspace_checks()
+        }),
+        ("build", || {
+            spreadsheet_mcp::dod::checks::build::get_build_checks()
+        }),
+        ("tests", || {
+            spreadsheet_mcp::dod::checks::tests::get_test_checks()
+        }),
+        ("safety", || {
+            spreadsheet_mcp::dod::checks::safety::get_safety_checks()
+        }),
+        ("ggen", || {
+            spreadsheet_mcp::dod::checks::ggen::get_ggen_checks()
+        }),
     ];
 
     for (category_name, get_checks) in categories {
@@ -156,10 +166,22 @@ fn bench_report_generation(c: &mut Criterion) {
         // Build validation result
         let summary = ValidationSummary {
             checks_total: check_results.len(),
-            checks_passed: check_results.iter().filter(|r| r.status == CheckStatus::Pass).count(),
-            checks_failed: check_results.iter().filter(|r| r.status == CheckStatus::Fail).count(),
-            checks_warned: check_results.iter().filter(|r| r.status == CheckStatus::Warn).count(),
-            checks_skipped: check_results.iter().filter(|r| r.status == CheckStatus::Skip).count(),
+            checks_passed: check_results
+                .iter()
+                .filter(|r| r.status == CheckStatus::Pass)
+                .count(),
+            checks_failed: check_results
+                .iter()
+                .filter(|r| r.status == CheckStatus::Fail)
+                .count(),
+            checks_warned: check_results
+                .iter()
+                .filter(|r| r.status == CheckStatus::Warn)
+                .count(),
+            checks_skipped: check_results
+                .iter()
+                .filter(|r| r.status == CheckStatus::Skip)
+                .count(),
         };
 
         DodValidationResult {
@@ -185,7 +207,10 @@ fn bench_report_generation(c: &mut Criterion) {
             let mut report = String::new();
             report.push_str("# DoD Validation Report\n\n");
             report.push_str(&format!("Verdict: {:?}\n", validation_result.verdict));
-            report.push_str(&format!("Score: {:.1}\n\n", validation_result.readiness_score));
+            report.push_str(&format!(
+                "Score: {:.1}\n\n",
+                validation_result.readiness_score
+            ));
 
             for check in &validation_result.check_results {
                 report.push_str(&format!("## {}\n", check.id));
@@ -222,15 +247,13 @@ fn bench_evidence_bundle(c: &mut Criterion) {
             status: CheckStatus::Pass,
             severity: CheckSeverity::Fatal,
             message: format!("Check {} passed", i),
-            evidence: vec![
-                Evidence {
-                    kind: EvidenceKind::CommandOutput,
-                    content: "x".repeat(1000), // 1KB of content
-                    file_path: Some(PathBuf::from(format!("/tmp/evidence_{}.txt", i))),
-                    line_number: Some(i),
-                    hash: format!("hash_{}", i),
-                },
-            ],
+            evidence: vec![Evidence {
+                kind: EvidenceKind::CommandOutput,
+                content: "x".repeat(1000), // 1KB of content
+                file_path: Some(PathBuf::from(format!("/tmp/evidence_{}.txt", i))),
+                line_number: Some(i),
+                hash: format!("hash_{}", i),
+            }],
             remediation: vec![],
             duration_ms: 100,
             check_hash: format!("check_hash_{}", i),
@@ -313,13 +336,16 @@ fn bench_metrics_collection(c: &mut Criterion) {
 
     group.bench_function("collect_metrics", |b| {
         b.iter(|| {
-            let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
+            let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(
+                &validation_result,
+            );
             black_box(metrics)
         });
     });
 
     group.bench_function("format_prometheus", |b| {
-        let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
+        let metrics =
+            spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
         b.iter(|| {
             let prom = metrics.to_prometheus();
             black_box(prom)
@@ -327,7 +353,8 @@ fn bench_metrics_collection(c: &mut Criterion) {
     });
 
     group.bench_function("format_summary", |b| {
-        let metrics = spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
+        let metrics =
+            spreadsheet_mcp::dod::metrics::DodMetrics::from_validation_result(&validation_result);
         b.iter(|| {
             let summary = metrics.format_summary();
             black_box(summary)

@@ -253,9 +253,7 @@ pub struct LifecycleConfig {
 #[serde(untagged)]
 pub enum PhaseConfig {
     Simple(Vec<String>),
-    Complex {
-        scripts: Vec<String>,
-    },
+    Complex { scripts: Vec<String> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -728,7 +726,10 @@ impl ConfigTestHarness {
     /// Assert that the error message contains a specific string
     pub fn assert_error_contains(&self, expected: &str) {
         match &self.config {
-            Ok(_) => panic!("Expected error containing '{}', but config is valid", expected),
+            Ok(_) => panic!(
+                "Expected error containing '{}', but config is valid",
+                expected
+            ),
             Err(e) => {
                 let error_msg = format!("{:?}", e);
                 assert!(
@@ -870,19 +871,13 @@ impl ConfigTestHarness {
     /// Assert inference is enabled
     pub fn assert_inference_enabled(&self) {
         let config = self.unwrap_config();
-        assert!(
-            config.inference.enabled,
-            "Inference should be enabled"
-        );
+        assert!(config.inference.enabled, "Inference should be enabled");
     }
 
     /// Assert inference is disabled
     pub fn assert_inference_disabled(&self) {
         let config = self.unwrap_config();
-        assert!(
-            !config.inference.enabled,
-            "Inference should be disabled"
-        );
+        assert!(!config.inference.enabled, "Inference should be disabled");
     }
 
     /// Assert number of inference rules
@@ -915,8 +910,8 @@ impl ConfigTestHarness {
     pub fn assert_round_trip(&self) {
         let config = self.unwrap_config();
         let serialized = toml::to_string(&config).expect("Should serialize to TOML");
-        let deserialized: TomlConfig = toml::from_str(&serialized)
-            .expect("Should deserialize back from TOML");
+        let deserialized: TomlConfig =
+            toml::from_str(&serialized).expect("Should deserialize back from TOML");
         assert_eq!(
             config, &deserialized,
             "Configuration should round-trip correctly"

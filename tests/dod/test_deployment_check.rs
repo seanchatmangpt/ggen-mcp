@@ -78,8 +78,8 @@ async fn test_artifact_build_invalid_cargo_toml() {
     // Create invalid Cargo.toml
     fs::write(workspace.join("Cargo.toml"), "invalid toml content[[[").unwrap();
 
-    let context = CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast)
-        .with_timeout(60_000); // 1 minute
+    let context =
+        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000); // 1 minute
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();
@@ -93,8 +93,8 @@ async fn test_artifact_build_missing_cargo_toml() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
 
-    let context = CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast)
-        .with_timeout(60_000);
+    let context =
+        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000);
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();
@@ -107,8 +107,8 @@ async fn test_artifact_build_timeout() {
     let workspace = create_test_workspace();
 
     // Set very short timeout
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast)
-        .with_timeout(1); // 1ms - will definitely timeout
+    let context =
+        CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast).with_timeout(1); // 1ms - will definitely timeout
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await;
@@ -154,8 +154,8 @@ async fn test_artifact_build_check_remediation() {
     // Create broken project
     fs::write(workspace.join("Cargo.toml"), "[package]\nname = \"broken\"").unwrap();
 
-    let context = CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast)
-        .with_timeout(60_000);
+    let context =
+        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000);
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();

@@ -15,9 +15,9 @@
 //! - Order Processing: Create order, add items, calculate total, process payment
 //! - MCP Tool: Define tool, generate handler, register, invoke, validate
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -173,7 +173,12 @@ impl IntegrationWorkflowHarness {
     }
 
     /// Emit an event
-    pub async fn emit_event(&self, event_type: impl Into<String>, payload: Value, source_step: impl Into<String>) {
+    pub async fn emit_event(
+        &self,
+        event_type: impl Into<String>,
+        payload: Value,
+        source_step: impl Into<String>,
+    ) {
         let event = WorkflowEvent {
             event_type: event_type.into(),
             payload,
@@ -269,7 +274,11 @@ pub struct WorkflowStep {
 /// Workflow step executor trait
 #[async_trait::async_trait]
 pub trait WorkflowStepExecutor: Send + Sync {
-    async fn execute(&self, context: Arc<RwLock<WorkflowContext>>, harness: &IntegrationWorkflowHarness) -> Result<()>;
+    async fn execute(
+        &self,
+        context: Arc<RwLock<WorkflowContext>>,
+        harness: &IntegrationWorkflowHarness,
+    ) -> Result<()>;
 }
 
 /// Workflow assertion
@@ -281,7 +290,11 @@ pub struct WorkflowAssertion {
 /// Workflow assertion verifier trait
 #[async_trait::async_trait]
 pub trait WorkflowAssertionVerifier: Send + Sync {
-    async fn verify(&self, context: Arc<RwLock<WorkflowContext>>, harness: &IntegrationWorkflowHarness) -> Result<()>;
+    async fn verify(
+        &self,
+        context: Arc<RwLock<WorkflowContext>>,
+        harness: &IntegrationWorkflowHarness,
+    ) -> Result<()>;
 }
 
 impl WorkflowBuilder {
@@ -304,7 +317,10 @@ impl WorkflowBuilder {
     /// Add a step to the workflow
     pub fn step<F, Fut>(mut self, name: impl Into<String>, executor: F) -> Self
     where
-        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync + 'static,
+        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut
+            + Send
+            + Sync
+            + 'static,
         Fut: std::future::Future<Output = Result<()>> + Send + 'static,
     {
         struct FnExecutor<F> {
@@ -317,7 +333,11 @@ impl WorkflowBuilder {
             F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync,
             Fut: std::future::Future<Output = Result<()>> + Send + 'static,
         {
-            async fn execute(&self, context: Arc<RwLock<WorkflowContext>>, harness: &IntegrationWorkflowHarness) -> Result<()> {
+            async fn execute(
+                &self,
+                context: Arc<RwLock<WorkflowContext>>,
+                harness: &IntegrationWorkflowHarness,
+            ) -> Result<()> {
                 (self.func)(context, harness).await
             }
         }
@@ -332,7 +352,10 @@ impl WorkflowBuilder {
     /// Add an assertion to the workflow
     pub fn assert<F, Fut>(mut self, name: impl Into<String>, verifier: F) -> Self
     where
-        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync + 'static,
+        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut
+            + Send
+            + Sync
+            + 'static,
         Fut: std::future::Future<Output = Result<()>> + Send + 'static,
     {
         struct FnVerifier<F> {
@@ -345,7 +368,11 @@ impl WorkflowBuilder {
             F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync,
             Fut: std::future::Future<Output = Result<()>> + Send + 'static,
         {
-            async fn verify(&self, context: Arc<RwLock<WorkflowContext>>, harness: &IntegrationWorkflowHarness) -> Result<()> {
+            async fn verify(
+                &self,
+                context: Arc<RwLock<WorkflowContext>>,
+                harness: &IntegrationWorkflowHarness,
+            ) -> Result<()> {
                 (self.func)(context, harness).await
             }
         }
@@ -369,37 +396,45 @@ impl WorkflowBuilder {
 
         // Execute all steps
         for step in &self.steps {
-            self.harness.audit(
-                format!("step_started: {}", step.name),
-                "system",
-                json!({ "step": step.name })
-            ).await;
+            self.harness
+                .audit(
+                    format!("step_started: {}", step.name),
+                    "system",
+                    json!({ "step": step.name }),
+                )
+                .await;
 
             let step_start = chrono::Utc::now();
 
-            match step.executor.execute(self.harness.context.clone(), &self.harness).await {
+            match step
+                .executor
+                .execute(self.harness.context.clone(), &self.harness)
+                .await
+            {
                 Ok(()) => {
-                    self.harness.emit_event(
-                        "step_completed",
-                        json!({ "step": step.name }),
-                        &step.name
-                    ).await;
+                    self.harness
+                        .emit_event("step_completed", json!({ "step": step.name }), &step.name)
+                        .await;
 
-                    self.harness.audit(
-                        format!("step_completed: {}", step.name),
-                        "system",
-                        json!({
-                            "step": step.name,
-                            "duration_ms": (chrono::Utc::now() - step_start).num_milliseconds()
-                        })
-                    ).await;
+                    self.harness
+                        .audit(
+                            format!("step_completed: {}", step.name),
+                            "system",
+                            json!({
+                                "step": step.name,
+                                "duration_ms": (chrono::Utc::now() - step_start).num_milliseconds()
+                            }),
+                        )
+                        .await;
                 }
                 Err(e) => {
-                    self.harness.emit_event(
-                        "step_failed",
-                        json!({ "step": step.name, "error": e.to_string() }),
-                        &step.name
-                    ).await;
+                    self.harness
+                        .emit_event(
+                            "step_failed",
+                            json!({ "step": step.name, "error": e.to_string() }),
+                            &step.name,
+                        )
+                        .await;
 
                     self.harness.cleanup_docker().await?;
                     return Err(e).context(format!("Step '{}' failed", step.name));
@@ -410,13 +445,19 @@ impl WorkflowBuilder {
         // Run all assertions
         let mut assertion_failures = Vec::new();
         for assertion in &self.assertions {
-            match assertion.verifier.verify(self.harness.context.clone(), &self.harness).await {
+            match assertion
+                .verifier
+                .verify(self.harness.context.clone(), &self.harness)
+                .await
+            {
                 Ok(()) => {
-                    self.harness.audit(
-                        format!("assertion_passed: {}", assertion.name),
-                        "system",
-                        json!({ "assertion": assertion.name })
-                    ).await;
+                    self.harness
+                        .audit(
+                            format!("assertion_passed: {}", assertion.name),
+                            "system",
+                            json!({ "assertion": assertion.name }),
+                        )
+                        .await;
                 }
                 Err(e) => {
                     assertion_failures.push((assertion.name.clone(), e));
@@ -480,7 +521,10 @@ pub struct WorkflowResult {
 /// Assert workflow succeeds
 pub async fn assert_workflow_succeeds(result: &WorkflowResult) -> Result<()> {
     if !result.success {
-        return Err(anyhow!("Workflow '{}' did not succeed", result.workflow_name));
+        return Err(anyhow!(
+            "Workflow '{}' did not succeed",
+            result.workflow_name
+        ));
     }
     Ok(())
 }
@@ -494,7 +538,9 @@ pub async fn assert_step_state(
     let ctx = context.read().await;
 
     // Find the state transition for this step
-    let transition = ctx.state_history.iter()
+    let transition = ctx
+        .state_history
+        .iter()
         .find(|t| t.trigger == step_name)
         .ok_or_else(|| anyhow!("No state transition found for step '{}'", step_name))?;
 
@@ -515,9 +561,7 @@ pub async fn assert_event_sequence(
     events: &[WorkflowEvent],
     expected_sequence: &[&str],
 ) -> Result<()> {
-    let actual_sequence: Vec<&str> = events.iter()
-        .map(|e| e.event_type.as_str())
-        .collect();
+    let actual_sequence: Vec<&str> = events.iter().map(|e| e.event_type.as_str()).collect();
 
     if actual_sequence.len() < expected_sequence.len() {
         return Err(anyhow!(
@@ -550,7 +594,10 @@ pub async fn assert_audit_trail_complete(audit_log: &[AuditEntry]) -> Result<()>
     // Ensure all entries are timestamped
     for entry in audit_log {
         if entry.timestamp.timestamp() == 0 {
-            return Err(anyhow!("Audit entry '{}' has invalid timestamp", entry.action));
+            return Err(anyhow!(
+                "Audit entry '{}' has invalid timestamp",
+                entry.action
+            ));
         }
     }
 
@@ -739,12 +786,10 @@ pub async fn save_generated_code(
 }
 
 /// Register tool in context
-pub async fn register_tool(
-    context: Arc<RwLock<WorkflowContext>>,
-    registration: ToolRegistration,
-) {
+pub async fn register_tool(context: Arc<RwLock<WorkflowContext>>, registration: ToolRegistration) {
     let mut ctx = context.write().await;
-    ctx.tool_registrations.insert(registration.name.clone(), registration);
+    ctx.tool_registrations
+        .insert(registration.name.clone(), registration);
 }
 
 /// Transition workflow state
@@ -778,10 +823,7 @@ pub async fn store_data(
 }
 
 /// Retrieve workflow data
-pub async fn get_data(
-    context: Arc<RwLock<WorkflowContext>>,
-    key: &str,
-) -> Option<Value> {
+pub async fn get_data(context: Arc<RwLock<WorkflowContext>>, key: &str) -> Option<Value> {
     let ctx = context.read().await;
     ctx.data.get(key).cloned()
 }
@@ -832,7 +874,9 @@ mod tests {
     async fn test_event_emission() {
         let harness = IntegrationWorkflowHarness::new().unwrap();
 
-        harness.emit_event("test_event", json!({"data": "value"}), "test_step").await;
+        harness
+            .emit_event("test_event", json!({"data": "value"}), "test_step")
+            .await;
 
         let events = harness.events().await;
         assert_eq!(events.len(), 1);
@@ -843,7 +887,9 @@ mod tests {
     async fn test_audit_logging() {
         let harness = IntegrationWorkflowHarness::new().unwrap();
 
-        harness.audit("test_action", "test_actor", json!({"detail": "value"})).await;
+        harness
+            .audit("test_action", "test_actor", json!({"detail": "value"}))
+            .await;
 
         let log = harness.audit_log().await;
         assert_eq!(log.len(), 1);
@@ -856,7 +902,8 @@ mod tests {
     async fn test_mcp_protocol_tester() {
         let tester = McpProtocolTester::new("http://localhost:8080");
 
-        let response = tester.invoke_tool("test_tool", json!({"arg": "value"}))
+        let response = tester
+            .invoke_tool("test_tool", json!({"arg": "value"}))
             .await
             .unwrap();
 

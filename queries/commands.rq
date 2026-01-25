@@ -13,3 +13,4 @@ WHERE {
   }
 }
 ORDER BY ?command ?parameterName
+LIMIT 10000

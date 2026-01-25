@@ -206,3 +206,5 @@ WHERE {
     HAVING (COUNT(DISTINCT ?cat) > 1)
   }
 }
+
+LIMIT 10000

@@ -12,8 +12,8 @@
 //! 6. Pattern Matching Validation
 //! 7. Schema Validation
 
-use spreadsheet_mcp::validation::*;
 use spreadsheet_mcp::model::*;
+use spreadsheet_mcp::validation::*;
 
 // ============================================================================
 // Path Traversal Prevention Tests (Security Critical - Target: 95%+)
@@ -36,10 +36,11 @@ fn test_path_traversal_dot_dot_slash() {
         if let Err(e) = result {
             let error_msg = e.to_string().to_lowercase();
             assert!(
-                error_msg.contains("invalid") ||
-                error_msg.contains("traversal") ||
-                error_msg.contains("path"),
-                "Error should mention path issue: {}", error_msg
+                error_msg.contains("invalid")
+                    || error_msg.contains("traversal")
+                    || error_msg.contains("path"),
+                "Error should mention path issue: {}",
+                error_msg
             );
         }
     }
@@ -48,11 +49,11 @@ fn test_path_traversal_dot_dot_slash() {
 #[test]
 fn test_path_traversal_encoded() {
     let encoded_paths = vec![
-        "%2e%2e%2f%2e%2e%2f",                    // ../.. URL encoded
-        "..%2F..%2F",                             // ../ mixed
-        "%252e%252e%252f",                        // Double encoded
-        "..%5c..%5c",                             // ..\ URL encoded
-        "%2e%2e%5c%2e%2e%5c",                     // ..\..\
+        "%2e%2e%2f%2e%2e%2f", // ../.. URL encoded
+        "..%2F..%2F",         // ../ mixed
+        "%252e%252e%252f",    // Double encoded
+        "..%5c..%5c",         // ..\ URL encoded
+        "%2e%2e%5c%2e%2e%5c", // ..\..\
     ];
 
     for path in encoded_paths {
@@ -64,9 +65,9 @@ fn test_path_traversal_encoded() {
 #[test]
 fn test_path_traversal_unicode() {
     let unicode_paths = vec![
-        "\u{2024}\u{2024}/etc/passwd",           // Unicode dots
-        "\u{FF0E}\u{FF0E}\u{FF0F}etc",          // Fullwidth dots/slash
-        ".\u{0000}./.\u{0000}./etc",            // Null byte injection
+        "\u{2024}\u{2024}/etc/passwd", // Unicode dots
+        "\u{FF0E}\u{FF0E}\u{FF0F}etc", // Fullwidth dots/slash
+        ".\u{0000}./.\u{0000}./etc",   // Null byte injection
     ];
 
     for path in unicode_paths {
@@ -94,15 +95,12 @@ fn test_absolute_paths_rejected() {
 #[test]
 fn test_special_file_names_rejected() {
     let special_names = vec![
-        ".",
-        "..",
-        "...",
-        "CON",      // Windows reserved
-        "PRN",      // Windows reserved
-        "AUX",      // Windows reserved
-        "NUL",      // Windows reserved
-        "COM1",     // Windows reserved
-        "LPT1",     // Windows reserved
+        ".", "..", "...", "CON",  // Windows reserved
+        "PRN",  // Windows reserved
+        "AUX",  // Windows reserved
+        "NUL",  // Windows reserved
+        "COM1", // Windows reserved
+        "LPT1", // Windows reserved
     ];
 
     for name in special_names {
@@ -118,7 +116,7 @@ fn test_valid_paths_accepted() {
         "workbook_123",
         "sales-2024",
         "data.xlsx",
-        "folder1/workbook",  // May or may not be valid depending on design
+        "folder1/workbook", // May or may not be valid depending on design
     ];
 
     for path in valid_paths {
@@ -140,7 +138,11 @@ fn test_empty_string_validation() {
 
     for empty in empty_strings {
         let result = WorkbookId::try_from(empty);
-        assert!(result.is_err(), "Should reject empty/whitespace: {:?}", empty);
+        assert!(
+            result.is_err(),
+            "Should reject empty/whitespace: {:?}",
+            empty
+        );
     }
 }
 
@@ -148,12 +150,12 @@ fn test_empty_string_validation() {
 fn test_string_length_limits() {
     // Test various length boundaries
     let test_cases = vec![
-        ("a", true),                              // Too short?
-        ("ab", true),                             // Minimum length?
-        ("a".repeat(255), true),                  // Normal length
-        ("a".repeat(256), true),                  // Boundary
-        ("a".repeat(1000), false),                // Too long
-        ("a".repeat(10000), false),               // Way too long
+        ("a", true),                // Too short?
+        ("ab", true),               // Minimum length?
+        ("a".repeat(255), true),    // Normal length
+        ("a".repeat(256), true),    // Boundary
+        ("a".repeat(1000), false),  // Too long
+        ("a".repeat(10000), false), // Way too long
     ];
 
     for (input, should_be_valid) in test_cases {
@@ -162,7 +164,11 @@ fn test_string_length_limits() {
             // May or may not be valid depending on actual limits
             println!("Testing length {}: {:?}", input.len(), result.is_ok());
         } else {
-            assert!(result.is_err(), "Should reject very long string: {} chars", input.len());
+            assert!(
+                result.is_err(),
+                "Should reject very long string: {} chars",
+                input.len()
+            );
         }
     }
 }
@@ -174,31 +180,35 @@ fn test_string_length_limits() {
 #[test]
 fn test_invalid_characters_rejected() {
     let invalid_chars = vec![
-        "workbook\x00name",           // Null byte
-        "workbook\x01name",           // SOH
-        "workbook\x1fname",           // Unit separator
-        "workbook\x7fname",           // Delete
-        "workbook<name",              // HTML chars
+        "workbook\x00name", // Null byte
+        "workbook\x01name", // SOH
+        "workbook\x1fname", // Unit separator
+        "workbook\x7fname", // Delete
+        "workbook<name",    // HTML chars
         "workbook>name",
-        "workbook|name",              // Pipe
-        "workbook\"name",             // Quote
-        "workbook*name",              // Wildcard
-        "workbook?name",              // Wildcard
+        "workbook|name",  // Pipe
+        "workbook\"name", // Quote
+        "workbook*name",  // Wildcard
+        "workbook?name",  // Wildcard
     ];
 
     for name in invalid_chars {
         let result = WorkbookId::try_from(name);
-        assert!(result.is_err(), "Should reject invalid character in: {:?}", name);
+        assert!(
+            result.is_err(),
+            "Should reject invalid character in: {:?}",
+            name
+        );
     }
 }
 
 #[test]
 fn test_allowed_special_characters() {
     let allowed_chars = vec![
-        "workbook-name",              // Hyphen
-        "workbook_name",              // Underscore
-        "workbook.name",              // Dot (if allowed)
-        "workbook name",              // Space (if allowed)
+        "workbook-name", // Hyphen
+        "workbook_name", // Underscore
+        "workbook.name", // Dot (if allowed)
+        "workbook name", // Space (if allowed)
     ];
 
     for name in allowed_chars {
@@ -214,13 +224,7 @@ fn test_allowed_special_characters() {
 
 #[test]
 fn test_valid_range_formats() {
-    let valid_ranges = vec![
-        "A1",
-        "A1:B2",
-        "A1:Z100",
-        "AA1:ZZ999",
-        "Sheet1!A1:B2",
-    ];
+    let valid_ranges = vec!["A1", "A1:B2", "A1:Z100", "AA1:ZZ999", "Sheet1!A1:B2"];
 
     // Test that valid ranges are accepted
     for range in valid_ranges {
@@ -232,15 +236,15 @@ fn test_valid_range_formats() {
 #[test]
 fn test_invalid_range_formats() {
     let invalid_ranges = vec![
-        "",                           // Empty
-        ":",                          // Just colon
-        "A",                          // Incomplete
-        "A1:",                        // Missing end
-        ":B2",                        // Missing start
-        "1A:2B",                      // Wrong format
-        "A1:A0",                      // Invalid order
-        "ZZZ99999999:A1",            // Out of bounds
-        "A1:B2:C3",                   // Too many colons
+        "",               // Empty
+        ":",              // Just colon
+        "A",              // Incomplete
+        "A1:",            // Missing end
+        ":B2",            // Missing start
+        "1A:2B",          // Wrong format
+        "A1:A0",          // Invalid order
+        "ZZZ99999999:A1", // Out of bounds
+        "A1:B2:C3",       // Too many colons
     ];
 
     for range in invalid_ranges {
@@ -257,11 +261,11 @@ fn test_invalid_range_formats() {
 fn test_numeric_bounds() {
     // Test numeric validation for various inputs
     let test_cases = vec![
-        (-1, false),                  // Negative
-        (0, true),                    // Zero
-        (1, true),                    // Positive
-        (i32::MAX, true),            // Max value
-        (i32::MIN, false),           // Min value
+        (-1, false),       // Negative
+        (0, true),         // Zero
+        (1, true),         // Positive
+        (i32::MAX, true),  // Max value
+        (i32::MIN, false), // Min value
     ];
 
     for (value, _should_be_valid) in test_cases {
@@ -273,10 +277,7 @@ fn test_numeric_bounds() {
 #[test]
 fn test_numeric_overflow() {
     // Test that numeric overflow is handled
-    let large_values = vec![
-        i64::MAX,
-        u64::MAX,
-    ];
+    let large_values = vec![i64::MAX, u64::MAX];
 
     for value in large_values {
         // Test conversion/validation doesn't panic
@@ -329,7 +330,7 @@ fn test_required_field_validation() {
     // Test that required fields are enforced
     let params = ReadTableParams {
         workbook_or_fork_id: WorkbookId::try_from("test").unwrap(),
-        sheet_name: None,  // Required field missing?
+        sheet_name: None, // Required field missing?
         table_name: None,
         region_id: None,
         range: None,
@@ -351,9 +352,9 @@ fn test_mutually_exclusive_fields() {
     let params = ReadTableParams {
         workbook_or_fork_id: WorkbookId::try_from("test").unwrap(),
         sheet_name: Some("Sheet1".to_string()),
-        table_name: Some("Table1".to_string()),  // Exclusive with range?
-        region_id: Some(1),                       // Exclusive with others?
-        range: Some("A1:B2".to_string()),        // Exclusive with table_name?
+        table_name: Some("Table1".to_string()), // Exclusive with range?
+        region_id: Some(1),                     // Exclusive with others?
+        range: Some("A1:B2".to_string()),       // Exclusive with table_name?
         columns: None,
         filters: None,
         limit: None,
@@ -387,11 +388,7 @@ fn test_sql_injection_patterns() {
 
 #[test]
 fn test_ldap_injection_patterns() {
-    let ldap_patterns = vec![
-        "*)(uid=*))(|(uid=*",
-        "admin)(|(password=*))",
-        "*",
-    ];
+    let ldap_patterns = vec!["*)(uid=*))(|(uid=*", "admin)(|(password=*))", "*"];
 
     for pattern in ldap_patterns {
         let result = WorkbookId::try_from(pattern);
@@ -455,8 +452,10 @@ fn test_case_sensitivity() {
         let result_upper = WorkbookId::try_from(upper);
 
         // Test whether validation is case-sensitive
-        println!("Case test: {} vs {} -> {:?} vs {:?}",
-                 lower, upper, result_lower, result_upper);
+        println!(
+            "Case test: {} vs {} -> {:?} vs {:?}",
+            lower, upper, result_lower, result_upper
+        );
     }
 }
 
@@ -468,11 +467,11 @@ fn test_case_sensitivity() {
 fn test_pattern_matching_validation() {
     // Test inputs that might match unwanted patterns
     let regex_special = vec![
-        ".*",                         // Match all regex
-        "[a-z]*",                     // Regex pattern
-        "^test$",                     // Anchors
-        "(capture)",                  // Capture group
-        "a|b",                        // Alternation
+        ".*",        // Match all regex
+        "[a-z]*",    // Regex pattern
+        "^test$",    // Anchors
+        "(capture)", // Capture group
+        "a|b",       // Alternation
     ];
 
     for pattern in regex_special {
@@ -489,13 +488,13 @@ fn test_pattern_matching_validation() {
 #[test]
 fn test_international_characters() {
     let international = vec![
-        "München",                    // German umlauts
-        "São Paulo",                  // Portuguese
-        "Москва",                     // Russian Cyrillic
-        "北京",                        // Chinese
-        "東京",                        // Japanese
-        "café",                       // French accents
-        "naïve",                      // More accents
+        "München",   // German umlauts
+        "São Paulo", // Portuguese
+        "Москва",    // Russian Cyrillic
+        "北京",      // Chinese
+        "東京",      // Japanese
+        "café",      // French accents
+        "naïve",     // More accents
     ];
 
     for input in international {
@@ -512,14 +511,17 @@ fn test_international_characters() {
 #[test]
 fn test_unicode_normalization() {
     // Test different unicode normalizations of the same string
-    let cafe_nfc = "café";                           // NFC (composed)
-    let cafe_nfd = "cafe\u{0301}";                  // NFD (decomposed)
+    let cafe_nfc = "café"; // NFC (composed)
+    let cafe_nfd = "cafe\u{0301}"; // NFD (decomposed)
 
     let result_nfc = WorkbookId::try_from(cafe_nfc);
     let result_nfd = WorkbookId::try_from(cafe_nfd);
 
     // Should handle both normalizations consistently
-    println!("Unicode normalization: NFC={:?}, NFD={:?}", result_nfc, result_nfd);
+    println!(
+        "Unicode normalization: NFC={:?}, NFD={:?}",
+        result_nfc, result_nfd
+    );
 }
 
 // ============================================================================
@@ -535,7 +537,10 @@ fn test_catastrophic_backtracking_prevention() {
     let _result = WorkbookId::try_from(&backtracking_pattern);
     let elapsed = start.elapsed();
 
-    assert!(elapsed.as_secs() < 1, "Validation should not take more than 1 second");
+    assert!(
+        elapsed.as_secs() < 1,
+        "Validation should not take more than 1 second"
+    );
 }
 
 #[test]

@@ -67,7 +67,10 @@ impl DodCheck for SecretDetectionCheck {
             for secret in &secrets_found {
                 evidence.push(Evidence {
                     kind: EvidenceKind::FileContent,
-                    content: format!("Secret detected: {} at line {}", secret.pattern, secret.line),
+                    content: format!(
+                        "Secret detected: {} at line {}",
+                        secret.pattern, secret.line
+                    ),
                     file_path: Some(secret.file.clone()),
                     line_number: Some(secret.line),
                     hash: "".to_string(),
@@ -111,7 +114,10 @@ fn scan_directory_for_secrets(dir: &Path) -> Result<Vec<SecretFinding>> {
         (r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
         (r"ghp_[a-zA-Z0-9]{36}", "GitHub Personal Token"),
         (r"sk_live_[0-9a-zA-Z]{24,}", "Stripe Live Key"),
-        (r"-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----", "Private Key"),
+        (
+            r"-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----",
+            "Private Key",
+        ),
         (r"mongodb(\+srv)?://[^\s]+", "MongoDB Connection String"),
         (r"postgres://[^\s]+", "PostgreSQL Connection String"),
     ];
@@ -384,9 +390,7 @@ mod tests {
     #[test]
     fn test_secret_patterns() {
         let test_content = "AKIAIOSFODNN7EXAMPLE";
-        let patterns = vec![
-            (Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(), "AWS Access Key"),
-        ];
+        let patterns = vec![(Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(), "AWS Access Key")];
 
         assert!(patterns[0].0.is_match(test_content));
     }

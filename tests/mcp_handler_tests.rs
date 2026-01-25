@@ -3,7 +3,7 @@
 //! Tests for DoD validation MCP tool handler
 
 use ggen_mcp::dod::mcp_handler::{
-    validate_definition_of_done, ValidateDefinitionOfDoneParams, ValidateDefinitionOfDoneResponse,
+    ValidateDefinitionOfDoneParams, ValidateDefinitionOfDoneResponse, validate_definition_of_done,
 };
 use ggen_mcp::dod::types::{CheckStatus, OverallVerdict};
 use ggen_mcp::state::AppState;
@@ -89,7 +89,10 @@ async fn test_params_custom_output_dir() {
     let result = run_validation("dev", Some(output_path.clone()), None).await;
 
     assert!(result.is_ok(), "Should create custom output directory");
-    assert!(custom_output.exists(), "Custom output directory should exist");
+    assert!(
+        custom_output.exists(),
+        "Custom output directory should exist"
+    );
 }
 
 // =============================================================================
@@ -120,14 +123,23 @@ async fn test_response_format() {
     );
 
     // Verify paths are non-empty
-    assert!(!response.report_path.is_empty(), "Report path should not be empty");
-    assert!(!response.receipt_path.is_empty(), "Receipt path should not be empty");
+    assert!(
+        !response.report_path.is_empty(),
+        "Report path should not be empty"
+    );
+    assert!(
+        !response.receipt_path.is_empty(),
+        "Receipt path should not be empty"
+    );
 
     // Verify summary is non-empty
     assert!(!response.summary.is_empty(), "Summary should not be empty");
 
     // Verify check counts
-    assert!(response.checks_total > 0, "Should have executed some checks");
+    assert!(
+        response.checks_total > 0,
+        "Should have executed some checks"
+    );
     assert_eq!(
         response.checks_total,
         response.checks_passed + response.checks_failed + response.checks_warned,
@@ -180,9 +192,15 @@ async fn test_response_check_results() {
     // Verify all check results have required fields
     for result in check_results {
         assert!(!result.id.is_empty(), "Check ID should not be empty");
-        assert!(!result.message.is_empty(), "Check message should not be empty");
+        assert!(
+            !result.message.is_empty(),
+            "Check message should not be empty"
+        );
         assert!(result.duration_ms >= 0, "Duration should be non-negative");
-        assert!(!result.check_hash.is_empty(), "Check hash should not be empty");
+        assert!(
+            !result.check_hash.is_empty(),
+            "Check hash should not be empty"
+        );
 
         // Verify status is valid
         match result.status {
@@ -298,10 +316,22 @@ async fn test_artifacts_receipt_generated() {
     let receipt: serde_json::Value = serde_json::from_str(&receipt_content).unwrap();
 
     // Verify receipt structure
-    assert!(receipt.get("version").is_some(), "Receipt should have version");
-    assert!(receipt.get("timestamp").is_some(), "Receipt should have timestamp");
-    assert!(receipt.get("verdict").is_some(), "Receipt should have verdict");
-    assert!(receipt.get("readiness_score").is_some(), "Receipt should have score");
+    assert!(
+        receipt.get("version").is_some(),
+        "Receipt should have version"
+    );
+    assert!(
+        receipt.get("timestamp").is_some(),
+        "Receipt should have timestamp"
+    );
+    assert!(
+        receipt.get("verdict").is_some(),
+        "Receipt should have verdict"
+    );
+    assert!(
+        receipt.get("readiness_score").is_some(),
+        "Receipt should have score"
+    );
 }
 
 #[tokio::test]

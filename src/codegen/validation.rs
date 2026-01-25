@@ -403,7 +403,11 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate TypeScript syntax
-    pub fn validate_typescript_syntax(&self, code: &str, file_name: &str) -> Result<ValidationReport> {
+    pub fn validate_typescript_syntax(
+        &self,
+        code: &str,
+        file_name: &str,
+    ) -> Result<ValidationReport> {
         use crate::template::multi_format_validator::TypeScriptValidator;
         let mut validator = TypeScriptValidator::new();
         validator.validate(code, file_name)
@@ -424,7 +428,11 @@ impl GeneratedCodeValidator {
     }
 
     /// Validate OpenAPI specification (YAML + OpenAPI schema)
-    pub fn validate_openapi_spec(&self, content: &str, file_name: &str) -> Result<ValidationReport> {
+    pub fn validate_openapi_spec(
+        &self,
+        content: &str,
+        file_name: &str,
+    ) -> Result<ValidationReport> {
         use crate::template::multi_format_validator::OpenApiValidator;
         let validator = OpenApiValidator::new();
         validator.validate(content, file_name)
@@ -1217,14 +1225,18 @@ impl CodeValidationReport {
         for issue in report.issues {
             match issue.severity {
                 ValidationSeverity::Error => {
-                    errors.push(format!("{}: {}",
+                    errors.push(format!(
+                        "{}: {}",
                         issue.location.as_deref().unwrap_or("unknown"),
-                        issue.message));
+                        issue.message
+                    ));
                 }
                 ValidationSeverity::Warning => {
-                    warnings.push(format!("{}: {}",
+                    warnings.push(format!(
+                        "{}: {}",
                         issue.location.as_deref().unwrap_or("unknown"),
-                        issue.message));
+                        issue.message
+                    ));
                 }
                 ValidationSeverity::Info => {
                     if let Some(suggestion) = issue.suggestion {

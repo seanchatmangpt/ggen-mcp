@@ -21,8 +21,8 @@ use spreadsheet_mcp::template::{
     ValidationRule,
 };
 use spreadsheet_mcp::tools::template_safety::{
-    TemplateSafety, build_context_from_sparql, detect_security_patterns,
-    validate_and_render_from_sparql, TemplateSafetyMetrics,
+    TemplateSafety, TemplateSafetyMetrics, build_context_from_sparql, detect_security_patterns,
+    validate_and_render_from_sparql,
 };
 use std::path::PathBuf;
 use std::time::Duration;
@@ -45,10 +45,7 @@ pub struct {{ entity_name }} {
     {% endfor %}
 }
 "#;
-    std::fs::write(
-        temp_dir.path().join("valid_entity.rs.tera"),
-        valid_template,
-    )?;
+    std::fs::write(temp_dir.path().join("valid_entity.rs.tera"), valid_template)?;
 
     // Create a template with syntax error
     let invalid_template = r#"
@@ -69,10 +66,7 @@ pub fn dangerous() {
     }
 }
 "#;
-    std::fs::write(
-        temp_dir.path().join("unsafe_code.rs.tera"),
-        unsafe_template,
-    )?;
+    std::fs::write(temp_dir.path().join("unsafe_code.rs.tera"), unsafe_template)?;
 
     // Create a template with large output
     let large_output_template = r#"
@@ -116,11 +110,8 @@ fn create_test_schema() -> ParameterSchema {
                 .rule(ValidationRule::NotEmpty),
         )
         .parameter(
-            ParameterDefinition::new(
-                "fields",
-                ParameterType::Array(Box::new(ParameterType::Any)),
-            )
-            .default(json!([])),
+            ParameterDefinition::new("fields", ParameterType::Array(Box::new(ParameterType::Any)))
+                .default(json!([])),
         )
 }
 
@@ -230,9 +221,7 @@ fn test_missing_required_parameter_detected() {
 
     // Create context missing required parameter
     let mut context = TemplateContext::new("valid_entity.rs.tera");
-    context
-        .insert_string("template_name", "test")
-        .unwrap();
+    context.insert_string("template_name", "test").unwrap();
     // Missing 'entity_name' which is required
 
     let result = safety.validate_and_render("valid_entity.rs.tera", context);
@@ -256,9 +245,7 @@ fn test_type_mismatch_detected() {
 
     // Create context with wrong type
     let mut context = TemplateContext::new("valid_entity.rs.tera");
-    context
-        .insert_string("template_name", "test")
-        .unwrap();
+    context.insert_string("template_name", "test").unwrap();
     context
         .insert_number("entity_name", 123) // Should be String
         .unwrap();
@@ -308,9 +295,7 @@ fn test_unsafe_code_detected() {
 
     let warnings = detect_security_patterns(code);
     assert!(!warnings.is_empty());
-    assert!(warnings
-        .iter()
-        .any(|w| w.to_lowercase().contains("unsafe")));
+    assert!(warnings.iter().any(|w| w.to_lowercase().contains("unsafe")));
 }
 
 #[test]
@@ -322,9 +307,11 @@ fn test_system_command_detected() {
 
     let warnings = detect_security_patterns(code);
     assert!(!warnings.is_empty());
-    assert!(warnings
-        .iter()
-        .any(|w| w.to_lowercase().contains("command")));
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.to_lowercase().contains("command"))
+    );
 }
 
 #[test]
@@ -537,7 +524,11 @@ fn test_error_handling_chain() {
     // 1. Syntax error
     let mut ctx = TemplateContext::new("invalid_syntax.rs.tera");
     ctx.insert_string("entity_name", "Test").unwrap();
-    assert!(safety.validate_and_render("invalid_syntax.rs.tera", ctx).is_err());
+    assert!(
+        safety
+            .validate_and_render("invalid_syntax.rs.tera", ctx)
+            .is_err()
+    );
 
     // 2. Missing template
     let ctx = TemplateContext::new("missing.rs.tera");
@@ -563,10 +554,7 @@ fn test_special_characters_in_output() -> Result<()> {
     let temp_dir = TempDir::new()?;
 
     let template = r#"pub const SPECIAL: &str = "{{ text }}";"#;
-    std::fs::write(
-        temp_dir.path().join("special.rs.tera"),
-        template,
-    )?;
+    std::fs::write(temp_dir.path().join("special.rs.tera"), template)?;
 
     let safety = TemplateSafety::with_defaults(temp_dir.path())?;
 

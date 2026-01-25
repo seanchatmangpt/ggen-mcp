@@ -12,13 +12,90 @@
 //! - [`HashVerifier`]: Verifies ontology integrity using cryptographic hashes
 
 use anyhow::{Context, Result, anyhow};
-use oxigraph::model::{GraphNameRef, NamedNode, NamedNodeRef, Subject, Term, Triple};
-use oxigraph::sparql::QueryResults;
-use oxigraph::store::Store;
+use ggen_ontology_core::TripleStore;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+
+// =============================================================================
+// Helper Functions for JSON Parsing
+// =============================================================================
+
+/// Extract IRI from JSON value (ggen format: string or {"value": "...", "type": "uri"})
+fn extract_iri_from_json_value(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::String(s) => {
+            // Check if it's an IRI (starts with < or http)
+            if s.starts_with('<') && s.ends_with('>') {
+                Some(s[1..s.len()-1].to_string())
+            } else if s.starts_with("http://") || s.starts_with("https://") {
+                Some(s.clone())
+            } else {
+                None
+            }
+        }
+        JsonValue::Object(obj) => {
+            if let Some(type_val) = obj.get("type") {
+                if type_val.as_str() == Some("uri") {
+                    obj.get("value").and_then(|v| v.as_str()).map(|s| s.to_string())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Extract literal from JSON value (ggen format: string or {"value": "...", "type": "literal"})
+fn extract_literal_from_json_value(value: &JsonValue) -> Option<String> {
+    match value {
+        JsonValue::String(s) => {
+            // If it's not an IRI, treat as literal
+            if !s.starts_with('<') && !s.starts_with("http://") && !s.starts_with("https://") {
+                Some(s.clone())
+            } else {
+                None
+            }
+        }
+        JsonValue::Object(obj) => {
+            if let Some(type_val) = obj.get("type") {
+                if type_val.as_str() == Some("literal") {
+                    obj.get("value").and_then(|v| v.as_str()).map(|s| s.to_string())
+                } else {
+                    None
+                }
+            } else {
+                // Default to value if no type specified
+                obj.get("value").and_then(|v| v.as_str()).map(|s| s.to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Extract term as string from JSON value (for to_string() compatibility)
+fn extract_term_string_from_json_value(value: &JsonValue) -> String {
+    match value {
+        JsonValue::String(s) => s.clone(),
+        JsonValue::Object(obj) => {
+            if let Some(value_val) = obj.get("value") {
+                if let Some(str_val) = value_val.as_str() {
+                    str_val.to_string()
+                } else {
+                    value.to_string()
+                }
+            } else {
+                value.to_string()
+            }
+        }
+        _ => value.to_string(),
+    }
+}
 
 // =============================================================================
 // Error Types
@@ -238,12 +315,12 @@ impl Default for ConsistencyReport {
 /// - Contradiction detection
 /// - Required property presence
 pub struct ConsistencyChecker {
-    store: Store,
+    store: TripleStore,
 }
 
 impl ConsistencyChecker {
-    /// Create a new consistency checker with the given RDF store
-    pub fn new(store: Store) -> Self {
+    /// Create a new consistency checker with the given TripleStore
+    pub fn new(store: TripleStore) -> Self {
         Self { store }
     }
 
@@ -302,24 +379,33 @@ impl ConsistencyChecker {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
+        
         let mut graph: HashMap<String, Vec<String>> = HashMap::new();
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(class), Some(superclass)) = (
-                    solution
-                        .get("class")
-                        .and_then(|t| t.as_ref().as_named_node()),
-                    solution
-                        .get("superclass")
-                        .and_then(|t| t.as_ref().as_named_node()),
-                ) {
-                    graph
-                        .entry(class.as_str().to_string())
-                        .or_default()
-                        .push(superclass.as_str().to_string());
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let class = binding_map
+                            .get("class")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let superclass = binding_map
+                            .get("superclass")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let (Some(class_str), Some(superclass_str)) = (class, superclass) {
+                            graph
+                                .entry(class_str)
+                                .or_default()
+                                .push(superclass_str);
+                        }
+                    }
                 }
             }
         }
@@ -430,24 +516,35 @@ impl ConsistencyChecker {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(property), Some(domain), Some(subject)) = (
-                    solution.get("property"),
-                    solution.get("domain"),
-                    solution.get("subject"),
-                ) {
-                    // Check if subject is of the correct type
-                    if !self.is_instance_of(subject, domain)? {
-                        report.add_error(ValidationError::InvalidDomainRange {
-                            property: property.to_string(),
-                            subject: subject.to_string(),
-                            object: domain.to_string(),
-                            message: "Subject not in property domain".to_string(),
-                        });
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let property = binding_map.get("property")
+                            .map(|v| extract_term_string_from_json_value(v));
+                        let domain = binding_map.get("domain")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let subject = binding_map.get("subject")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let (Some(property_str), Some(domain_str), Some(subject_str)) = (property, domain, subject) {
+                            // Check if subject is of the correct type
+                            if !self.is_instance_of(&subject_str, &domain_str)? {
+                                report.add_error(ValidationError::InvalidDomainRange {
+                                    property: property_str,
+                                    subject: subject_str,
+                                    object: domain_str,
+                                    message: "Subject not in property domain".to_string(),
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -469,24 +566,35 @@ impl ConsistencyChecker {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(property), Some(range), Some(object)) = (
-                    solution.get("property"),
-                    solution.get("range"),
-                    solution.get("object"),
-                ) {
-                    // Check if object is of the correct type
-                    if !self.is_instance_of(object, range)? {
-                        report.add_error(ValidationError::InvalidDomainRange {
-                            property: property.to_string(),
-                            subject: "N/A".to_string(),
-                            object: object.to_string(),
-                            message: "Object not in property range".to_string(),
-                        });
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let property = binding_map.get("property")
+                            .map(|v| extract_term_string_from_json_value(v));
+                        let range = binding_map.get("range")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let object = binding_map.get("object")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let (Some(property_str), Some(range_str), Some(object_str)) = (property, range, object) {
+                            // Check if object is of the correct type
+                            if !self.is_instance_of(&object_str, &range_str)? {
+                                report.add_error(ValidationError::InvalidDomainRange {
+                                    property: property_str,
+                                    subject: "N/A".to_string(),
+                                    object: object_str,
+                                    message: "Object not in property range".to_string(),
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -511,37 +619,41 @@ impl ConsistencyChecker {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(target_class), Some(path)) = (
-                    solution
-                        .get("targetClass")
-                        .and_then(|t| t.as_ref().as_named_node()),
-                    solution
-                        .get("path")
-                        .and_then(|t| t.as_ref().as_named_node()),
-                ) {
-                    let min_count = solution
-                        .get("minCount")
-                        .and_then(|t| t.as_ref().as_literal())
-                        .and_then(|l| l.value().parse::<usize>().ok());
-
-                    let max_count = solution
-                        .get("maxCount")
-                        .and_then(|t| t.as_ref().as_literal())
-                        .and_then(|l| l.value().parse::<usize>().ok());
-
-                    // Check instances of target class
-                    self.check_instance_cardinality(
-                        target_class,
-                        path,
-                        min_count,
-                        max_count,
-                        report,
-                    )?;
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let target_class = binding_map.get("targetClass")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let path = binding_map.get("path")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let (Some(target_class_str), Some(path_str)) = (target_class, path) {
+                            let min_count = binding_map.get("minCount")
+                                .and_then(|v| extract_literal_from_json_value(v))
+                                .and_then(|s| s.parse::<usize>().ok());
+                            
+                            let max_count = binding_map.get("maxCount")
+                                .and_then(|v| extract_literal_from_json_value(v))
+                                .and_then(|s| s.parse::<usize>().ok());
+                            
+                            // Check instances of target class
+                            self.check_instance_cardinality(
+                                &target_class_str,
+                                &path_str,
+                                min_count,
+                                max_count,
+                                report,
+                            )?;
+                        }
+                    }
                 }
             }
         }
@@ -551,8 +663,8 @@ impl ConsistencyChecker {
 
     fn check_instance_cardinality(
         &self,
-        target_class: NamedNodeRef,
-        path: NamedNodeRef,
+        target_class: &str,
+        path: &str,
         min_count: Option<usize>,
         max_count: Option<usize>,
         report: &mut ConsistencyReport,
@@ -567,43 +679,51 @@ impl ConsistencyChecker {
             }}
             GROUP BY ?instance
         "#,
-            target_class.as_str(),
-            path.as_str()
+            target_class, path
         );
 
-        let results = self.store.query(&query)?;
+        let json_result = self.store.query_sparql(&query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(instance), Some(count_term)) =
-                    (solution.get("instance"), solution.get("count"))
-                {
-                    let count = count_term
-                        .as_ref()
-                        .as_literal()
-                        .and_then(|l| l.value().parse::<usize>().ok())
-                        .unwrap_or(0);
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let instance = binding_map.get("instance")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let count_val = binding_map.get("count");
+                        
+                        if let Some(instance_str) = instance {
+                            let count = count_val
+                                .and_then(|v| extract_literal_from_json_value(v))
+                                .and_then(|s| s.parse::<usize>().ok())
+                                .unwrap_or(0);
 
-                    if let Some(min) = min_count {
-                        if count < min {
-                            report.add_error(ValidationError::CardinalityViolation {
-                                node: instance.to_string(),
-                                property: path.as_str().to_string(),
-                                expected: format!("at least {}", min),
-                                actual: count,
-                            });
-                        }
-                    }
+                            if let Some(min) = min_count {
+                                if count < min {
+                                    report.add_error(ValidationError::CardinalityViolation {
+                                        node: instance_str.clone(),
+                                        property: path.to_string(),
+                                        expected: format!("at least {}", min),
+                                        actual: count,
+                                    });
+                                }
+                            }
 
-                    if let Some(max) = max_count {
-                        if count > max {
-                            report.add_error(ValidationError::CardinalityViolation {
-                                node: instance.to_string(),
-                                property: path.as_str().to_string(),
-                                expected: format!("at most {}", max),
-                                actual: count,
-                            });
+                            if let Some(max) = max_count {
+                                if count > max {
+                                    report.add_error(ValidationError::CardinalityViolation {
+                                        node: instance_str,
+                                        property: path.to_string(),
+                                        expected: format!("at most {}", max),
+                                        actual: count,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -628,18 +748,29 @@ impl ConsistencyChecker {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let (Some(instance), Some(required_prop)) =
-                    (solution.get("instance"), solution.get("requiredProp"))
-                {
-                    report.add_error(ValidationError::MissingProperty {
-                        node: instance.to_string(),
-                        property: required_prop.to_string(),
-                    });
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let instance = binding_map.get("instance")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let required_prop = binding_map.get("requiredProp")
+                            .map(|v| extract_term_string_from_json_value(v));
+                        
+                        if let (Some(instance_str), Some(required_prop_str)) = (instance, required_prop) {
+                            report.add_error(ValidationError::MissingProperty {
+                                node: instance_str,
+                                property: required_prop_str,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -649,32 +780,36 @@ impl ConsistencyChecker {
 
     // Helper methods
 
-    fn is_instance_of(&self, instance: &Term, class: &Term) -> Result<bool> {
-        if let (Some(instance_node), Some(class_node)) =
-            (instance.as_named_node(), class.as_named_node())
-        {
-            let query = format!(
-                r#"
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-                ASK {{
-                    <{}> rdf:type ?type .
-                    ?type rdfs:subClassOf* <{}> .
-                }}
-            "#,
-                instance_node.as_str(),
-                class_node.as_str()
-            );
+    fn is_instance_of(&self, instance: &str, class: &str) -> Result<bool> {
+        let query = format!(
+            r#"
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            ASK {{
+                <{}> rdf:type ?type .
+                ?type rdfs:subClassOf* <{}> .
+            }}
+        "#,
+            instance, class
+        );
 
-            if let QueryResults::Boolean(result) = self.store.query(&query)? {
+        let json_result = self.store.query_sparql(&query)
+            .map_err(|e| anyhow!("Failed to execute ASK query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse ASK result")?;
+        
+        if let Some(boolean) = parsed.get("boolean") {
+            if let Some(result) = boolean.as_bool() {
                 return Ok(result);
             }
         }
+        
         Ok(false)
     }
 
     fn count_triples(&self) -> usize {
-        self.store.len().unwrap_or(0)
+        self.query_count("SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }")
     }
 
     fn count_classes(&self) -> usize {
@@ -726,15 +861,34 @@ impl ConsistencyChecker {
     }
 
     fn query_count(&self, query: &str) -> usize {
-        if let Ok(QueryResults::Solutions(solutions)) = self.store.query(query) {
-            if let Some(Ok(solution)) = solutions.into_iter().next() {
-                if let Some(count_term) = solution.get("count") {
-                    if let Some(literal) = count_term.as_ref().as_literal() {
-                        return literal.value().parse::<usize>().unwrap_or(0);
+        let json_result = match self.store.query_sparql(query) {
+            Ok(r) => r,
+            Err(_) => return 0,
+        };
+        
+        let parsed: JsonValue = match serde_json::from_str(&json_result) {
+            Ok(p) => p,
+            Err(_) => return 0,
+        };
+        
+        // Extract count from SPARQL JSON results format
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings) = results.get("bindings").and_then(|b| b.as_array()) {
+                if let Some(first) = bindings.first() {
+                    if let Some(count_obj) = first.get("count") {
+                        // Handle both string and structured format
+                        if let Some(count_str) = count_obj.as_str() {
+                            return count_str.parse().unwrap_or(0);
+                        } else if let Some(count_val) = count_obj.get("value") {
+                            if let Some(count_str) = count_val.as_str() {
+                                return count_str.parse().unwrap_or(0);
+                            }
+                        }
                     }
                 }
             }
         }
+        
         0
     }
 }
@@ -752,12 +906,12 @@ impl ConsistencyChecker {
 /// - Invariant definitions
 /// - Orphaned nodes
 pub struct SchemaValidator {
-    store: Store,
+    store: TripleStore,
     required_namespaces: HashMap<String, String>,
 }
 
 impl SchemaValidator {
-    pub fn new(store: Store) -> Self {
+    pub fn new(store: TripleStore) -> Self {
         let mut required_namespaces = HashMap::new();
         required_namespaces.insert(
             "ddd".to_string(),
@@ -833,12 +987,20 @@ impl SchemaValidator {
                 expected_uri, expected_uri, expected_uri
             );
 
-            if let QueryResults::Boolean(found) = self.store.query(&query)? {
-                if !found {
-                    report.add_warning(format!(
-                        "Recommended namespace '{}' ({}) not found in ontology",
-                        prefix, expected_uri
-                    ));
+            let json_result = self.store.query_sparql(&query)
+                .map_err(|e| anyhow!("Failed to execute ASK query: {}", e))?;
+            
+            let parsed: JsonValue = serde_json::from_str(&json_result)
+                .context("Failed to parse ASK result")?;
+            
+            if let Some(boolean) = parsed.get("boolean") {
+                if let Some(found) = boolean.as_bool() {
+                    if !found {
+                        report.add_warning(format!(
+                            "Recommended namespace '{}' ({}) not found in ontology",
+                            prefix, expected_uri
+                        ));
+                    }
                 }
             }
         }
@@ -859,16 +1021,25 @@ impl SchemaValidator {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(aggregate) = solution.get("aggregate") {
-                    report.add_error(ValidationError::InvalidDddStructure {
-                        aggregate: aggregate.to_string(),
-                        reason: "Aggregate has no properties defined".to_string(),
-                    });
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        if let Some(aggregate_val) = binding_map.get("aggregate") {
+                            let aggregate_str = extract_term_string_from_json_value(aggregate_val);
+                            report.add_error(ValidationError::InvalidDddStructure {
+                                aggregate: aggregate_str,
+                                reason: "Aggregate has no properties defined".to_string(),
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -897,20 +1068,29 @@ impl SchemaValidator {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
+        
         let mut untyped = HashSet::new();
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(prop) = solution.get("prop") {
-                    let prop_str = prop.to_string();
-                    // Filter out common vocabularies that don't need explicit typing
-                    if !prop_str.contains("rdfs#")
-                        && !prop_str.contains("owl#")
-                        && !prop_str.contains("rdf#")
-                    {
-                        untyped.insert(prop_str);
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        if let Some(prop_val) = binding_map.get("prop") {
+                            let prop_str = extract_term_string_from_json_value(prop_val);
+                            // Filter out common vocabularies that don't need explicit typing
+                            if !prop_str.contains("rdfs#")
+                                && !prop_str.contains("owl#")
+                                && !prop_str.contains("rdf#")
+                            {
+                                untyped.insert(prop_str);
+                            }
+                        }
                     }
                 }
             }
@@ -938,16 +1118,25 @@ impl SchemaValidator {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(class) = solution.get("class") {
-                    report.add_error(ValidationError::InvalidInvariant {
-                        node: class.to_string(),
-                        reason: "Invariant has no check expression".to_string(),
-                    });
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        if let Some(class_val) = binding_map.get("class") {
+                            let class_str = extract_term_string_from_json_value(class_val);
+                            report.add_error(ValidationError::InvalidInvariant {
+                                node: class_str,
+                                reason: "Invariant has no check expression".to_string(),
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -971,16 +1160,24 @@ impl SchemaValidator {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(solutions) = results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(node) = solution.get("node") {
-                    let node_str = node.to_string();
-                    // Filter out blank nodes and common vocabularies
-                    if !node_str.starts_with("_:") && !node_str.contains("/ns/") {
-                        report.add_warning(format!("Potentially orphaned node: {}", node_str));
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        if let Some(node_val) = binding_map.get("node") {
+                            let node_str = extract_term_string_from_json_value(node_val);
+                            // Filter out blank nodes and common vocabularies
+                            if !node_str.starts_with("_:") && !node_str.contains("/ns/") {
+                                report.add_warning(format!("Potentially orphaned node: {}", node_str));
+                            }
+                        }
                     }
                 }
             }
@@ -1145,8 +1342,11 @@ impl OntologyMerger {
         }
     }
 
-    /// Merge two RDF stores
-    pub fn merge(&self, target: &Store, source: &Store) -> Result<MergeResult> {
+    /// Merge two TripleStores
+    /// Note: TripleStore doesn't support direct iteration/insertion like Store.
+    /// This implementation uses SPARQL to detect conflicts. Actual merging would require
+    /// exporting source to Turtle and loading into target.
+    pub fn merge(&self, target: &mut TripleStore, source: &TripleStore) -> Result<MergeResult> {
         let mut result = MergeResult {
             success: false,
             merged_triples: 0,
@@ -1154,28 +1354,27 @@ impl OntologyMerger {
             provenance: HashMap::new(),
         };
 
-        // Detect conflicts first
+        // Detect conflicts first (using SPARQL queries)
         self.detect_conflicts(target, source, &mut result)?;
 
         if !result.conflicts.is_empty() {
             return Ok(result);
         }
 
-        // Perform merge
-        for quad in source.iter() {
-            let quad = quad?;
-            target.insert(quad.as_ref())?;
-            result.merged_triples += 1;
-        }
-
-        result.success = true;
+        // TripleStore doesn't support direct merge via insertion
+        // Would need to:
+        // 1. Export source triples to Turtle format
+        // 2. Load Turtle into target
+        // For now, mark as requiring manual merge
+        result.success = false;
+        result.conflicts.push("TripleStore merge requires Turtle export/import - not implemented".to_string());
         Ok(result)
     }
 
     fn detect_conflicts(
         &self,
-        target: &Store,
-        source: &Store,
+        target: &TripleStore,
+        source: &TripleStore,
         result: &mut MergeResult,
     ) -> Result<()> {
         // Check for conflicting class definitions
@@ -1189,8 +1388,8 @@ impl OntologyMerger {
 
     fn check_class_conflicts(
         &self,
-        target: &Store,
-        source: &Store,
+        target: &TripleStore,
+        source: &TripleStore,
         result: &mut MergeResult,
     ) -> Result<()> {
         let query = r#"
@@ -1205,15 +1404,27 @@ impl OntologyMerger {
             }
         "#;
 
-        let source_results = source.query(query)?;
+        let source_json = source.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to query source classes: {}", e))?;
+        
+        let source_parsed: JsonValue = serde_json::from_str(&source_json)
+            .context("Failed to parse source query results")?;
+        
         let mut source_classes: HashMap<String, Option<String>> = HashMap::new();
 
-        if let QueryResults::Solutions(solutions) = source_results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(class) = solution.get("class") {
-                    let superclass = solution.get("superclass").map(|s| s.to_string());
-                    source_classes.insert(class.to_string(), superclass);
+        if let Some(results) = source_parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let class = binding_map.get("class")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let superclass = binding_map.get("superclass")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let Some(class_str) = class {
+                            source_classes.insert(class_str, superclass);
+                        }
+                    }
                 }
             }
         }
@@ -1231,17 +1442,26 @@ impl OntologyMerger {
                 class
             );
 
-            if let QueryResults::Solutions(solutions) = target.query(&target_query)? {
-                for solution in solutions {
-                    let solution = solution?;
-                    if let Some(target_super) = solution.get("superclass") {
-                        let target_super_str = target_super.to_string();
-                        if let Some(ref source_super_str) = source_super {
-                            if source_super_str != &target_super_str {
-                                result.conflicts.push(format!(
-                                    "Class {} has conflicting superclass: {} vs {}",
-                                    class, source_super_str, target_super_str
-                                ));
+            let target_json = target.query_sparql(&target_query)
+                .map_err(|e| anyhow!("Failed to query target: {}", e))?;
+            
+            let target_parsed: JsonValue = serde_json::from_str(&target_json)
+                .context("Failed to parse target query results")?;
+
+            if let Some(results) = target_parsed.get("results") {
+                if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                    for binding_obj in bindings_array {
+                        if let Some(binding_map) = binding_obj.as_object() {
+                            if let Some(target_super_val) = binding_map.get("superclass") {
+                                let target_super_str = extract_term_string_from_json_value(target_super_val);
+                                if let Some(ref source_super_str) = source_super {
+                                    if source_super_str != &target_super_str {
+                                        result.conflicts.push(format!(
+                                            "Class {} has conflicting superclass: {} vs {}",
+                                            class, source_super_str, target_super_str
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
@@ -1254,12 +1474,13 @@ impl OntologyMerger {
 
     fn check_property_conflicts(
         &self,
-        target: &Store,
-        source: &Store,
+        target: &TripleStore,
+        source: &TripleStore,
         result: &mut MergeResult,
     ) -> Result<()> {
         let query = r#"
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?property ?domain ?range
             WHERE {
                 ?property a rdf:Property .
@@ -1268,16 +1489,29 @@ impl OntologyMerger {
             }
         "#;
 
-        let source_results = source.query(query)?;
+        let source_json = source.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to query source properties: {}", e))?;
+        
+        let source_parsed: JsonValue = serde_json::from_str(&source_json)
+            .context("Failed to parse source query results")?;
+        
         let mut source_props: HashMap<String, (Option<String>, Option<String>)> = HashMap::new();
 
-        if let QueryResults::Solutions(solutions) = source_results {
-            for solution in solutions {
-                let solution = solution?;
-                if let Some(property) = solution.get("property") {
-                    let domain = solution.get("domain").map(|d| d.to_string());
-                    let range = solution.get("range").map(|r| r.to_string());
-                    source_props.insert(property.to_string(), (domain, range));
+        if let Some(results) = source_parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let property = binding_map.get("property")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let domain = binding_map.get("domain")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        let range = binding_map.get("range")
+                            .and_then(|v| extract_iri_from_json_value(v));
+                        
+                        if let Some(property_str) = property {
+                            source_props.insert(property_str, (domain, range));
+                        }
+                    }
                 }
             }
         }
@@ -1296,30 +1530,41 @@ impl OntologyMerger {
                 prop, prop
             );
 
-            if let QueryResults::Solutions(solutions) = target.query(&target_query)? {
-                for solution in solutions {
-                    let solution = solution?;
-                    let target_domain = solution.get("domain").map(|d| d.to_string());
-                    let target_range = solution.get("range").map(|r| r.to_string());
+            let target_json = target.query_sparql(&target_query)
+                .map_err(|e| anyhow!("Failed to query target: {}", e))?;
+            
+            let target_parsed: JsonValue = serde_json::from_str(&target_json)
+                .context("Failed to parse target query results")?;
 
-                    if source_domain.is_some()
-                        && target_domain.is_some()
-                        && source_domain != target_domain
-                    {
-                        result.conflicts.push(format!(
-                            "Property {} has conflicting domain: {:?} vs {:?}",
-                            prop, source_domain, target_domain
-                        ));
-                    }
+            if let Some(results) = target_parsed.get("results") {
+                if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                    for binding_obj in bindings_array {
+                        if let Some(binding_map) = binding_obj.as_object() {
+                            let target_domain = binding_map.get("domain")
+                                .and_then(|v| extract_iri_from_json_value(v));
+                            let target_range = binding_map.get("range")
+                                .and_then(|v| extract_iri_from_json_value(v));
 
-                    if source_range.is_some()
-                        && target_range.is_some()
-                        && source_range != target_range
-                    {
-                        result.conflicts.push(format!(
-                            "Property {} has conflicting range: {:?} vs {:?}",
-                            prop, source_range, target_range
-                        ));
+                            if source_domain.is_some()
+                                && target_domain.is_some()
+                                && source_domain != target_domain
+                            {
+                                result.conflicts.push(format!(
+                                    "Property {} has conflicting domain: {:?} vs {:?}",
+                                    prop, source_domain, target_domain
+                                ));
+                            }
+
+                            if source_range.is_some()
+                                && target_range.is_some()
+                                && source_range != target_range
+                            {
+                                result.conflicts.push(format!(
+                                    "Property {} has conflicting range: {:?} vs {:?}",
+                                    prop, source_range, target_range
+                                ));
+                            }
+                        }
                     }
                 }
             }
@@ -1347,11 +1592,11 @@ impl Default for OntologyMerger {
 /// - Verify hash matches expected value
 /// - Track version changes
 pub struct HashVerifier {
-    store: Store,
+    store: TripleStore,
 }
 
 impl HashVerifier {
-    pub fn new(store: Store) -> Self {
+    pub fn new(store: TripleStore) -> Self {
         Self { store }
     }
 
@@ -1360,11 +1605,34 @@ impl HashVerifier {
         let mut hasher = Sha256::new();
         let mut triples = Vec::new();
 
-        // Collect all triples
-        for quad in self.store.iter() {
-            let quad = quad?;
-            let triple_str = format!("{} {} {} .", quad.subject, quad.predicate, quad.object);
-            triples.push(triple_str);
+        // Collect all triples using SPARQL query
+        let query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o } ORDER BY ?s ?p ?o";
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to query triples: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
+
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                for binding_obj in bindings_array {
+                    if let Some(binding_map) = binding_obj.as_object() {
+                        let s = binding_map.get("s")
+                            .map(|v| extract_term_string_from_json_value(v))
+                            .unwrap_or_default();
+                        let p = binding_map.get("p")
+                            .map(|v| extract_term_string_from_json_value(v))
+                            .unwrap_or_default();
+                        let o = binding_map.get("o")
+                            .map(|v| extract_term_string_from_json_value(v))
+                            .unwrap_or_default();
+                        
+                        let triple_str = format!("{} {} {} .", s, p, o);
+                        triples.push(triple_str);
+                    }
+                }
+            }
         }
 
         // Sort for consistency
@@ -1406,13 +1674,22 @@ impl HashVerifier {
             }
         "#;
 
-        let results = self.store.query(query)?;
+        let json_result = self.store.query_sparql(query)
+            .map_err(|e| anyhow!("Failed to execute query: {}", e))?;
+        
+        let parsed: JsonValue = serde_json::from_str(&json_result)
+            .context("Failed to parse query results")?;
 
-        if let QueryResults::Solutions(mut solutions) = results {
-            if let Some(Ok(solution)) = solutions.next() {
-                if let Some(hash_term) = solution.get("hash") {
-                    if let Some(literal) = hash_term.as_ref().as_literal() {
-                        return Ok(Some(literal.value().to_string()));
+        // Parse JSON results from ggen
+        if let Some(results) = parsed.get("results") {
+            if let Some(bindings_array) = results.get("bindings").and_then(|b| b.as_array()) {
+                if let Some(first) = bindings_array.first() {
+                    if let Some(binding_map) = first.as_object() {
+                        if let Some(hash_val) = binding_map.get("hash") {
+                            if let Some(hash_str) = extract_literal_from_json_value(hash_val) {
+                                return Ok(Some(hash_str));
+                            }
+                        }
                     }
                 }
             }
@@ -1422,17 +1699,13 @@ impl HashVerifier {
     }
 
     /// Store hash in ontology
-    pub fn store_hash(&self, hash: &str) -> Result<()> {
-        let ontology_uri = NamedNode::new("http://ggen-mcp.dev/ontology/")?;
-        let hash_prop = NamedNode::new("http://ggen-mcp.dev/ontology/ontologyHash")?;
-
-        self.store.insert(Triple {
-            subject: Subject::NamedNode(ontology_uri),
-            predicate: hash_prop,
-            object: Term::Literal(oxigraph::model::Literal::new_simple_literal(hash)),
-        })?;
-
-        Ok(())
+    /// Note: TripleStore doesn't support direct insertion. This would need to be done via
+    /// Turtle file modification or a different approach.
+    pub fn store_hash(&self, _hash: &str) -> Result<()> {
+        // TripleStore doesn't support direct triple insertion
+        // Would need to export to Turtle, modify, and reload
+        // For now, return an error indicating this needs implementation
+        Err(anyhow!("TripleStore doesn't support direct hash storage. Use Turtle file modification instead."))
     }
 
     /// Verify and update hash

@@ -7,6 +7,7 @@ use crate::dod::check::*;
 use crate::dod::profile::*;
 use crate::dod::types::*;
 use anyhow::{Context, Result};
+use futures::future;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
@@ -220,24 +221,25 @@ impl CheckExecutor {
         batch: &[&str],
         check_map: &HashMap<&str, &Box<dyn DodCheck>>,
     ) -> Result<Vec<(String, DodCheckResult)>> {
-        let tasks: Vec<_> = batch
+        // Use futures::future::join_all instead of spawning tasks
+        // to avoid lifetime issues with trait objects
+        let futures: Vec<_> = batch
             .iter()
             .filter_map(|check_id| {
                 check_map.get(check_id).map(|check| {
                     let check_id = check_id.to_string();
                     let context = context.clone();
-                    let check = *check;
-                    tokio::spawn(async move {
-                        let result = check.execute(&context).await;
+                    async move {
+                        let result = self.execute_check_with_timeout(&context, check).await;
                         (check_id, result)
-                    })
+                    }
                 })
             })
             .collect();
 
+        let results = future::join_all(futures).await;
         let mut batch_results = vec![];
-        for task in tasks {
-            let (check_id, result) = task.await.context("Task panicked")?;
+        for (check_id, result) in results {
             batch_results.push((check_id, result?));
         }
 
@@ -374,7 +376,7 @@ mod tests {
     #[tokio::test]
     async fn executor_respects_dependencies() {
         let mut registry = CheckRegistry::new();
-        
+
         // GGEN_DRY_RUN has no dependencies
         registry.register(Box::new(MockCheck {
             id: "GGEN_DRY_RUN".to_string(),
@@ -409,14 +411,17 @@ mod tests {
 
         // dry_run should come before render (topological order)
         if let (Some(dry), Some(render)) = (dry_run_idx, render_idx) {
-            assert!(dry < render, "GGEN_DRY_RUN should execute before GGEN_RENDER");
+            assert!(
+                dry < render,
+                "GGEN_DRY_RUN should execute before GGEN_RENDER"
+            );
         }
     }
 
     #[tokio::test]
     async fn executor_handles_timeout() {
         let mut registry = CheckRegistry::new();
-        
+
         // Check that takes longer than timeout
         registry.register(Box::new(MockCheck {
             id: "SLOW_CHECK".to_string(),
@@ -428,7 +433,7 @@ mod tests {
         let mut profile = DodProfile::default_dev();
         profile.required_checks.clear();
         profile.required_checks.insert("SLOW_CHECK".to_string());
-        
+
         // Set short timeout for build checks
         profile.timeouts_ms.build = 100; // 100ms
 
@@ -450,7 +455,7 @@ mod tests {
     #[tokio::test]
     async fn executor_respects_serial_mode() {
         let mut registry = CheckRegistry::new();
-        
+
         for i in 1..=3 {
             registry.register(Box::new(MockCheck {
                 id: format!("CHECK_{}", i),

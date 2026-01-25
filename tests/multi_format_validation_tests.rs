@@ -47,7 +47,10 @@ fn typescript_detects_unbalanced_brackets() {
 
     let invalid_code = "const arr = [1, 2, 3;";
     let report = validator.validate(invalid_code, "test.ts").unwrap();
-    assert!(report.has_errors(), "Unbalanced brackets should cause error");
+    assert!(
+        report.has_errors(),
+        "Unbalanced brackets should cause error"
+    );
 }
 
 #[test]
@@ -106,10 +109,7 @@ fn typescript_detects_incomplete_export() {
 
     let invalid_export = "export";
     let report = validator.validate(invalid_export, "test.ts").unwrap();
-    assert!(
-        report.has_errors(),
-        "Incomplete export should cause error"
-    );
+    assert!(report.has_errors(), "Incomplete export should cause error");
 }
 
 #[test]
@@ -129,9 +129,7 @@ fn typescript_validates_interface_naming() {
     let mut validator = TypeScriptValidator::new();
 
     let lowercase_interface = "interface myInterface { key: string; }";
-    let report = validator
-        .validate(lowercase_interface, "test.ts")
-        .unwrap();
+    let report = validator.validate(lowercase_interface, "test.ts").unwrap();
     assert!(
         report.warning_count > 0,
         "Lowercase interface name should warn"
@@ -139,9 +137,7 @@ fn typescript_validates_interface_naming() {
 
     validator.reset();
     let pascalcase_interface = "interface MyInterface { key: string; }";
-    let report = validator
-        .validate(pascalcase_interface, "test.ts")
-        .unwrap();
+    let report = validator.validate(pascalcase_interface, "test.ts").unwrap();
     assert_eq!(report.warning_count, 0, "PascalCase should not warn");
 }
 
@@ -151,10 +147,7 @@ fn typescript_validates_type_alias_naming() {
 
     let lowercase_type = "type myType = string | number;";
     let report = validator.validate(lowercase_type, "test.ts").unwrap();
-    assert!(
-        report.warning_count > 0,
-        "Lowercase type alias should warn"
-    );
+    assert!(report.warning_count > 0, "Lowercase type alias should warn");
 
     validator.reset();
     let pascalcase_type = "type MyType = string | number;";
@@ -188,10 +181,7 @@ interface User { name: string; }
 interface User { email: string; }
 "#;
     let report = validator.validate(duplicate_interfaces, "test.ts").unwrap();
-    assert!(
-        report.warning_count > 0,
-        "Duplicate interface should warn"
-    );
+    assert!(report.warning_count > 0, "Duplicate interface should warn");
 }
 
 #[test]
@@ -236,10 +226,7 @@ export class MyComponent extends Component<Props> {
 export default MyComponent;
 "#;
     let report = validator.validate(complex_code, "component.tsx").unwrap();
-    assert!(
-        !report.has_errors(),
-        "Valid complex TypeScript should pass"
-    );
+    assert!(!report.has_errors(), "Valid complex TypeScript should pass");
 }
 
 // =============================================================================
@@ -288,10 +275,7 @@ fn yaml_detects_tab_indentation() {
 
     let yaml_with_tabs = "key: value\n\tindented: with_tab";
     let report = validator.validate(yaml_with_tabs, "test.yaml").unwrap();
-    assert!(
-        report.has_errors(),
-        "YAML with tabs should cause error"
-    );
+    assert!(report.has_errors(), "YAML with tabs should cause error");
 }
 
 #[test]
@@ -348,10 +332,7 @@ another: >
   multiline string.
 "#;
     let report = validator.validate(multiline_yaml, "test.yaml").unwrap();
-    assert!(
-        !report.has_errors(),
-        "Valid multiline YAML should pass"
-    );
+    assert!(!report.has_errors(), "Valid multiline YAML should pass");
 }
 
 // =============================================================================
@@ -396,10 +377,7 @@ fn json_detects_trailing_comma() {
     let report = validator
         .validate(json_with_trailing_comma, "test.json")
         .unwrap();
-    assert!(
-        report.has_errors(),
-        "JSON with trailing comma should error"
-    );
+    assert!(report.has_errors(), "JSON with trailing comma should error");
 }
 
 #[test]
@@ -410,10 +388,7 @@ fn json_detects_missing_quotes() {
     let report = validator
         .validate(json_without_quotes, "test.json")
         .unwrap();
-    assert!(
-        report.has_errors(),
-        "JSON keys must be in quotes"
-    );
+    assert!(report.has_errors(), "JSON keys must be in quotes");
 }
 
 #[test]
@@ -422,10 +397,7 @@ fn json_detects_unclosed_structure() {
 
     let incomplete_json = r#"{"key": "value""#;
     let report = validator.validate(incomplete_json, "test.json").unwrap();
-    assert!(
-        report.has_errors(),
-        "Incomplete JSON should error"
-    );
+    assert!(report.has_errors(), "Incomplete JSON should error");
 }
 
 #[test]
@@ -464,10 +436,7 @@ fn json_validates_complex_structure() {
 }
 "#;
     let report = validator.validate(complex_json, "api.json").unwrap();
-    assert!(
-        !report.has_errors(),
-        "Valid complex JSON should pass"
-    );
+    assert!(!report.has_errors(), "Valid complex JSON should pass");
 }
 
 // =============================================================================
@@ -486,10 +455,7 @@ info:
 paths: {}
 "#;
     let report = validator.validate(minimal_openapi, "openapi.yaml").unwrap();
-    assert!(
-        !report.has_errors(),
-        "Minimal valid OpenAPI should pass"
-    );
+    assert!(!report.has_errors(), "Minimal valid OpenAPI should pass");
 }
 
 #[test]
@@ -503,10 +469,7 @@ info:
 paths: {}
 "#;
     let report = validator.validate(missing_version, "openapi.yaml").unwrap();
-    assert!(
-        report.has_errors(),
-        "Missing openapi version should error"
-    );
+    assert!(report.has_errors(), "Missing openapi version should error");
 }
 
 #[test]
@@ -518,10 +481,7 @@ openapi: 3.0.0
 paths: {}
 "#;
     let report = validator.validate(missing_info, "openapi.yaml").unwrap();
-    assert!(
-        report.has_errors(),
-        "Missing info section should error"
-    );
+    assert!(report.has_errors(), "Missing info section should error");
 }
 
 #[test]
@@ -535,10 +495,7 @@ info:
 paths: {}
 "#;
     let report = validator.validate(missing_title, "openapi.yaml").unwrap();
-    assert!(
-        report.has_errors(),
-        "Missing info.title should error"
-    );
+    assert!(report.has_errors(), "Missing info.title should error");
 }
 
 #[test]
@@ -554,10 +511,7 @@ paths: {}
     let report = validator
         .validate(missing_info_version, "openapi.yaml")
         .unwrap();
-    assert!(
-        report.has_errors(),
-        "Missing info.version should error"
-    );
+    assert!(report.has_errors(), "Missing info.version should error");
 }
 
 #[test]
@@ -643,10 +597,7 @@ info:
 paths: {}
 "#;
     let report = validator.validate(old_version, "openapi.yaml").unwrap();
-    assert!(
-        report.warning_count > 0,
-        "Old OpenAPI version should warn"
-    );
+    assert!(report.warning_count > 0, "Old OpenAPI version should warn");
 }
 
 #[test]
@@ -662,10 +613,7 @@ paths:
   - invalid list syntax
 "#;
     let report = validator.validate(invalid_yaml, "openapi.yaml").unwrap();
-    assert!(
-        report.has_errors(),
-        "Invalid YAML in OpenAPI should error"
-    );
+    assert!(report.has_errors(), "Invalid YAML in OpenAPI should error");
 }
 
 // =============================================================================
@@ -736,6 +684,9 @@ fn validators_include_line_numbers() {
     assert!(report.has_errors());
     // Check that location includes line number
     if let Some(location) = &report.issues[0].location {
-        assert!(location.contains(':'), "Location should include line number");
+        assert!(
+            location.contains(':'),
+            "Location should include line number"
+        );
     }
 }

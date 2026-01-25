@@ -589,7 +589,11 @@ fn test_sparql_syntax_guard_warn() {
 
     // Assert
     assert_eq!(result.verdict, Verdict::Warn);
-    assert!(result.diagnostic.contains("Unexpected query file extension"));
+    assert!(
+        result
+            .diagnostic
+            .contains("Unexpected query file extension")
+    );
 }
 
 // =============================================================================
@@ -699,13 +703,12 @@ fn test_bounds_check_guard_fail() {
 // Test Module Documentation
 // =============================================================================
 
-/// Test coverage summary:
-/// - PathSafetyGuard: 2 tests (pass, fail)
-/// - OutputOverlapGuard: 2 tests (pass, fail)
-/// - TemplateCompileGuard: 2 tests (pass, fail)
-/// - TurtleParseGuard: 2 tests (pass, warn)
-/// - SparqlSyntaxGuard: 2 tests (pass, warn)
-/// - DeterminismGuard: 2 tests (pass, fail)
-/// - BoundsCheckGuard: 2 tests (pass, fail)
-///
-/// Total: 14 tests covering all 7 guards
+// Test coverage summary:
+// - PathSafetyGuard: 2 tests (pass, fail)
+// - OutputOverlapGuard: 2 tests (pass, fail)
+// - TemplateCompileGuard: 2 tests (pass, fail)
+// - TurtleParseGuard: 2 tests (pass, warn)
+// - SparqlSyntaxGuard: 2 tests (pass, warn)
+// - DeterminismGuard: 2 tests (pass, fail)
+// - BoundsCheckGuard: 2 tests (pass, fail)
+// Total: 14 tests covering all 7 guards

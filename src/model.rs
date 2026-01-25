@@ -1,4 +1,5 @@
 use crate::caps::BackendCaps;
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -871,4 +872,14 @@ pub struct VbaModuleSourceResponse {
     pub total_lines: u32,
     pub truncated: bool,
     pub source: String,
+}
+
+/// Edit operation for fork-based editing
+#[derive(Debug, Clone)]
+pub struct EditOp {
+    pub timestamp: DateTime<Utc>,
+    pub sheet: String,
+    pub address: String,
+    pub value: String,
+    pub is_formula: bool,
 }

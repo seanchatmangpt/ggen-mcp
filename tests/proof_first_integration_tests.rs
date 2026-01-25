@@ -420,12 +420,21 @@ async fn test_json_report_structure() -> Result<()> {
     let report: JsonValue = serde_json::from_str(&fs::read_to_string(&report_path)?)?;
 
     // Assert: JSON structure
-    assert!(report["workspace"].is_object(), "Should have workspace object");
+    assert!(
+        report["workspace"].is_object(),
+        "Should have workspace object"
+    );
     assert!(report["inputs"].is_object(), "Should have inputs object");
     assert!(report["guards"].is_array(), "Should have guards array");
     assert!(report["changes"].is_object(), "Should have changes object");
-    assert!(report["validation"].is_object(), "Should have validation object");
-    assert!(report["performance"].is_object(), "Should have performance object");
+    assert!(
+        report["validation"].is_object(),
+        "Should have validation object"
+    );
+    assert!(
+        report["performance"].is_object(),
+        "Should have performance object"
+    );
 
     // Verify nested structure
     assert!(
@@ -460,10 +469,7 @@ async fn test_diff_generation_in_preview() -> Result<()> {
     // Create existing file to diff against
     let existing_file = workspace.path().join("src/generated/entities.rs");
     fs::create_dir_all(existing_file.parent().unwrap())?;
-    fs::write(
-        &existing_file,
-        "// Old version\npub struct OldEntity {}\n",
-    )?;
+    fs::write(&existing_file, "// Old version\npub struct OldEntity {}\n")?;
 
     // Act
     let result = sync_ggen(Arc::new(mock_state()), params).await?;
@@ -688,15 +694,14 @@ async fn test_concurrent_sync_operations() -> Result<()> {
 // Test Module Documentation
 // =============================================================================
 
-/// Test coverage summary:
-/// - Preview mode (no file writes)
-/// - Apply mode (file writes after guards)
-/// - Report generation (Markdown & JSON)
-/// - All report sections present
-/// - Diff generation
-/// - Force mode
-/// - Error handling
-/// - Receipt emission
-/// - Concurrent operations
-///
-/// Total: 11 tests covering First Light Report generation
+// Test coverage summary:
+// - Preview mode (no file writes)
+// - Apply mode (file writes after guards)
+// - Report generation (Markdown & JSON)
+// - All report sections present
+// - Diff generation
+// - Force mode
+// - Error handling
+// - Receipt emission
+// - Concurrent operations
+// Total: 11 tests covering First Light Report generation

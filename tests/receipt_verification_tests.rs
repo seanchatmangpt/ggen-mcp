@@ -41,7 +41,7 @@ pub struct Receipt {
     pub receipt_id: String,
     pub timestamp: String,
     pub workspace_fingerprint: String,
-    pub inputs: HashMap<String, String>, // path -> hash
+    pub inputs: HashMap<String, String>,  // path -> hash
     pub outputs: HashMap<String, String>, // path -> hash
     pub guards: Vec<String>,
     pub performance_ms: u64,
@@ -313,7 +313,10 @@ async fn test_verify_valid_receipt() -> Result<()> {
         result.checks.iter().all(|c| c.passed),
         "All checks should pass"
     );
-    assert!(result.summary.contains("✅"), "Summary should indicate success");
+    assert!(
+        result.summary.contains("✅"),
+        "Summary should indicate success"
+    );
 
     Ok(())
 }
@@ -466,7 +469,10 @@ async fn test_receipt_schema_validation() -> Result<()> {
         "workspace_fingerprint": "abc123"
     });
 
-    fs::write(&receipt_path, serde_json::to_string_pretty(&invalid_receipt)?)?;
+    fs::write(
+        &receipt_path,
+        serde_json::to_string_pretty(&invalid_receipt)?,
+    )?;
 
     let params = VerifyReceiptParams {
         receipt_path: receipt_path.to_string_lossy().to_string(),
@@ -751,18 +757,17 @@ async fn test_performance_metrics_in_receipt() -> Result<()> {
 // Test Module Documentation
 // =============================================================================
 
-/// Test coverage summary:
-/// 1. Verify valid receipt (all checks pass)
-/// 2. Detect tampered input hash
-/// 3. Detect tampered output hash
-/// 4. Detect modified workspace configuration
-/// 5. Receipt schema validation
-/// 6. Timestamp validation (valid + invalid)
-/// 7. Guard verdicts present
-/// 8. Metadata validation
-/// 9. Receipt file not found error
-/// 10. Verification without workspace
-/// 11. Multiple receipts comparison
-/// 12. Performance metrics in receipt
-///
-/// Total: 12 tests covering cryptographic receipt verification
+// Test coverage summary:
+// 1. Verify valid receipt (all checks pass)
+// 2. Detect tampered input hash
+// 3. Detect tampered output hash
+// 4. Detect modified workspace configuration
+// 5. Receipt schema validation
+// 6. Timestamp validation (valid + invalid)
+// 7. Guard verdicts present
+// 8. Metadata validation
+// 9. Receipt file not found error
+// 10. Verification without workspace
+// 11. Multiple receipts comparison
+// 12. Performance metrics in receipt
+// Total: 12 tests covering cryptographic receipt verification

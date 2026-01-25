@@ -32,14 +32,18 @@ mod tests {
     async fn test_disabled_allows_all() {
         let provider = DisabledProvider;
 
-        assert!(provider
-            .check_capability(Capability::ApplyMode)
-            .await
-            .unwrap());
-        assert!(provider
-            .check_capability(Capability::JiraCreate)
-            .await
-            .unwrap());
+        assert!(
+            provider
+                .check_capability(Capability::ApplyMode)
+                .await
+                .unwrap()
+        );
+        assert!(
+            provider
+                .check_capability(Capability::JiraCreate)
+                .await
+                .unwrap()
+        );
         assert_eq!(provider.name(), "disabled");
     }
 }

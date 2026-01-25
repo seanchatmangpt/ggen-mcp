@@ -1,9 +1,9 @@
 //! G5: SPARQL Execute Guard
 //!
-//! Validates SPARQL query syntax.
+//! Validates SPARQL query syntax using ggen's TripleStore.
 
 use crate::guards::{Guard, GuardResult, SyncContext};
-use oxigraph::store::Store;
+use ggen_ontology_core::TripleStore;
 
 /// G5: SPARQL Execute Guard
 pub struct SparqlExecuteGuard;
@@ -21,12 +21,12 @@ impl Guard for SparqlExecuteGuard {
         let mut errors = Vec::new();
 
         // Create a test store for validation
-        let store = match Store::new() {
+        let store = match TripleStore::new() {
             Ok(s) => s,
             Err(e) => {
                 return GuardResult::fail(
                     self.name(),
-                    format!("Failed to create test store: {}", e),
+                    format!("Failed to create test TripleStore: {}", e),
                     "Check system resources",
                 );
             }
@@ -41,8 +41,8 @@ impl Guard for SparqlExecuteGuard {
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown");
 
-            // Try to prepare the query (validates syntax)
-            if let Err(e) = store.query(query_content) {
+            // Try to execute the query (validates syntax)
+            if let Err(e) = store.query_sparql(query_content) {
                 errors.push(format!("{}: {}", query_name, e));
             }
         }
@@ -61,7 +61,10 @@ impl Guard for SparqlExecuteGuard {
 
         GuardResult::pass(
             self.name(),
-            format!("{} quer(ies) validated successfully", ctx.query_contents.len()),
+            format!(
+                "{} quer(ies) validated successfully",
+                ctx.query_contents.len()
+            ),
         )
     }
 }

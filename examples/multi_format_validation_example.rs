@@ -44,8 +44,10 @@ export function MyComponent(props: Props) {
 
     match validator.validate(valid_code, "example.tsx") {
         Ok(report) => {
-            println!("✓ Valid TypeScript: {} errors, {} warnings",
-                     report.error_count, report.warning_count);
+            println!(
+                "✓ Valid TypeScript: {} errors, {} warnings",
+                report.error_count, report.warning_count
+            );
         }
         Err(e) => println!("✗ Validation failed: {}", e),
     }
@@ -55,7 +57,10 @@ export function MyComponent(props: Props) {
     let invalid_code = "function test() { return { key: 'value'; }";
     match validator.validate(invalid_code, "invalid.ts") {
         Ok(report) => {
-            println!("✓ Invalid TypeScript detected: {} errors", report.error_count);
+            println!(
+                "✓ Invalid TypeScript detected: {} errors",
+                report.error_count
+            );
             for issue in &report.issues {
                 println!("  - {}", issue.message);
             }
@@ -86,8 +91,10 @@ config:
 
     match validator.validate(valid_yaml, "config.yaml") {
         Ok(report) => {
-            println!("✓ Valid YAML: {} errors, {} warnings",
-                     report.error_count, report.warning_count);
+            println!(
+                "✓ Valid YAML: {} errors, {} warnings",
+                report.error_count, report.warning_count
+            );
         }
         Err(e) => println!("✗ Validation failed: {}", e),
     }
@@ -181,8 +188,10 @@ paths:
 
     match validator.validate(valid_openapi, "openapi.yaml") {
         Ok(report) => {
-            println!("✓ Valid OpenAPI: {} errors, {} warnings",
-                     report.error_count, report.warning_count);
+            println!(
+                "✓ Valid OpenAPI: {} errors, {} warnings",
+                report.error_count, report.warning_count
+            );
         }
         Err(e) => println!("✗ Validation failed: {}", e),
     }

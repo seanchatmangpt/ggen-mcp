@@ -25,8 +25,8 @@
 //! ```
 
 use anyhow::{Context, Result, anyhow};
-use oxigraph::store::Store;
 use oxigraph::sparql::{QueryResults, QuerySolution};
+use oxigraph::store::Store;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -124,7 +124,10 @@ impl OntologyGenerationHarness {
     /// Load test ontology from fixture
     pub fn load_ontology(&mut self, fixture: &str) -> Result<()> {
         let start = Instant::now();
-        let ontology_path = self.fixture_root.join("ontology").join(format!("{}.ttl", fixture));
+        let ontology_path = self
+            .fixture_root
+            .join("ontology")
+            .join(format!("{}.ttl", fixture));
 
         if !ontology_path.exists() {
             return Err(anyhow!(
@@ -134,20 +137,22 @@ impl OntologyGenerationHarness {
         }
 
         let store = Store::new().context("Failed to create RDF store")?;
-        let content = fs::read_to_string(&ontology_path)
-            .context(format!("Failed to read ontology: {}", ontology_path.display()))?;
+        let content = fs::read_to_string(&ontology_path).context(format!(
+            "Failed to read ontology: {}",
+            ontology_path.display()
+        ))?;
 
         store
-            .load_from_reader(
-                oxigraph::io::RdfFormat::Turtle,
-                content.as_bytes(),
-            )
+            .load_from_reader(oxigraph::io::RdfFormat::Turtle, content.as_bytes())
             .context("Failed to parse Turtle ontology")?;
 
         self.store = Some(store);
         self.metrics.ontology_load_time = start.elapsed();
 
-        println!("✓ Loaded ontology: {} ({:?})", fixture, self.metrics.ontology_load_time);
+        println!(
+            "✓ Loaded ontology: {} ({:?})",
+            fixture, self.metrics.ontology_load_time
+        );
         Ok(())
     }
 
@@ -156,10 +161,7 @@ impl OntologyGenerationHarness {
         let query_path = self.fixture_root.join("queries").join(query_file);
 
         if !query_path.exists() {
-            return Err(anyhow!(
-                "Query file not found: {}",
-                query_path.display()
-            ));
+            return Err(anyhow!("Query file not found: {}", query_path.display()));
         }
 
         let query = fs::read_to_string(&query_path)
@@ -181,15 +183,19 @@ impl OntologyGenerationHarness {
             ));
         }
 
-        let template_content = fs::read_to_string(&template_path)
-            .context(format!("Failed to read template: {}", template_path.display()))?;
+        let template_content = fs::read_to_string(&template_path).context(format!(
+            "Failed to read template: {}",
+            template_path.display()
+        ))?;
 
         // Add raw template to Tera
-        self.tera.add_raw_template(name, &template_content)
+        self.tera
+            .add_raw_template(name, &template_content)
             .context("Failed to register template")?;
 
         // Store content for later reference
-        self.template_contents.insert(name.to_string(), template_content);
+        self.template_contents
+            .insert(name.to_string(), template_content);
 
         println!("✓ Registered template: {} from {}", name, template_file);
         Ok(())
@@ -198,8 +204,7 @@ impl OntologyGenerationHarness {
     /// Clean up generated files
     pub fn teardown(&mut self) -> Result<()> {
         if self.output_dir.exists() {
-            fs::remove_dir_all(&self.output_dir)
-                .context("Failed to clean up output directory")?;
+            fs::remove_dir_all(&self.output_dir).context("Failed to clean up output directory")?;
             fs::create_dir_all(&self.output_dir)?;
         }
         Ok(())
@@ -256,7 +261,9 @@ impl OntologyGenerationHarness {
     /// Execute all registered SPARQL queries
     fn execute_queries(&mut self) -> Result<HashMap<String, QueryResult>> {
         let start = Instant::now();
-        let store = self.store.as_ref()
+        let store = self
+            .store
+            .as_ref()
             .ok_or_else(|| anyhow!("No ontology loaded"))?;
 
         let mut results = HashMap::new();
@@ -281,7 +288,11 @@ impl OntologyGenerationHarness {
             };
 
             let elapsed = query_start.elapsed();
-            println!("    ✓ Query completed in {:?} ({} results)", elapsed, bindings.len());
+            println!(
+                "    ✓ Query completed in {:?} ({} results)",
+                elapsed,
+                bindings.len()
+            );
 
             results.insert(
                 name.clone(),
@@ -339,7 +350,9 @@ impl OntologyGenerationHarness {
                 context.insert(query_name, &result.bindings);
             }
 
-            let rendered = self.tera.render(&template_name, &context)
+            let rendered = self
+                .tera
+                .render(&template_name, &context)
                 .context(format!("Failed to render template: {}", template_name))?;
 
             let elapsed = render_start.elapsed();
@@ -360,10 +373,7 @@ impl OntologyGenerationHarness {
     }
 
     /// Write rendered outputs to files
-    fn write_outputs(
-        &self,
-        rendered: &HashMap<String, RenderedOutput>,
-    ) -> Result<Vec<PathBuf>> {
+    fn write_outputs(&self, rendered: &HashMap<String, RenderedOutput>) -> Result<Vec<PathBuf>> {
         let start = Instant::now();
         let mut written_files = Vec::new();
 
@@ -379,7 +389,11 @@ impl OntologyGenerationHarness {
             written_files.push(output_path);
         }
 
-        println!("✓ Wrote {} files in {:?}", written_files.len(), start.elapsed());
+        println!(
+            "✓ Wrote {} files in {:?}",
+            written_files.len(),
+            start.elapsed()
+        );
         Ok(written_files)
     }
 
@@ -514,7 +528,11 @@ impl OntologyGenerationHarness {
             let golden_path = self.golden_dir.join(&golden_filename);
 
             if !golden_path.exists() {
-                println!("  ⚠️  No golden file for: {} (expected: {})", name, golden_path.display());
+                println!(
+                    "  ⚠️  No golden file for: {} (expected: {})",
+                    name,
+                    golden_path.display()
+                );
                 comparisons.push(FileComparison {
                     template_name: name.clone(),
                     golden_path: golden_path.clone(),
@@ -525,8 +543,10 @@ impl OntologyGenerationHarness {
                 continue;
             }
 
-            let golden_content = fs::read_to_string(&golden_path)
-                .context(format!("Failed to read golden file: {}", golden_path.display()))?;
+            let golden_content = fs::read_to_string(&golden_path).context(format!(
+                "Failed to read golden file: {}",
+                golden_path.display()
+            ))?;
 
             let matches = golden_content == output.content;
             if matches {
@@ -571,10 +591,7 @@ impl OntologyGenerationHarness {
         // Clear in-memory results but keep cache
         // Second execution (should be cache hit)
         let second_results = self.execute_queries()?;
-        let cache_hits = second_results
-            .values()
-            .filter(|r| r.from_cache)
-            .count();
+        let cache_hits = second_results.values().filter(|r| r.from_cache).count();
 
         let all_cached = cache_hits == second_results.len();
 

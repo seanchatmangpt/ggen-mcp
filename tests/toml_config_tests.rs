@@ -246,9 +246,7 @@ fn test_project_name_validation() {
 
 #[test]
 fn test_sparql_timeout_validation() {
-    let config = ConfigBuilder::new()
-        .sparql_timeout(90)
-        .build();
+    let config = ConfigBuilder::new().sparql_timeout(90).build();
 
     let harness = ConfigTestHarness::from_str(toml::to_string(&config).unwrap());
     harness.assert_valid();
@@ -257,9 +255,7 @@ fn test_sparql_timeout_validation() {
 
 #[test]
 fn test_max_workers_validation() {
-    let config = ConfigBuilder::new()
-        .max_workers(12)
-        .build();
+    let config = ConfigBuilder::new().max_workers(12).build();
 
     let harness = ConfigTestHarness::from_str(toml::to_string(&config).unwrap());
     harness.assert_valid();
@@ -281,9 +277,7 @@ fn test_inference_disabled_by_default() {
 
 #[test]
 fn test_inference_can_be_enabled() {
-    let config = ConfigBuilder::new()
-        .enable_inference()
-        .build();
+    let config = ConfigBuilder::new().enable_inference().build();
 
     let harness = ConfigTestHarness::from_str(toml::to_string(&config).unwrap());
     harness.assert_valid();
@@ -310,7 +304,7 @@ fn test_development_env_overrides() {
     harness.assert_env_override_value(
         "development",
         "logging.level",
-        &toml::Value::String("debug".to_string())
+        &toml::Value::String("debug".to_string()),
     );
 }
 
@@ -323,7 +317,7 @@ fn test_ci_env_overrides() {
     harness.assert_env_override_value(
         "ci",
         "logging.format",
-        &toml::Value::String("json".to_string())
+        &toml::Value::String("json".to_string()),
     );
 }
 
@@ -336,7 +330,7 @@ fn test_production_env_overrides() {
     harness.assert_env_override_value(
         "production",
         "performance.max_workers",
-        &toml::Value::Integer(16)
+        &toml::Value::Integer(16),
     );
 }
 
@@ -377,9 +371,7 @@ name = "bad"
 
 #[test]
 fn test_assert_field_equals_helper() {
-    let config = ConfigBuilder::new()
-        .project_name("field-test")
-        .build();
+    let config = ConfigBuilder::new().project_name("field-test").build();
 
     assert_field_equals(&config, |c| &c.project.name, &"field-test".to_string());
 }
@@ -491,7 +483,10 @@ fn test_serialization_preserves_structure() {
 
     assert_eq!(config.project.name, deserialized.project.name);
     assert_eq!(config.sparql.timeout, deserialized.sparql.timeout);
-    assert_eq!(config.performance.max_workers, deserialized.performance.max_workers);
+    assert_eq!(
+        config.performance.max_workers,
+        deserialized.performance.max_workers
+    );
 }
 
 // ============================================================================

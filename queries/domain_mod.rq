@@ -16,3 +16,4 @@ WHERE {
   { ?x a ddd:Policy . ?x rdfs:label ?name . BIND("Policy" as ?type) }
 }
 ORDER BY ?type ?name
+LIMIT 10000

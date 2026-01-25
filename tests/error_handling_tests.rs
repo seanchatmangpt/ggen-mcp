@@ -3,7 +3,7 @@
 use anyhow::anyhow;
 use chicago_tdd_tools::prelude::*;
 use spreadsheet_mcp::error::{
-    ErrorCode, ErrorMetrics, McpError, to_mcp_error, to_rmcp_error, ERROR_METRICS,
+    ERROR_METRICS, ErrorCode, ErrorMetrics, McpError, to_mcp_error, to_rmcp_error,
 };
 
 test!(test_error_code_values, {
@@ -37,10 +37,7 @@ test!(test_error_categories, {
     assert_eq!(ErrorCode::InternalError.category(), "server_error");
 
     // Act & Assert: Verify resource not found categories
-    assert_eq!(
-        ErrorCode::WorkbookNotFound.category(),
-        "resource_not_found"
-    );
+    assert_eq!(ErrorCode::WorkbookNotFound.category(), "resource_not_found");
     assert_eq!(ErrorCode::ForkNotFound.category(), "resource_not_found");
 
     // Act & Assert: Verify other categories

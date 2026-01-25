@@ -154,8 +154,7 @@ async fn test_read_nonexistent_template() -> Result<()> {
     let harness = TeraAuthoringHarness::new()?;
 
     // WHEN: We try to read non-existent template
-    let result =
-        simulate_read_template(harness.template_path("nonexistent").as_path()).await;
+    let result = simulate_read_template(harness.template_path("nonexistent").as_path()).await;
 
     // THEN: Error returned
     assert!(result.is_err());
@@ -209,15 +208,16 @@ async fn test_validate_unclosed_delimiter() -> Result<()> {
     harness.write_template("unclosed", "{{ entity_name")?;
 
     // WHEN: We validate syntax
-    let result =
-        simulate_validate_template(harness.template_path("unclosed").as_path()).await?;
+    let result = simulate_validate_template(harness.template_path("unclosed").as_path()).await?;
 
     // THEN: Validation fails
     assert!(!result.valid);
-    assert!(result
-        .errors
-        .iter()
-        .any(|e| e.contains("delimiter") || e.contains("unclosed")));
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("delimiter") || e.contains("unclosed"))
+    );
 
     Ok(())
 }
@@ -335,8 +335,8 @@ async fn test_template_with_filters() -> Result<()> {
     .await?;
 
     // THEN: Filters applied
-    assert!(result.output.contains("pub struct PRODUCT"));  // upper filter
-    assert!(result.output.contains("\"product\""));  // lower filter
+    assert!(result.output.contains("pub struct PRODUCT")); // upper filter
+    assert!(result.output.contains("\"product\"")); // lower filter
 
     Ok(())
 }
@@ -347,7 +347,7 @@ async fn test_template_with_missing_variable_fails() -> Result<()> {
     let harness = TeraAuthoringHarness::new()?;
     harness.write_template("required", simple_struct_template())?;
 
-    let context = TeraContext::new();  // Empty context
+    let context = TeraContext::new(); // Empty context
 
     // WHEN: We try to render without required variable
     let result = simulate_test_template(
@@ -446,8 +446,11 @@ async fn test_list_variables_in_template() -> Result<()> {
     harness.write_template("vars", simple_struct_template())?;
 
     // WHEN: We list variables
-    let result =
-        simulate_list_variables(harness.template_path("vars").as_path(), harness.templates_dir().as_path()).await?;
+    let result = simulate_list_variables(
+        harness.template_path("vars").as_path(),
+        harness.templates_dir().as_path(),
+    )
+    .await?;
 
     // THEN: Variables extracted
     assert!(result.variables.contains(&"entity_name".to_string()));
@@ -487,8 +490,11 @@ async fn test_list_variables_empty_template() -> Result<()> {
     harness.write_template("empty", "// Static template\npub struct User {}")?;
 
     // WHEN: We list variables
-    let result =
-        simulate_list_variables(harness.template_path("empty").as_path(), harness.templates_dir().as_path()).await?;
+    let result = simulate_list_variables(
+        harness.template_path("empty").as_path(),
+        harness.templates_dir().as_path(),
+    )
+    .await?;
 
     // THEN: No variables
     assert_eq!(result.variable_count, 0);
@@ -528,12 +534,7 @@ struct ListVariablesResult {
 
 async fn simulate_read_template(path: &Path) -> Result<TemplateReadResult> {
     let content = fs::read_to_string(path)?;
-    let name = path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let name = path.file_name().unwrap().to_str().unwrap().to_string();
 
     Ok(TemplateReadResult { name, content })
 }
@@ -614,14 +615,16 @@ async fn simulate_create_template_overwrite(
     Ok(())
 }
 
-async fn simulate_list_variables(template_path: &Path, _templates_dir: &Path) -> Result<ListVariablesResult> {
+async fn simulate_list_variables(
+    template_path: &Path,
+    _templates_dir: &Path,
+) -> Result<ListVariablesResult> {
     let content = fs::read_to_string(template_path)?;
 
     let mut variables = HashSet::new();
 
     // Simple regex-based extraction (in production would use AST)
-    let var_pattern = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let var_pattern = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     for cap in var_pattern.captures_iter(&content) {
         if let Some(var_name) = cap.get(1) {
@@ -630,8 +633,8 @@ async fn simulate_list_variables(template_path: &Path, _templates_dir: &Path) ->
     }
 
     // Extract conditional variables
-    let if_pattern = regex::Regex::new(r"\{%\s*if\s+([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let if_pattern =
+        regex::Regex::new(r"\{%\s*if\s+([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     for cap in if_pattern.captures_iter(&content) {
         if let Some(var_name) = cap.get(1) {

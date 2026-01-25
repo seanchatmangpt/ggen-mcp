@@ -5,8 +5,8 @@
 
 use crate::tools::ontology_sparql::{ExecuteSparqlQueryResponse, OntologyId, QueryCacheKey};
 use anyhow::{Context, Result};
+use ggen_ontology_core::TripleStore;
 use lru::LruCache;
-use oxigraph::store::Store;
 use parking_lot::RwLock;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -15,7 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// Ontology cache with LRU eviction
 pub struct OntologyCache {
     /// Cache storage (RwLock for concurrent reads)
-    cache: RwLock<LruCache<OntologyId, Arc<Store>>>,
+    cache: RwLock<LruCache<OntologyId, Arc<TripleStore>>>,
     /// Cache hits
     hits: AtomicU64,
     /// Cache misses
@@ -34,13 +34,13 @@ impl OntologyCache {
     }
 
     /// Insert ontology into cache
-    pub fn insert(&self, id: OntologyId, store: Store) {
+    pub fn insert(&self, id: OntologyId, store: TripleStore) {
         let mut cache = self.cache.write();
         cache.put(id, Arc::new(store));
     }
 
     /// Get ontology from cache
-    pub fn get(&self, id: &OntologyId) -> Option<Arc<Store>> {
+    pub fn get(&self, id: &OntologyId) -> Option<Arc<TripleStore>> {
         let mut cache = self.cache.write();
         if let Some(store) = cache.get(id) {
             self.hits.fetch_add(1, Ordering::Relaxed);
@@ -152,7 +152,7 @@ impl CacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tools::ontology_sparql::{QueryResult, QueryPerformance};
+    use crate::tools::ontology_sparql::{QueryPerformance, QueryResult};
 
     #[test]
     fn test_ontology_cache() {

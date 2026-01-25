@@ -1,8 +1,14 @@
+{#- Validate required variables - ensure sparql_results is provided -#}
+{%- if sparql_results is not defined -%}
+{# ERROR: sparql_results is required for command generation -#}
+// ERROR: Missing required variable 'sparql_results'
+{%- else -%}
 //! Domain Commands
 //! Generated from ggen-mcp.ttl - DO NOT EDIT
 
 use std::path::PathBuf;
 
+{% if sparql_results %}
 {% for row in sparql_results -%}
 {%- set label = row["?label"] | default(value="Unknown") -%}
 {%- set comment = row["?comment"] | default(value="") -%}
@@ -27,3 +33,6 @@ impl {{ label | replace(from=" ", to="") }}Command {
 }
 
 {% endfor %}
+{% else %}
+// No commands found in ontology
+{% endif %}

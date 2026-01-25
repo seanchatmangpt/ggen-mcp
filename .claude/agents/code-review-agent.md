@@ -35,6 +35,7 @@
 - [ ] Path safety checks in place?
 - [ ] Range validation for numeric inputs?
 - [ ] No unwrap() in production code?
+- [ ] SPARQL queries include LIMIT clause? (prevent unbounded queries)
 
 ### Pre-Commit (Andon Cord)
 - [ ] cargo fmt passed?

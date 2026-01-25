@@ -11,12 +11,10 @@ pub fn workspace_root() -> PathBuf {
 
 /// Create a test context with default settings
 pub fn test_context() -> spreadsheet_mcp::dod::CheckContext {
-    spreadsheet_mcp::dod::CheckContext::new(workspace_root())
-        .with_timeout(120_000) // 2 minutes default
+    spreadsheet_mcp::dod::CheckContext::new(workspace_root()).with_timeout(120_000) // 2 minutes default
 }
 
 /// Create a test context with extended timeout for long-running checks
 pub fn test_context_extended() -> spreadsheet_mcp::dod::CheckContext {
-    spreadsheet_mcp::dod::CheckContext::new(workspace_root())
-        .with_timeout(900_000) // 15 minutes for tests
+    spreadsheet_mcp::dod::CheckContext::new(workspace_root()).with_timeout(900_000) // 15 minutes for tests
 }

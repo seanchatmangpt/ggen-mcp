@@ -27,6 +27,7 @@
 //! ```
 
 use anyhow::{Context, Result, anyhow};
+use ggen_ontology_core::TripleStore;
 use oxigraph::model::*;
 use oxigraph::sparql::{Query, QueryResults};
 use oxigraph::store::Store;
@@ -194,6 +195,18 @@ impl ValidationReport {
 
     pub fn infos(&self) -> impl Iterator<Item = &ValidationResult> {
         self.results.iter().filter(|r| r.severity == Severity::Info)
+    }
+
+    pub fn violation_count(&self) -> usize {
+        self.violations().count()
+    }
+
+    pub fn warning_count(&self) -> usize {
+        self.warnings().count()
+    }
+
+    pub fn info_count(&self) -> usize {
+        self.infos().count()
     }
 
     pub fn to_json(&self) -> Result<String> {
@@ -390,9 +403,12 @@ impl<'a> ShapeDiscovery<'a> {
             None,
         ) {
             let quad = quad?;
-            if let Subject::NamedNode(shape_id) = quad.subject {
-                let shape = self.load_node_shape(&shape_id)?;
-                shapes.push(shape);
+            match &quad.subject {
+                Subject::NamedNode(shape_id) => {
+                    let shape = self.load_node_shape(shape_id)?;
+                    shapes.push(shape);
+                }
+                _ => {}
             }
         }
 
@@ -440,10 +456,13 @@ impl<'a> ShapeDiscovery<'a> {
             None,
         ) {
             let quad = quad?;
-            if let Term::BlankNode(prop_id) = quad.object {
-                if let Some(prop) = self.load_property_shape(&prop_id)? {
-                    properties.push(prop);
+            match &quad.object {
+                Term::BlankNode(prop_id) => {
+                    if let Some(prop) = self.load_property_shape(prop_id)? {
+                        properties.push(prop);
+                    }
                 }
+                _ => {}
             }
         }
 
@@ -476,15 +495,15 @@ impl<'a> ShapeDiscovery<'a> {
             self.get_integer_value(&prop_id.clone().into(), &format!("{}minLength", SH_NS))?;
         prop.max_length =
             self.get_integer_value(&prop_id.clone().into(), &format!("{}maxLength", SH_NS))?;
-        prop.name = self.get_string_value(&prop_id.clone().into(), &format!("{}name", SH_NS))?;
+        prop.name = self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}name", SH_NS))?;
         prop.message =
-            self.get_string_value(&prop_id.clone().into(), &format!("{}message", SH_NS))?;
+            self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}message", SH_NS))?;
 
         // Load numeric range constraints
         prop.min_inclusive =
-            self.get_literal_value(&prop_id.clone().into(), &format!("{}minInclusive", SH_NS))?;
+            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}minInclusive", SH_NS))?;
         prop.max_inclusive =
-            self.get_literal_value(&prop_id.clone().into(), &format!("{}maxInclusive", SH_NS))?;
+            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}maxInclusive", SH_NS))?;
 
         // Load sh:in values
         if let Some(list_head) = self.get_object(
@@ -496,7 +515,7 @@ impl<'a> ShapeDiscovery<'a> {
 
         // Load sh:uniqueLang
         if let Some(unique_lang) =
-            self.get_boolean_value(&prop_id.clone().into(), &format!("{}uniqueLang", SH_NS))?
+            self.get_boolean_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}uniqueLang", SH_NS))?
         {
             prop.unique_lang = unique_lang;
         }
@@ -516,7 +535,7 @@ impl<'a> ShapeDiscovery<'a> {
             None,
         ) {
             let quad = quad?;
-            return Ok(Some(quad.object.into_owned()));
+            return Ok(Some(quad.object.to_owned()));
         }
         Ok(None)
     }
@@ -586,8 +605,11 @@ impl<'a> ShapeDiscovery<'a> {
             None,
         ) {
             let quad = quad?;
-            if let Term::NamedNode(node) = quad.object {
-                values.push(node);
+            match &quad.object {
+                Term::NamedNode(node) => {
+                    values.push(node.clone());
+                }
+                _ => {}
             }
         }
 
@@ -618,17 +640,17 @@ impl<'a> ShapeDiscovery<'a> {
             match &current {
                 Term::BlankNode(node) => {
                     // Get first
-                    if let Some(first) = self.get_object(node.clone(), &rdf_first)? {
+                    if let Some(first) = self.get_object(&node.clone().into(), &rdf_first)? {
                         values.push(first);
                     }
                     // Get rest
-                    if let Some(rest) = self.get_object(node.clone(), &rdf_rest)? {
+                    if let Some(rest) = self.get_object(&node.clone().into(), &rdf_rest)? {
                         current = rest;
                     } else {
                         break;
                     }
                 }
-                Term::NamedNode(node) if node == &rdf_nil => break,
+                Term::NamedNode(node) if node.as_ref() == rdf_nil.as_ref() => break,
                 _ => break,
             }
         }
@@ -676,10 +698,11 @@ impl<'a> ConstraintChecker<'a> {
         // Check cardinality constraints
         if let Some(min_count) = property.min_count {
             if (values.len() as i32) < min_count {
-                let message = property.message.as_ref().unwrap_or(&format!(
+                let default_message = format!(
                     "Property {} must have at least {} value(s)",
                     property.path, min_count
-                ));
+                );
+                let message = property.message.as_ref().unwrap_or(&default_message);
                 results.push(
                     ValidationResult::new(
                         focus_node.to_string(),
@@ -695,10 +718,11 @@ impl<'a> ConstraintChecker<'a> {
 
         if let Some(max_count) = property.max_count {
             if (values.len() as i32) > max_count {
-                let message = property.message.as_ref().unwrap_or(&format!(
+                let default_message = format!(
                     "Property {} must have at most {} value(s)",
                     property.path, max_count
-                ));
+                );
+                let message = property.message.as_ref().unwrap_or(&default_message);
                 results.push(
                     ValidationResult::new(
                         focus_node.to_string(),
@@ -737,7 +761,7 @@ impl<'a> ConstraintChecker<'a> {
         // Check sh:datatype
         if let Some(expected_datatype) = &property.datatype {
             if let Term::Literal(lit) = value {
-                if lit.datatype() != expected_datatype {
+                if lit.datatype().as_ref() != expected_datatype.as_ref() {
                     let message = property
                         .message
                         .as_ref()
@@ -969,10 +993,11 @@ impl<'a> ConstraintChecker<'a> {
             if let Term::Literal(lit) = value {
                 if let Some(lang) = lit.language() {
                     if !seen_langs.insert(lang.to_string()) {
+                        let default_message = format!("Property must have unique language tags");
                         let message = property
                             .message
                             .as_ref()
-                            .unwrap_or(&format!("Property must have unique language tags"));
+                            .unwrap_or(&default_message);
                         results.push(
                             ValidationResult::new(
                                 focus_node.to_string(),
@@ -1001,7 +1026,7 @@ impl<'a> ConstraintChecker<'a> {
             None,
         ) {
             let quad = quad?;
-            values.push(quad.object.into_owned());
+            values.push(quad.object.to_owned());
         }
         Ok(values)
     }
@@ -1009,7 +1034,7 @@ impl<'a> ConstraintChecker<'a> {
     fn has_type(&self, node: &NamedNode, class: &NamedNode) -> Result<bool> {
         let rdf_type = NamedNode::new_unchecked(format!("{}type", RDF_NS));
         let quad = QuadRef::new(node, &rdf_type, class, GraphNameRef::DefaultGraph);
-        Ok(self.data_store.contains(&quad)?)
+        Ok(self.data_store.contains(quad)?)
     }
 }
 
@@ -1044,8 +1069,8 @@ impl<'a> CustomConstraints<'a> {
             None,
         ) {
             if let Ok(quad) = quad {
-                if let Term::Literal(invariant_lit) = quad.object {
-                    let invariant = invariant_lit.value();
+                if let Some(lit) = quad.object.as_literal() {
+                    let invariant = lit.value();
                     // In a real implementation, you would evaluate the invariant
                     // For now, we just log that an invariant exists
                     results.push(
@@ -1080,7 +1105,7 @@ impl<'a> CustomConstraints<'a> {
         // Check if this is a repository
         let is_repository = self
             .data_store
-            .contains(&QuadRef::new(
+            .contains(QuadRef::new(
                 focus_node,
                 &rdf_type,
                 &ddd_repository,
@@ -1161,11 +1186,14 @@ impl ShapeValidator {
         let subjects = self.get_all_subjects(data_store)?;
 
         for subject in subjects {
-            if let Subject::NamedNode(node) = subject {
-                let node_results = self.validate_node(&node, data_store)?;
-                for result in node_results {
-                    report.add_result(result);
+            match subject {
+                NamedOrBlankNode::NamedNode(node) => {
+                    let node_results = self.validate_node(&node, data_store)?;
+                    for result in node_results {
+                        report.add_result(result);
+                    }
                 }
+                _ => {}
             }
         }
 
@@ -1225,11 +1253,53 @@ impl ShapeValidator {
         Ok(results)
     }
 
-    fn get_all_subjects(&self, store: &Store) -> Result<Vec<Subject>> {
+    /// Validate a TripleStore against all applicable shapes
+    ///
+    /// **TPS Principle (Jidoka)**: Converts TripleStore to Store for validation.
+    /// Fails fast if conversion or validation fails.
+    ///
+    /// # Errors
+    /// Returns `Err` if:
+    /// - TripleStore cannot be converted to Store
+    /// - Validation fails (SHACL violations detected)
+    pub fn validate_triple_store(&self, triple_store: &TripleStore) -> Result<ValidationReport> {
+        // Convert TripleStore to Store by extracting Turtle content
+        // TripleStore uses oxigraph internally, so we can query all triples
+        // and reconstruct them in a Store
+        
+        // Use CONSTRUCT query to get all triples as RDF
+        let construct_query = r#"
+            CONSTRUCT { ?s ?p ?o }
+            WHERE { ?s ?p ?o }
+        "#;
+        
+        // Execute CONSTRUCT query - returns JSON-LD format
+        let json_result = triple_store.query_sparql(construct_query)
+            .map_err(|e| anyhow!("Failed to query TripleStore for validation: {}", e))?;
+        
+        // Parse JSON result and extract triples
+        // TripleStore's query_sparql returns SPARQL JSON Results format
+        // For CONSTRUCT, we need to parse the graph data
+        let data_store = Store::new()?;
+        
+        // Try to parse as Turtle first (if TripleStore supports it)
+        // Otherwise, parse JSON-LD and convert
+        if let Err(_) = data_store.load_from_reader(oxigraph::io::RdfFormat::Turtle, json_result.as_bytes()) {
+            // If Turtle parsing fails, try JSON-LD
+            data_store
+                .load_from_reader(oxigraph::io::RdfFormat::JsonLd, json_result.as_bytes())
+                .context("Failed to load TripleStore data into Store for validation")?;
+        }
+        
+        // Validate using existing validate_graph method
+        self.validate_graph(&data_store)
+    }
+
+    fn get_all_subjects(&self, store: &Store) -> Result<Vec<oxigraph::model::NamedOrBlankNode>> {
         let mut subjects = HashSet::new();
         for quad in store.iter() {
             let quad = quad?;
-            subjects.insert(quad.subject.into_owned());
+            subjects.insert(quad.subject.to_owned());
         }
         Ok(subjects.into_iter().collect())
     }

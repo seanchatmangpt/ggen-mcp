@@ -56,7 +56,9 @@ impl DodCheck for ArtifactBuildCheck {
 
         if output.status.success() {
             // Verify binary exists and has reasonable size
-            let binary_path = context.workspace_root.join("target/release/spreadsheet-mcp");
+            let binary_path = context
+                .workspace_root
+                .join("target/release/spreadsheet-mcp");
 
             if !binary_path.exists() {
                 return Ok(DodCheckResult {

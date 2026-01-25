@@ -34,6 +34,7 @@ WHERE {
   BIND(CONCAT("handle_", LCASE(REPLACE(?cmdLabel, " ", "_"))) AS ?methodName)
   BIND(CONCAT("Handler implementation for ", ?cmdLabel) AS ?comment)
 }
+LIMIT 10000
 
 ---
 
@@ -92,6 +93,7 @@ WHERE {
     ?param sh:pattern ?validationRule .
   }
 }
+LIMIT 10000
 
 ---
 
@@ -127,6 +129,7 @@ WHERE {
     GROUP BY ?event
   }
 }
+LIMIT 10000
 
 ---
 
@@ -164,6 +167,7 @@ WHERE {
     BIND(5000 AS ?timeoutMs)
   }
 }
+LIMIT 10000
 
 ---
 
@@ -210,6 +214,7 @@ WHERE {
     BIND("Arc<dyn Repository>" AS ?injection)
   }
 }
+LIMIT 10000
 
 ---
 
@@ -244,6 +249,7 @@ WHERE {
   # Assign error codes
   BIND(CONCAT("E", STRUUID()) AS ?errorCode)
 }
+LIMIT 10000
 
 ---
 
@@ -273,3 +279,5 @@ WHERE {
   BIND(CONCAT("let result = handler.", ?method, "(test_params()).await") AS ?act)
   BIND("assert!(result.is_ok())" AS ?assert)
 }
+
+LIMIT 10000

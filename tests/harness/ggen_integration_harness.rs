@@ -252,8 +252,8 @@ impl GgenIntegrationHarness {
         let start = std::time::Instant::now();
 
         // 1. Load ontology
-        let _ontology_content = fs::read_to_string(&self.ontology_path)
-            .context("Failed to load ontology")?;
+        let _ontology_content =
+            fs::read_to_string(&self.ontology_path).context("Failed to load ontology")?;
         // Parse with oxigraph in real implementation
 
         // 2. Execute queries

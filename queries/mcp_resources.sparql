@@ -61,6 +61,7 @@ WHERE {
     ?entity rdfs:label ?entityName .
   }
 }
+LIMIT 10000
 
 ---
 
@@ -82,6 +83,7 @@ WHERE {
   OPTIONAL { ?constraint sh:message ?constraintMessage }
 }
 ORDER BY ?resourceName ?constraintLabel
+LIMIT 10000
 
 ---
 
@@ -104,6 +106,7 @@ WHERE {
   }
 }
 ORDER BY ?resourceName ?pathParam
+LIMIT 10000
 
 ---
 
@@ -129,3 +132,4 @@ WHERE {
   }
 }
 ORDER BY ?subscribable DESC ?resourceName
+LIMIT 10000

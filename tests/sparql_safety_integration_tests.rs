@@ -8,10 +8,10 @@
 //! - Slow query detection
 //! - Error mapping to MCP errors
 
+use oxigraph::store::Store;
 use spreadsheet_mcp::error::{ErrorCode, McpError};
 use spreadsheet_mcp::sparql::{PerformanceBudget, SlowQueryConfig};
 use spreadsheet_mcp::tools::sparql_safety::{SafetyConfig, SparqlSafetyExecutor};
-use oxigraph::store::Store;
 use std::time::Duration;
 
 // =============================================================================
@@ -301,16 +301,21 @@ fn test_detects_optional_overuse() {
     "#;
 
     let result = executor.validate_and_execute(query, &store, "test-optional".to_string());
-    assert!(result.is_ok(), "Query should execute even with many OPTIONALs");
+    assert!(
+        result.is_ok(),
+        "Query should execute even with many OPTIONALs"
+    );
 
     let safe_result = result.unwrap();
     assert!(safe_result.complexity.optional_count >= 6);
 
     // Should detect optional overuse anti-pattern
-    let has_optional_overuse = safe_result
-        .anti_patterns
-        .iter()
-        .any(|ap| matches!(ap, spreadsheet_mcp::sparql::AntiPattern::OptionalOveruse { .. }));
+    let has_optional_overuse = safe_result.anti_patterns.iter().any(|ap| {
+        matches!(
+            ap,
+            spreadsheet_mcp::sparql::AntiPattern::OptionalOveruse { .. }
+        )
+    });
     assert!(has_optional_overuse, "Should detect OPTIONAL overuse");
 
     // Should have optimization suggestions
@@ -462,7 +467,10 @@ fn test_error_includes_context() {
     assert!(result.is_err());
 
     let err = result.unwrap_err();
-    assert_eq!(err.context.operation, Some("sparql_query_validation".to_string()));
+    assert_eq!(
+        err.context.operation,
+        Some("sparql_query_validation".to_string())
+    );
     assert!(err.context.params.contains_key("query"));
 }
 
@@ -527,10 +535,7 @@ fn test_permissive_mode_allows_anti_patterns() {
     "#;
 
     let result = executor.validate_and_execute(query, &store, "test-permissive".to_string());
-    assert!(
-        result.is_ok(),
-        "Permissive mode should allow anti-patterns"
-    );
+    assert!(result.is_ok(), "Permissive mode should allow anti-patterns");
 
     let safe_result = result.unwrap();
     assert!(

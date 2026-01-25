@@ -4,9 +4,9 @@
 //! Provides setup/teardown, mock workspace creation, and assertion helpers.
 
 use spreadsheet_mcp::dod::*;
-use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 /// Test harness for DoD validation
@@ -34,8 +34,7 @@ impl DodTestHarness {
 
     /// Create check context for this workspace
     pub fn create_context(&self) -> CheckContext {
-        CheckContext::new(self.workspace_root.clone())
-            .with_timeout(60_000)
+        CheckContext::new(self.workspace_root.clone()).with_timeout(60_000)
     }
 
     /// Create a minimal valid Cargo.toml
@@ -346,11 +345,7 @@ impl DodAssertions {
     /// Assert category has checks
     pub fn assert_category_has_checks(results: &[DodCheckResult], category: CheckCategory) {
         let count = results.iter().filter(|r| r.category == category).count();
-        assert!(
-            count > 0,
-            "Category {:?} should have checks",
-            category
-        );
+        assert!(count > 0, "Category {:?} should have checks", category);
     }
 
     /// Assert all checks have evidence

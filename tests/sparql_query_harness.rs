@@ -445,17 +445,9 @@ pub fn assert_binding_exists(results: &QueryResultSet, var: &str, value: &str) {
 /// Assert all bindings for a variable are non-empty
 pub fn assert_all_bindings_non_empty(results: &QueryResultSet, var: &str) {
     let values = results.get_all_values(var);
-    assert!(
-        !values.is_empty(),
-        "Variable {} has no bindings",
-        var
-    );
+    assert!(!values.is_empty(), "Variable {} has no bindings", var);
     for value in &values {
-        assert!(
-            !value.is_empty(),
-            "Variable {} has empty binding",
-            var
-        );
+        assert!(!value.is_empty(), "Variable {} has empty binding", var);
     }
 }
 
@@ -464,11 +456,7 @@ pub fn assert_result_ordered_by(results: &QueryResultSet, var: &str) {
     let values = results.get_all_values(var);
     let mut sorted = values.clone();
     sorted.sort();
-    assert_eq!(
-        values, sorted,
-        "Results not ordered by {}",
-        var
-    );
+    assert_eq!(values, sorted, "Results not ordered by {}", var);
 }
 
 /// Assert a variable exists in results
@@ -701,9 +689,7 @@ mod harness_behavior_tests {
 
     #[test]
     fn test_query_result_set_empty() {
-        let results = QueryResultSet {
-            solutions: vec![],
-        };
+        let results = QueryResultSet { solutions: vec![] };
         assert!(results.is_empty());
         assert_eq!(results.len(), 0);
     }
@@ -1057,26 +1043,20 @@ mod result_assertion_tests {
 
     #[test]
     fn test_assert_result_count() {
-        let results = QueryResultSet {
-            solutions: vec![],
-        };
+        let results = QueryResultSet { solutions: vec![] };
         assert_result_count(&results, 0);
     }
 
     #[test]
     #[should_panic(expected = "Expected 1 results, got 0")]
     fn test_assert_result_count_fails() {
-        let results = QueryResultSet {
-            solutions: vec![],
-        };
+        let results = QueryResultSet { solutions: vec![] };
         assert_result_count(&results, 1);
     }
 
     #[test]
     fn test_assert_result_count_min() {
-        let results = QueryResultSet {
-            solutions: vec![],
-        };
+        let results = QueryResultSet { solutions: vec![] };
         assert_result_count_min(&results, 0);
     }
 

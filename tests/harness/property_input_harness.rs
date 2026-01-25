@@ -207,9 +207,7 @@ max_response_bytes = 100000000
         // Empty strings
         Just(r#"workspace_root = """#.to_string()),
         // Special characters
-        Just(
-            r#"workspace_root = "/path/with spaces/and\ttabs\nand newlines""#.to_string()
-        ),
+        Just(r#"workspace_root = "/path/with spaces/and\ttabs\nand newlines""#.to_string()),
         // Unicode
         Just(r#"workspace_root = "/путь/mit/émoji/🚀""#.to_string()),
         // Null-like values
@@ -251,9 +249,8 @@ fn arb_transport_kind() -> impl Strategy<Value = &'static str> {
 }
 
 fn arb_http_bind_address() -> impl Strategy<Value = String> {
-    (0u8..=255, 0u8..=255, 0u8..=255, 0u8..=255, 1024u16..=65535).prop_map(
-        |(a, b, c, d, port)| format!("{}.{}.{}.{}:{}", a, b, c, d, port),
-    )
+    (0u8..=255, 0u8..=255, 0u8..=255, 0u8..=255, 1024u16..=65535)
+        .prop_map(|(a, b, c, d, port)| format!("{}.{}.{}.{}:{}", a, b, c, d, port))
 }
 
 fn arb_max_concurrent_recalcs() -> impl Strategy<Value = usize> {
@@ -419,8 +416,7 @@ fn arb_entity_type() -> impl Strategy<Value = &'static str> {
 }
 
 fn arb_entity_properties() -> impl Strategy<Value = String> {
-    prop::collection::vec(arb_property_triple(), 0..=5)
-        .prop_map(|props| props.join(" ;\n    "))
+    prop::collection::vec(arb_property_triple(), 0..=5).prop_map(|props| props.join(" ;\n    "))
 }
 
 fn arb_property_triple() -> impl Strategy<Value = String> {
@@ -487,8 +483,7 @@ pub fn arb_edge_case_tera_context() -> impl Strategy<Value = JsonValue> {
             "control": "\u{0000}\u{001F}",
         })),
         // Very long strings
-        (1000..=10000)
-            .prop_map(|n| json!({"long_string": "a".repeat(n)})),
+        (1000..=10000).prop_map(|n| json!({"long_string": "a".repeat(n)})),
         // Null values in arrays
         Just(json!({
             "array": [null, 1, null, "value", null]
@@ -536,12 +531,9 @@ fn arb_json_object(depth: usize) -> impl Strategy<Value = serde_json::Map<String
 }
 
 fn arb_deeply_nested_json(depth: usize) -> impl Strategy<Value = JsonValue> {
-    (0..depth).fold(
-        Just(json!({"leaf": "value"})).boxed(),
-        |acc, _| {
-            acc.prop_map(|inner| json!({"nested": inner})).boxed()
-        },
-    )
+    (0..depth).fold(Just(json!({"leaf": "value"})).boxed(), |acc, _| {
+        acc.prop_map(|inner| json!({"nested": inner})).boxed()
+    })
 }
 
 // =============================================================================
@@ -565,12 +557,11 @@ pub fn arb_valid_sparql_select() -> impl Strategy<Value = String> {
 
 /// Strategy for generating valid SPARQL CONSTRUCT queries
 pub fn arb_valid_sparql_construct() -> impl Strategy<Value = String> {
-    (arb_sparql_triple_pattern(), arb_sparql_where_clause()).prop_map(|(construct, where_clause)| {
-        format!(
-            "CONSTRUCT {{ {} }} WHERE {{ {} }}",
-            construct, where_clause
-        )
-    })
+    (arb_sparql_triple_pattern(), arb_sparql_where_clause()).prop_map(
+        |(construct, where_clause)| {
+            format!("CONSTRUCT {{ {} }} WHERE {{ {} }}", construct, where_clause)
+        },
+    )
 }
 
 /// Strategy for generating valid SPARQL ASK queries
@@ -585,7 +576,7 @@ pub fn arb_invalid_sparql_query() -> impl Strategy<Value = String> {
         Just("SELECT * WHERE".to_string()),
         Just("SELECT WHERE { }".to_string()),
         Just("SELECT ?x ?y WHERE { ?x ?y }".to_string()), // Missing object
-        Just("SELECT ?x WHERE { ?x ?y ?z".to_string()),  // Missing closing brace
+        Just("SELECT ?x WHERE { ?x ?y ?z".to_string()),   // Missing closing brace
         Just("SELEKT ?x WHERE { ?x ?y ?z }".to_string()), // Typo
         // Invalid variables
         Just("SELECT x WHERE { x ?y ?z }".to_string()), // Missing ?
@@ -608,12 +599,7 @@ pub fn arb_edge_case_sparql_query() -> impl Strategy<Value = String> {
         (10..=50).prop_map(|n| {
             let vars: Vec<_> = (0..n).map(|i| format!("?var{}", i)).collect();
             let where_clause: Vec<_> = (0..n)
-                .map(|i| {
-                    format!(
-                        "OPTIONAL {{ ?var{} ?p{} ?o{} }}",
-                        i, i, i
-                    )
-                })
+                .map(|i| format!("OPTIONAL {{ ?var{} ?p{} ?o{} }}", i, i, i))
                 .collect();
             format!(
                 "SELECT {} WHERE {{ {} }}",
@@ -701,8 +687,10 @@ fn arb_sparql_object() -> impl Strategy<Value = String> {
 fn arb_sparql_iri() -> impl Strategy<Value = String> {
     prop_oneof![
         // Full IRI
-        prop::string::string_regex(r"<https?://[a-z][a-z0-9\-\.]{0,30}\.[a-z]{2,4}/[a-zA-Z0-9#_\-]{0,30}>")
-            .expect("valid regex"),
+        prop::string::string_regex(
+            r"<https?://[a-z][a-z0-9\-\.]{0,30}\.[a-z]{2,4}/[a-zA-Z0-9#_\-]{0,30}>"
+        )
+        .expect("valid regex"),
         // Prefixed name
         prop::string::string_regex(r"[a-z]+:[A-Z][a-zA-Z0-9]{0,20}").expect("valid regex"),
     ]
@@ -1292,7 +1280,10 @@ mod test_suite {
             .new_tree(&mut runner)
             .unwrap()
             .current();
-        assert!(!toml.is_empty(), "TOML generator should produce non-empty output");
+        assert!(
+            !toml.is_empty(),
+            "TOML generator should produce non-empty output"
+        );
 
         // Test Turtle generator
         let turtle = arb_valid_turtle_ontology()

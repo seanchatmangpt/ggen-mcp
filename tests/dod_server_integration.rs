@@ -5,9 +5,9 @@
 use ggen_mcp::config::ServerConfig;
 use ggen_mcp::server::SpreadsheetServer;
 use ggen_mcp::state::AppState;
+use rmcp::ServerHandler;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::ServerInfo;
-use rmcp::ServerHandler;
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -33,7 +33,10 @@ fn test_server_includes_validate_definition_of_done_tool() {
     let (_temp_dir, server) = create_test_server();
     let info: ServerInfo = server.get_info();
 
-    assert!(info.capabilities.tools.is_some(), "Server should have tools capability");
+    assert!(
+        info.capabilities.tools.is_some(),
+        "Server should have tools capability"
+    );
 
     // Note: We can't directly inspect the tool router, but we can verify
     // the tool is callable (tested below)
@@ -44,7 +47,10 @@ fn test_server_info_includes_instructions() {
     let (_temp_dir, server) = create_test_server();
     let info: ServerInfo = server.get_info();
 
-    assert!(info.instructions.is_some(), "Server should have instructions");
+    assert!(
+        info.instructions.is_some(),
+        "Server should have instructions"
+    );
     // DoD tool doesn't need to be in instructions (it's a quality/validation tool)
 }
 
@@ -68,7 +74,11 @@ async fn test_validate_definition_of_done_minimal_profile() {
         .validate_definition_of_done_tool(Parameters(params))
         .await;
 
-    assert!(result.is_ok(), "Tool invocation should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Tool invocation should succeed: {:?}",
+        result
+    );
 
     let response = result.unwrap().0;
     assert!(!response.checks.is_empty(), "Should have check results");
@@ -78,7 +88,9 @@ async fn test_validate_definition_of_done_minimal_profile() {
         "Should have executed checks"
     );
     assert!(
-        response.verdict == "READY" || response.verdict == "PENDING" || response.verdict == "BLOCKED",
+        response.verdict == "READY"
+            || response.verdict == "PENDING"
+            || response.verdict == "BLOCKED",
         "Verdict should be valid: {}",
         response.verdict
     );
@@ -177,7 +189,10 @@ async fn test_validate_definition_of_done_with_workspace_path() {
         .validate_definition_of_done_tool(Parameters(params))
         .await;
 
-    assert!(result.is_ok(), "Tool invocation with custom workspace should succeed");
+    assert!(
+        result.is_ok(),
+        "Tool invocation with custom workspace should succeed"
+    );
 }
 
 // =============================================================================
@@ -240,7 +255,10 @@ async fn test_validate_definition_of_done_response_format() {
     // Verify remediation (when requested)
     if let Some(remediation) = &response.remediation {
         for suggestion in remediation {
-            assert!(!suggestion.check_id.is_empty(), "Suggestion should have check_id");
+            assert!(
+                !suggestion.check_id.is_empty(),
+                "Suggestion should have check_id"
+            );
             assert!(
                 matches!(
                     suggestion.priority.as_str(),
@@ -249,8 +267,14 @@ async fn test_validate_definition_of_done_response_format() {
                 "Priority should be valid: {}",
                 suggestion.priority
             );
-            assert!(!suggestion.action.is_empty(), "Suggestion should have action");
-            assert!(!suggestion.rationale.is_empty(), "Suggestion should have rationale");
+            assert!(
+                !suggestion.action.is_empty(),
+                "Suggestion should have action"
+            );
+            assert!(
+                !suggestion.rationale.is_empty(),
+                "Suggestion should have rationale"
+            );
         }
     }
 }

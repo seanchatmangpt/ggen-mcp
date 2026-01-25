@@ -84,8 +84,7 @@ pub async fn validate_definition_of_done(
         .context("Failed to create output directory")?;
 
     // Get workspace root
-    let workspace_root = std::env::current_dir()
-        .context("Failed to get current directory")?;
+    let workspace_root = std::env::current_dir().context("Failed to get current directory")?;
 
     // Create validator with all checks registered
     let registry = CheckRegistry::with_all_checks();
@@ -200,7 +199,7 @@ pub struct ValidateDefinitionOfDoneResponse {
 fn load_profile(profile_name: &str) -> Result<DodProfile> {
     match profile_name.to_lowercase().as_str() {
         "dev" | "developer" => Ok(DodProfile::default_dev()),
-        "enterprise" => Ok(DodProfile::enterprise()),
+        "enterprise" => Ok(DodProfile::enterprise_strict()),
         _ => Err(anyhow!(
             "Unknown profile '{}'. Available: dev, enterprise",
             profile_name
@@ -213,7 +212,10 @@ fn load_profile(profile_name: &str) -> Result<DodProfile> {
 // =============================================================================
 
 /// Convert DodResult to DodValidationResult
-fn convert_to_validation_result(result: &DodResult, workspace_root: &PathBuf) -> DodValidationResult {
+fn convert_to_validation_result(
+    result: &DodResult,
+    workspace_root: &PathBuf,
+) -> DodValidationResult {
     let summary = ValidationSummary {
         checks_total: result.checks.len(),
         checks_passed: result.count_by_status(CheckStatus::Pass),
@@ -291,8 +293,8 @@ async fn generate_artifacts(
     );
 
     // Generate and save cryptographic receipt using ReceiptGenerator
-    let receipt_generator = ReceiptGenerator::new(output_dir)
-        .context("Failed to create receipt generator")?;
+    let receipt_generator =
+        ReceiptGenerator::new(output_dir).context("Failed to create receipt generator")?;
     let receipt_path = receipt_generator
         .generate_and_save(validation_result)
         .context("Failed to generate and save receipt")?;
@@ -305,7 +307,9 @@ async fn generate_artifacts(
     // Generate evidence bundle (optional)
     let bundle_path = if !skip_evidence {
         let bundle = output_dir.join("dod_evidence.tar.gz");
-        // TODO: Implement evidence bundling in future phase
+        // FUTURE: Implement evidence bundling (tar.gz creation)
+        // See: https://docs.rs/tar/latest/tar/ for archive creation
+        // This would bundle all evidence files into a single archive
         tracing::debug!("Evidence bundling not yet implemented");
         Some(bundle)
     } else {

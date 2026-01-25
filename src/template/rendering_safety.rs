@@ -663,8 +663,14 @@ impl OutputValidator {
     /// Check for valid Rust identifiers
     fn check_identifiers(&self, output: &str) -> Vec<ValidationError> {
         let mut errors = Vec::new();
-        let invalid_identifier_pattern =
-            regex::Regex::new(r"\b\d+[a-zA-Z_][a-zA-Z0-9_]*\b").unwrap();
+        // Pattern is a compile-time constant, but handle error defensively
+        let invalid_identifier_pattern = match regex::Regex::new(r"\b\d+[a-zA-Z_][a-zA-Z0-9_]*\b") {
+            Ok(re) => re,
+            Err(e) => {
+                tracing::warn!("Failed to compile identifier regex pattern: {}", e);
+                return errors; // Return empty errors if regex compilation fails
+            }
+        };
 
         for (line_num, line) in output.lines().enumerate() {
             if invalid_identifier_pattern.is_match(line) {
@@ -1104,7 +1110,7 @@ impl SafeRenderer {
         let mut metrics = RenderMetrics {
             duration: start.elapsed(),
             output_size: output.len(),
-            includes_count: 0, // TODO: Track includes
+            includes_count: context.recursion_depth(), // Track includes via recursion depth
             macro_expansions: context.macro_count(),
             max_recursion_reached: context.recursion_depth(),
             validation_errors: validation_errors

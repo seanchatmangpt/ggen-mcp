@@ -18,3 +18,4 @@ WHERE {
   }
 }
 ORDER BY ?repo_name ?method_name
+LIMIT 10000

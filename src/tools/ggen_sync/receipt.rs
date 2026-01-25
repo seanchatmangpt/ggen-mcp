@@ -24,6 +24,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::report::SyncMode;
+
 // ============================================================================
 // Receipt Data Structures (JSON Schema Compliant)
 // ============================================================================
@@ -219,7 +221,7 @@ impl ReceiptGenerator {
     /// * `query_paths` - Paths to SPARQL query files
     /// * `template_paths` - Paths to Tera template files
     /// * `output_files` - Generated output files with content
-    /// * `preview` - Whether this was preview mode
+    /// * `mode` - Sync execution mode (Preview or Apply)
     /// * `total_duration_ms` - Total execution time
     ///
     /// # Returns
@@ -231,7 +233,7 @@ impl ReceiptGenerator {
         query_paths: &[PathBuf],
         template_paths: &[PathBuf],
         output_files: &[(String, String)], // (path, content)
-        preview: bool,
+        mode: SyncMode,
         total_duration_ms: u64,
     ) -> Result<Receipt> {
         // Workspace fingerprint
@@ -328,7 +330,7 @@ impl ReceiptGenerator {
         let metadata = ReceiptMetadata {
             timestamp: chrono::Utc::now().to_rfc3339(),
             compiler_version: env!("CARGO_PKG_VERSION").to_string(),
-            mode: if preview { "preview" } else { "apply" }.to_string(),
+            mode: format!("{}", mode),
             status: "pass".to_string(), // Will be updated based on guard verdicts
             performance: Some(PerformanceMetrics {
                 total_duration_ms,
@@ -354,13 +356,14 @@ impl ReceiptGenerator {
     pub fn save(receipt: &Receipt, output_path: &Path) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = output_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create receipt directory: {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create receipt directory: {}", parent.display())
+            })?;
         }
 
         // Serialize to pretty JSON
-        let json = serde_json::to_string_pretty(receipt)
-            .context("Failed to serialize receipt to JSON")?;
+        let json =
+            serde_json::to_string_pretty(receipt).context("Failed to serialize receipt to JSON")?;
 
         // Write atomically
         fs::write(output_path, json)
@@ -375,8 +378,8 @@ impl ReceiptGenerator {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read receipt from {}", path.display()))?;
 
-        let receipt: Receipt = serde_json::from_str(&content)
-            .context("Failed to parse receipt JSON")?;
+        let receipt: Receipt =
+            serde_json::from_str(&content).context("Failed to parse receipt JSON")?;
 
         Ok(receipt)
     }
@@ -455,10 +458,13 @@ impl ReceiptGenerator {
     fn count_triples(ontology_path: &Path) -> Result<usize> {
         let content = fs::read_to_string(ontology_path)?;
         // Simple heuristic: count lines with '.' at end (turtle triple terminator)
-        let count = content.lines().filter(|line| {
-            let trimmed = line.trim();
-            !trimmed.is_empty() && !trimmed.starts_with('#') && trimmed.ends_with('.')
-        }).count();
+        let count = content
+            .lines()
+            .filter(|line| {
+                let trimmed = line.trim();
+                !trimmed.is_empty() && !trimmed.starts_with('#') && trimmed.ends_with('.')
+            })
+            .count();
         Ok(count)
     }
 
@@ -622,11 +628,26 @@ mod tests {
 
     #[test]
     fn test_detect_language() {
-        assert_eq!(ReceiptGenerator::detect_language(Path::new("test.rs")), "rust");
-        assert_eq!(ReceiptGenerator::detect_language(Path::new("test.ts")), "typescript");
-        assert_eq!(ReceiptGenerator::detect_language(Path::new("test.yaml")), "yaml");
-        assert_eq!(ReceiptGenerator::detect_language(Path::new("test.json")), "json");
-        assert_eq!(ReceiptGenerator::detect_language(Path::new("test.xyz")), "unknown");
+        assert_eq!(
+            ReceiptGenerator::detect_language(Path::new("test.rs")),
+            "rust"
+        );
+        assert_eq!(
+            ReceiptGenerator::detect_language(Path::new("test.ts")),
+            "typescript"
+        );
+        assert_eq!(
+            ReceiptGenerator::detect_language(Path::new("test.yaml")),
+            "yaml"
+        );
+        assert_eq!(
+            ReceiptGenerator::detect_language(Path::new("test.json")),
+            "json"
+        );
+        assert_eq!(
+            ReceiptGenerator::detect_language(Path::new("test.xyz")),
+            "unknown"
+        );
     }
 
     #[test]
@@ -682,14 +703,12 @@ mod tests {
         assert_eq!(receipt.metadata.status, "pass");
 
         // Add failing verdict
-        let failing_verdicts = vec![
-            GuardVerdict {
-                name: "lint_check".to_string(),
-                verdict: "fail".to_string(),
-                diagnostic: "Linting errors found".to_string(),
-                metadata: HashMap::new(),
-            },
-        ];
+        let failing_verdicts = vec![GuardVerdict {
+            name: "lint_check".to_string(),
+            verdict: "fail".to_string(),
+            diagnostic: "Linting errors found".to_string(),
+            metadata: HashMap::new(),
+        }];
 
         ReceiptGenerator::add_guard_verdicts(&mut receipt, failing_verdicts);
         assert_eq!(receipt.metadata.status, "fail");

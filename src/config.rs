@@ -275,7 +275,8 @@ impl ServerConfig {
             .unwrap_or(DEFAULT_QUERY_CACHE_TTL_SECS)
             .max(1);
 
-        let entitlement_enabled = cli_entitlement_enabled || file_entitlement_enabled.unwrap_or(false);
+        let entitlement_enabled =
+            cli_entitlement_enabled || file_entitlement_enabled.unwrap_or(false);
 
         let entitlement_config = crate::entitlement::EntitlementConfig {
             provider_type: cli_entitlement_provider

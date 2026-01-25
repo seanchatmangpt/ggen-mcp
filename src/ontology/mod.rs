@@ -52,6 +52,7 @@ pub mod cache;
 pub mod consistency;
 pub mod graph_integrity;
 pub mod shacl;
+pub mod state_machine;
 
 pub use cache::{CacheStats, OntologyCache, QueryCache};
 pub use consistency::{
@@ -67,3 +68,4 @@ pub use shacl::{
     ShapeValidator, ValidationReport as ShaclValidationReport,
     ValidationResult as ShaclValidationResult,
 };
+pub use state_machine::{OntologyStore, Unvalidated, Validated, ValidationError as StateValidationError};

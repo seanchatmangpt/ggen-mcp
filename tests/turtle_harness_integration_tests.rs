@@ -86,9 +86,8 @@ fn test_order_aggregate_is_valid() {
 #[test]
 fn test_mcp_tools_structure() {
     // GIVEN: An MCP tools ontology
-    let harness =
-        OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/mcp_tools.ttl")
-            .expect("Failed to parse MCP tools");
+    let harness = OntologyTestHarness::parse_from_file("tests/fixtures/ttl/valid/mcp_tools.ttl")
+        .expect("Failed to parse MCP tools");
 
     // WHEN: We query for tools
     let query = r#"
@@ -539,7 +538,9 @@ fn test_compute_hash() {
 
     // WHEN: We compute its hash
     let hash1 = harness.compute_hash().expect("Failed to compute hash");
-    let hash2 = harness.compute_hash().expect("Failed to compute hash again");
+    let hash2 = harness
+        .compute_hash()
+        .expect("Failed to compute hash again");
 
     // THEN: Hash should be deterministic
     assert_eq!(hash1, hash2, "Hash should be deterministic");

@@ -58,7 +58,8 @@ impl fmt::Display for ReportFormat {
 }
 
 /// Sync execution mode
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SyncMode {
     /// Preview mode - dry-run without writes
     Preview,
@@ -221,13 +222,8 @@ struct ReportSection {
 
 impl ReportWriter {
     /// Create new report writer
-    pub fn new(workspace_root: &str, preview: bool) -> Self {
+    pub fn new(workspace_root: &str, mode: SyncMode) -> Self {
         let workspace_hash = Self::compute_workspace_fingerprint(workspace_root);
-        let mode = if preview {
-            SyncMode::Preview
-        } else {
-            SyncMode::Apply
-        };
 
         Self {
             workspace_hash,

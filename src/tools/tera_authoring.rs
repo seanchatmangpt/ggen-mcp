@@ -89,10 +89,23 @@ impl {{ struct_name }} {
 "#;
 
 // API endpoint template
-const TEMPLATE_RUST_ENDPOINT: &str = r#"/// {{ description }}
+const TEMPLATE_RUST_ENDPOINT: &str = r#"/// {{ description | default(value="API endpoint handler") }}
 ///
-/// Method: {{ method | upper }}
-/// Path: {{ path }}
+/// Method: {{ method | default(value="POST") | upper }}
+/// Path: {{ path | default(value="/") }}
+
+{% if handler_name is not defined %}
+{{ error("handler_name is required") }}
+{% endif %}
+
+{% if params_type is not defined %}
+{{ error("params_type is required") }}
+{% endif %}
+
+{% if response_type is not defined %}
+{{ error("response_type is required") }}
+{% endif %}
+
 pub async fn {{ handler_name }}(
     state: Arc<AppState>,
     params: {{ params_type }},
@@ -100,7 +113,12 @@ pub async fn {{ handler_name }}(
     tracing::info!("Handling {{ handler_name }} request");
 
     // Validate input
+    {% if required_params is defined %}
+    {% if required_params | length > 0 %}
     {% for param in required_params %}
+    {% if param is not defined or param == "" %}
+    {{ error("required_params contains invalid parameter name") }}
+    {% endif %}
     if params.{{ param }}.is_empty() {
         return Err(McpError::validation()
             .message("{{ param }} is required")
@@ -108,17 +126,34 @@ pub async fn {{ handler_name }}(
             .build());
     }
     {% endfor %}
+    {% endif %}
+    {% endif %}
 
     // Implementation
     {% if implementation %}
     {{ implementation }}
     {% else %}
-    // TODO: Implement {{ handler_name }} logic
+    // Process request and build response
+    // Map parameters to response fields where names match
+    // Customize this section with your business logic
     {% endif %}
 
+    {% if response_fields is defined %}
+    {% if response_fields | length > 0 %}
     Ok({{ response_type }} {
-        // TODO: Build response
+        {% for field in response_fields %}
+        {% if field.name is not defined %}
+        {{ error("field.name is required in response_fields") }}
+        {% endif %}
+        {{ field.name }}: {{ field.value | default(value="Default::default()") }},
+        {% endfor %}
     })
+    {% else %}
+    {{ error("response_fields cannot be empty when response_type is defined") }}
+    {% endif %}
+    {% else %}
+    {{ error("response_fields is required when response_type is defined") }}
+    {% endif %}
 }
 "#;
 
@@ -259,7 +294,10 @@ pub async fn read_tera_template(
                 .message(format!("Failed to load template: {}", e))
                 .param("template", &params.template)
                 .suggestion("Use a built-in template name or inline content")
-                .suggestion(format!("Available templates: {}", TemplateLibrary::list().join(", ")))
+                .suggestion(format!(
+                    "Available templates: {}",
+                    TemplateLibrary::list().join(", ")
+                ))
                 .build()
         })?
     };
@@ -392,7 +430,9 @@ pub async fn validate_tera_template(
                     error_type: "unbalanced_blocks".to_string(),
                     message: e,
                     line: None,
-                    suggestion: Some("Ensure all {% if %}, {% for %}, {% block %} tags are closed".to_string()),
+                    suggestion: Some(
+                        "Ensure all {% if %}, {% for %}, {% block %} tags are closed".to_string(),
+                    ),
                 });
                 false
             }
@@ -406,7 +446,10 @@ pub async fn validate_tera_template(
         let filters = extract_filters(&content);
         let unknown_filters = check_filter_existence(&filters);
         for filter in unknown_filters {
-            warnings.push(format!("Unknown filter '{}' - may not exist in Tera", filter));
+            warnings.push(format!(
+                "Unknown filter '{}' - may not exist in Tera",
+                filter
+            ));
         }
     }
 
@@ -517,13 +560,14 @@ pub async fn test_tera_template(
     let mut render_context = RenderContext::new();
     if let JsonValue::Object(obj) = &params.context {
         for (key, value) in obj {
-            render_context
-                .insert(key, value)
-                .map_err(|e| {
-                    McpError::validation()
-                        .message(format!("Failed to insert context variable '{}': {}", key, e))
-                        .build()
-                })?;
+            render_context.insert(key, value).map_err(|e| {
+                McpError::validation()
+                    .message(format!(
+                        "Failed to insert context variable '{}': {}",
+                        key, e
+                    ))
+                    .build()
+            })?;
         }
     }
 
@@ -537,11 +581,7 @@ pub async fn test_tera_template(
 
     let (output, success, errors) = match result {
         Ok(rendered) => (rendered, true, Vec::new()),
-        Err(e) => (
-            String::new(),
-            false,
-            vec![format!("Render error: {}", e)],
-        ),
+        Err(e) => (String::new(), false, vec![format!("Render error: {}", e)]),
     };
 
     Ok(TestTeraResponse {
@@ -595,7 +635,10 @@ pub async fn create_tera_template(
         McpError::validation()
             .message(format!("Unknown pattern: {}", params.pattern))
             .param("pattern", &params.pattern)
-            .suggestion(format!("Available patterns: {}", TemplateLibrary::list().join(", ")))
+            .suggestion(format!(
+                "Available patterns: {}",
+                TemplateLibrary::list().join(", ")
+            ))
             .build()
     })?;
 
@@ -603,16 +646,17 @@ pub async fn create_tera_template(
     // The user can then customize it with their own variables
     let template = base_template.to_string();
 
-    let suggested_name = params
-        .output_name
-        .clone()
-        .unwrap_or_else(|| match params.pattern.as_str() {
-            "struct" => "struct.rs.tera".to_string(),
-            "endpoint" => "endpoint.rs.tera".to_string(),
-            "schema" => "schema.yaml.tera".to_string(),
-            "interface" => "interface.ts.tera".to_string(),
-            _ => format!("{}.tera", params.pattern),
-        });
+    let suggested_name =
+        params
+            .output_name
+            .clone()
+            .unwrap_or_else(|| match params.pattern.as_str() {
+                "struct" => "struct.rs.tera".to_string(),
+                "endpoint" => "endpoint.rs.tera".to_string(),
+                "schema" => "schema.yaml.tera".to_string(),
+                "interface" => "interface.ts.tera".to_string(),
+                _ => format!("{}.tera", params.pattern),
+            });
 
     Ok(CreateTeraResponse {
         size: template.len(),
@@ -808,8 +852,7 @@ fn load_template_file(name: &str) -> Result<String> {
 
 /// Extract variables from template ({{ var }})
 fn extract_variables(content: &str) -> Vec<String> {
-    let re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*(?:\||}})")
-        .expect("Invalid regex");
+    let re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*(?:\||}})").expect("Invalid regex");
 
     let mut vars = Vec::new();
     for cap in re.captures_iter(content) {
@@ -822,8 +865,7 @@ fn extract_variables(content: &str) -> Vec<String> {
 
 /// Extract filters from template ({{ var | filter }})
 fn extract_filters(content: &str) -> Vec<String> {
-    let re = Regex::new(r"\{\{[^}]*\|\s*([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let re = Regex::new(r"\{\{[^}]*\|\s*([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     let mut filters = HashSet::new();
     for cap in re.captures_iter(content) {
@@ -836,8 +878,7 @@ fn extract_filters(content: &str) -> Vec<String> {
 
 /// Extract control structures
 fn extract_structures(content: &str) -> Vec<ControlStructure> {
-    let re = Regex::new(r"\{%\s*(if|for|block|macro|set)\s+([^%]+)%\}")
-        .expect("Invalid regex");
+    let re = Regex::new(r"\{%\s*(if|for|block|macro|set)\s+([^%]+)%\}").expect("Invalid regex");
 
     let mut structures = Vec::new();
     let mut line_num = 1;
@@ -863,8 +904,7 @@ fn extract_structures(content: &str) -> Vec<ControlStructure> {
 
 /// Extract block names
 fn extract_blocks(content: &str) -> Vec<String> {
-    let re = Regex::new(r"\{%\s*block\s+([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let re = Regex::new(r"\{%\s*block\s+([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     re.captures_iter(content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -873,8 +913,7 @@ fn extract_blocks(content: &str) -> Vec<String> {
 
 /// Extract include directives
 fn extract_includes(content: &str) -> Vec<String> {
-    let re = Regex::new(r#"\{%\s*include\s+"([^"]+)""#)
-        .expect("Invalid regex");
+    let re = Regex::new(r#"\{%\s*include\s+"([^"]+)""#).expect("Invalid regex");
 
     re.captures_iter(content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -883,8 +922,7 @@ fn extract_includes(content: &str) -> Vec<String> {
 
 /// Extract macro definitions
 fn extract_macros(content: &str) -> Vec<String> {
-    let re = Regex::new(r"\{%\s*macro\s+([a-zA-Z_][a-zA-Z0-9_]*)")
-        .expect("Invalid regex");
+    let re = Regex::new(r"\{%\s*macro\s+([a-zA-Z_][a-zA-Z0-9_]*)").expect("Invalid regex");
 
     re.captures_iter(content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
@@ -901,10 +939,8 @@ fn validate_tera_syntax(content: &str, name: &str) -> Result<()> {
 /// Check balanced blocks (if/endif, for/endfor, block/endblock)
 fn check_balanced_blocks(content: &str) -> Result<(), String> {
     let mut stack = Vec::new();
-    let open_re = Regex::new(r"\{%\s*(if|for|block|macro)\s")
-        .expect("Invalid regex");
-    let close_re = Regex::new(r"\{%\s*end(if|for|block|macro)\s*%\}")
-        .expect("Invalid regex");
+    let open_re = Regex::new(r"\{%\s*(if|for|block|macro)\s").expect("Invalid regex");
+    let close_re = Regex::new(r"\{%\s*end(if|for|block|macro)\s*%\}").expect("Invalid regex");
 
     let mut pos = 0;
     while pos < content.len() {
@@ -949,14 +985,47 @@ fn check_balanced_blocks(content: &str) -> Result<(), String> {
 /// Check if filters are known Tera filters
 fn check_filter_existence(filters: &[String]) -> Vec<String> {
     const KNOWN_FILTERS: &[&str] = &[
-        "upper", "lower", "capitalize", "title", "trim", "truncate",
-        "wordcount", "replace", "addslashes", "slugify", "indent",
-        "safe", "escape", "linebreaks", "striptags", "urlencode",
-        "date", "filesizeformat", "default", "length", "reverse",
-        "sort", "unique", "first", "last", "join", "split",
-        "round", "abs", "plus", "minus", "times", "divided_by",
-        "json_encode", "as_str", "concat", "get", "snake_case",
-        "pascal_case", "camel_case", "kebab_case",
+        "upper",
+        "lower",
+        "capitalize",
+        "title",
+        "trim",
+        "truncate",
+        "wordcount",
+        "replace",
+        "addslashes",
+        "slugify",
+        "indent",
+        "safe",
+        "escape",
+        "linebreaks",
+        "striptags",
+        "urlencode",
+        "date",
+        "filesizeformat",
+        "default",
+        "length",
+        "reverse",
+        "sort",
+        "unique",
+        "first",
+        "last",
+        "join",
+        "split",
+        "round",
+        "abs",
+        "plus",
+        "minus",
+        "times",
+        "divided_by",
+        "json_encode",
+        "as_str",
+        "concat",
+        "get",
+        "snake_case",
+        "pascal_case",
+        "camel_case",
+        "kebab_case",
     ];
 
     filters
@@ -968,8 +1037,8 @@ fn check_filter_existence(filters: &[String]) -> Vec<String> {
 
 /// Extract variable-filter pairs
 fn extract_variable_filters(content: &str) -> HashMap<String, Vec<String>> {
-    let re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\|([^}]+)\}\}")
-        .expect("Invalid regex");
+    let re =
+        Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\|([^}]+)\}\}").expect("Invalid regex");
 
     let mut result = HashMap::new();
 
@@ -994,8 +1063,8 @@ fn extract_variable_filters(content: &str) -> HashMap<String, Vec<String>> {
 fn extract_defaults(content: &str) -> Vec<String> {
     // This is a simplified check - real implementation would need full parsing
     // For now, we look for "| default(value=...)" patterns
-    let var_re = Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)[^}]*default")
-        .expect("Invalid regex");
+    let var_re =
+        Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*)[^}]*default").expect("Invalid regex");
 
     var_re
         .captures_iter(content)
@@ -1010,7 +1079,7 @@ fn infer_type_hint(name: &str, filters: &[String]) -> Option<String> {
         match filter.as_str() {
             "date" => return Some("DateTime".to_string()),
             "filesizeformat" | "plus" | "minus" | "times" | "divided_by" => {
-                return Some("number".to_string())
+                return Some("number".to_string());
             }
             "length" | "wordcount" => return Some("collection".to_string()),
             _ => {}
@@ -1090,7 +1159,8 @@ mod tests {
 
     #[test]
     fn test_extract_blocks() {
-        let template = r#"{% block header %}...{% endblock %} {% block content %}...{% endblock %}"#;
+        let template =
+            r#"{% block header %}...{% endblock %} {% block content %}...{% endblock %}"#;
         let blocks = extract_blocks(template);
         assert_eq!(blocks.len(), 2);
         assert!(blocks.contains(&"header".to_string()));

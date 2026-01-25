@@ -619,16 +619,15 @@ fn test_authentication_token_not_logged() -> Result<()> {
 // Test Module Documentation
 // =============================================================================
 
-/// Test coverage summary:
-/// 1. Jira dry run mode (preview tickets)
-/// 2. Jira create mode (create new tickets)
-/// 3. Jira sync mode (bidirectional sync)
-/// 4. Disabled Jira integration (error handling)
-/// 5. Config parsing from TOML
-/// 6. Column mapping customization
-/// 7. Error handling in create mode
-/// 8. Ticket plan structure validation
-/// 9. Sync conflict detection
-/// 10. Authentication token security
-///
-/// Total: 10 tests covering Jira compiler stage integration
+// Test coverage summary:
+// 1. Jira dry run mode (preview tickets)
+// 2. Jira create mode (create new tickets)
+// 3. Jira sync mode (bidirectional sync)
+// 4. Disabled Jira integration (error handling)
+// 5. Config parsing from TOML
+// 6. Column mapping customization
+// 7. Error handling in create mode
+// 8. Ticket plan structure validation
+// 9. Sync conflict detection
+// 10. Authentication token security
+// Total: 10 tests covering Jira compiler stage integration

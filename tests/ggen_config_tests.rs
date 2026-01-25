@@ -373,8 +373,7 @@ async fn test_remove_generation_rule() -> Result<()> {
     harness.write_config(config_with_generation_rules())?;
 
     // WHEN: We remove a rule
-    simulate_remove_generation_rule(harness.config_path().as_path(), "user_aggregate")
-        .await?;
+    simulate_remove_generation_rule(harness.config_path().as_path(), "user_aggregate").await?;
 
     // THEN: Rule removed
     let result = simulate_read_config(harness.config_path().as_path()).await?;
@@ -395,10 +394,8 @@ async fn test_remove_all_generation_rules() -> Result<()> {
     harness.write_config(config_with_generation_rules())?;
 
     // WHEN: We remove all rules
-    simulate_remove_generation_rule(harness.config_path().as_path(), "user_aggregate")
-        .await?;
-    simulate_remove_generation_rule(harness.config_path().as_path(), "order_aggregate")
-        .await?;
+    simulate_remove_generation_rule(harness.config_path().as_path(), "user_aggregate").await?;
+    simulate_remove_generation_rule(harness.config_path().as_path(), "order_aggregate").await?;
 
     // THEN: No rules remain
     let result = simulate_read_config(harness.config_path().as_path()).await?;
@@ -455,7 +452,7 @@ async fn test_preserve_formatting_on_update() -> Result<()> {
 
     // THEN: Formatting preserved (empty lines, structure)
     let content = harness.read_config()?;
-    assert!(content.contains("\n\n"));  // Empty lines preserved
+    assert!(content.contains("\n\n")); // Empty lines preserved
     assert!(content.contains("[project]"));
     assert!(content.contains("[ontology]"));
 
@@ -585,11 +582,7 @@ async fn simulate_validate_config(path: &Path) -> Result<ValidationResult> {
     let config = config_result.unwrap();
 
     // Check required fields
-    if config
-        .get("project")
-        .and_then(|p| p.get("name"))
-        .is_none()
-    {
+    if config.get("project").and_then(|p| p.get("name")).is_none() {
         errors.push("Missing required field: project.name".to_string());
     }
 
@@ -669,7 +662,10 @@ async fn simulate_update_generation_rule(
             "template".to_string(),
             toml::Value::String(template.to_string()),
         );
-        table.insert("output".to_string(), toml::Value::String(output.to_string()));
+        table.insert(
+            "output".to_string(),
+            toml::Value::String(output.to_string()),
+        );
     }
 
     fs::write(path, toml::to_string(&config)?)?;

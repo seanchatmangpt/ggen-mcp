@@ -10,6 +10,14 @@ vars:
   operations: array
   dependencies: array
 ---
+{#- Validate required variables - ensure service_name and entity_name are provided -#}
+{%- if not service_name -%}
+{# ERROR: service_name is required for domain service generation -#}
+//! ERROR: Missing required variable 'service_name'
+{%- elif not entity_name -%}
+{# ERROR: entity_name is required for domain service generation -#}
+//! ERROR: Missing required variable 'entity_name'
+{%- else -%}
 //! Domain Service: {{ service_name | pascal_case }}
 //!
 //! {{ description }}
@@ -277,7 +285,7 @@ impl {{ service_name | pascal_case }} for {{ service_name | pascal_case }}Impl {
         {% for param in op.params | default(value=[]) %}
         let _ = {{ param.name | snake_case }};
         {% endfor %}
-        todo!("Implement {{ op.name | snake_case }}")
+        unimplemented!("Implement {{ op.name | snake_case }} - see frozen section for example")
         // # end frozen
     }
 

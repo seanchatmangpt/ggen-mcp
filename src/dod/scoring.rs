@@ -1,6 +1,38 @@
 use super::types::*;
 use std::collections::HashMap;
 
+/// Scorer for calculating readiness scores
+pub struct Scorer;
+
+impl Scorer {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Calculate overall readiness score (0-100) as u8
+    pub fn calculate_score(&self, check_results: &[DodCheckResult]) -> u8 {
+        // Group by category and compute category scores
+        let mut category_scores = HashMap::new();
+        for category in [
+            CheckCategory::WorkspaceIntegrity,
+            CheckCategory::IntentAlignment,
+            CheckCategory::ToolRegistry,
+            CheckCategory::BuildCorrectness,
+            CheckCategory::TestTruth,
+            CheckCategory::GgenPipeline,
+            CheckCategory::SafetyInvariants,
+            CheckCategory::DeploymentReadiness,
+        ] {
+            let score = compute_category_score(category, check_results);
+            category_scores.insert(category, score);
+        }
+
+        // Compute overall readiness score
+        let readiness = compute_readiness_score(&category_scores);
+        readiness.round() as u8
+    }
+}
+
 /// Default category weights (must sum to 1.0)
 /// From PRD: Build 25%, Tests 25%, ggen 20%, alignment 15%, safety 10%, why 5%
 pub fn default_category_weights() -> HashMap<CheckCategory, f64> {

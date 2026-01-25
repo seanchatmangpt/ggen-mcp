@@ -35,6 +35,7 @@ WHERE {
   BIND(CONCAT(?propLabel, " must match pattern: ", ?pattern) AS ?errorMsg)
   BIND(CONCAT("Regex::new(r\"", ?pattern, "\").unwrap().is_match(&self.", ?propLabel, ")") AS ?rustCode)
 }
+LIMIT 10000
 
 ---
 
@@ -83,6 +84,7 @@ WHERE {
     AS ?rustCode
   )
 }
+LIMIT 10000
 
 ---
 
@@ -129,6 +131,7 @@ WHERE {
     AS ?rustCode
   )
 }
+LIMIT 10000
 
 ---
 
@@ -164,6 +167,7 @@ WHERE {
     AS ?priority
   )
 }
+LIMIT 10000
 
 ---
 
@@ -201,6 +205,7 @@ WHERE {
     GROUP BY ?targetType
   }
 }
+LIMIT 10000
 
 ---
 
@@ -245,6 +250,7 @@ WHERE {
 
   BIND(IRI(CONCAT("https://ggen-mcp.dev/mcp#", REPLACE(?constraintLabel, " ", ""))) AS ?constraint)
 }
+LIMIT 10000
 
 ---
 
@@ -285,6 +291,7 @@ WHERE {
     AS ?fields
   )
 }
+LIMIT 10000
 
 ---
 
@@ -319,3 +326,5 @@ WHERE {
     GROUP BY ?handler
   }
 }
+
+LIMIT 10000

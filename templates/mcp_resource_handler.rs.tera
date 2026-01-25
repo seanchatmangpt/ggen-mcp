@@ -10,6 +10,11 @@ vars:
   cache_ttl_secs: number
   fields: array
 ---
+{#- Validate required variables - ensure resource_name is provided -#}
+{%- if not resource_name -%}
+{# ERROR: resource_name is required for resource handler generation -#}
+//! ERROR: Missing required variable 'resource_name'
+{%- else -%}
 //! MCP Resource Handler: {{ resource_name | snake_case }}
 //!
 //! {{ description }}
@@ -371,7 +376,7 @@ pub async fn list_{{ resource_name | snake_case }}_resources(
     // Ok(resources.into_iter().map(|r| r.into()).collect())
 
     let _ = state;
-    todo!("Implement list_{{ resource_name | snake_case }}_resources")
+    unimplemented!("Implement list_{{ resource_name | snake_case }}_resources - see frozen section for example")
     // # end frozen
 }
 
@@ -402,7 +407,7 @@ pub async fn read_{{ resource_name | snake_case }}_resource(
 
     let _ = state;
     let _ = parsed_uri;
-    todo!("Implement read_{{ resource_name | snake_case }}_resource")
+    unimplemented!("Implement read_{{ resource_name | snake_case }}_resource - see frozen section for example")
     // # end frozen
 
     // {% if has_caching %}

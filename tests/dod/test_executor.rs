@@ -3,15 +3,15 @@
 //! Comprehensive tests for the parallel check execution engine.
 //! Verifies dependency ordering, parallelism, timeouts, and error handling.
 
+use anyhow::Result;
+use async_trait::async_trait;
 use ggen_mcp::dod::check::*;
 use ggen_mcp::dod::executor::*;
 use ggen_mcp::dod::profile::*;
 use ggen_mcp::dod::types::*;
-use anyhow::Result;
-use async_trait::async_trait;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 // ============================================================================
@@ -254,7 +254,7 @@ async fn test_executor_handles_timeout() {
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
     profile.required_checks.insert("SLOW_CHECK".to_string());
-    
+
     // Set very short timeout for build checks
     profile.timeouts_ms.build = 50; // 50ms timeout
 
@@ -334,7 +334,9 @@ async fn test_executor_parallel_mode_is_faster() {
     profile.parallelism = ParallelismConfig::Auto; // Parallel by default
     profile.required_checks.clear();
     for i in 1..=3 {
-        profile.required_checks.insert(format!("PARALLEL_CHECK_{}", i));
+        profile
+            .required_checks
+            .insert(format!("PARALLEL_CHECK_{}", i));
     }
 
     let executor = CheckExecutor::new(registry, profile);
@@ -374,7 +376,10 @@ async fn test_executor_single_check_execution() {
     let executor = CheckExecutor::new(registry, profile);
 
     let context = create_test_context();
-    let result = executor.execute_one("SINGLE_CHECK", &context).await.unwrap();
+    let result = executor
+        .execute_one("SINGLE_CHECK", &context)
+        .await
+        .unwrap();
 
     assert_eq!(result.id, "SINGLE_CHECK");
     assert_eq!(result.status, CheckStatus::Pass);

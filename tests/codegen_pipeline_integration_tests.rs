@@ -631,7 +631,11 @@ test!(test_comprehensive_pipeline_validation, {
         "Should have written files"
     );
     for path in &result.file_result.written_files {
-        assert!(path.exists(), "Written file should exist: {}", path.display());
+        assert!(
+            path.exists(),
+            "Written file should exist: {}",
+            path.display()
+        );
     }
     alert_debug!("  - Wrote {} files", result.file_result.written_files.len());
 

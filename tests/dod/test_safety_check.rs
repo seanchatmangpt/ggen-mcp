@@ -41,11 +41,7 @@ async fn test_secret_detection_no_secrets() {
 async fn test_secret_detection_aws_key() {
     let workspace = create_test_workspace();
     let src_file = workspace.path().join("src/config.rs");
-    fs::write(
-        &src_file,
-        "const AWS_KEY: &str = \"AKIAIOSFODNN7EXAMPLE\";",
-    )
-    .unwrap();
+    fs::write(&src_file, "const AWS_KEY: &str = \"AKIAIOSFODNN7EXAMPLE\";").unwrap();
 
     let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
     let check = SecretDetectionCheck;
@@ -87,7 +83,8 @@ async fn test_secret_detection_private_key() {
     let src_file = workspace.path().join("src/keys.rs");
     fs::write(
         &src_file,
-        "const KEY: &str = \"-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBAL...";",
+        r#"const KEY: &str = "-----BEGIN RSA PRIVATE KEY-----
+MIIBogIBAAJBAL...";"#,
     )
     .unwrap();
 
@@ -96,17 +93,17 @@ async fn test_secret_detection_private_key() {
     let result = check.execute(&context).await.unwrap();
 
     assert_eq!(result.status, CheckStatus::Fail);
-    assert!(result.message.contains("secret(s) detected"));
+    assert!(result.message.contains(r#"secret(s) detected"#));
 }
 
 #[tokio::test]
 async fn test_secret_detection_high_entropy() {
     let workspace = create_test_workspace();
-    let src_file = workspace.path().join("src/config.rs");
+    let src_file = workspace.path().join(r#"src/config.rs"#);
     // High entropy string that looks like a secret
     fs::write(
         &src_file,
-        "const SECRET: &str = \"Kd8sH3pL9xQ2mN5vR7tY1wZ4aB6cE9fG\";",
+        r#"const SECRET: &str = "Kd8sH3pL9xQ2mN5vR7tY1wZ4aB6cE9fG";"#,
     )
     .unwrap();
 

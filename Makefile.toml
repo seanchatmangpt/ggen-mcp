@@ -115,13 +115,18 @@ args = ["test", "--test", "ggen_integration", "determinism_tests"]
 # Development Workflow Tasks
 # ============================================================================
 
+[tasks.validate-sparql-limits]
+description = "Validate all SPARQL queries include LIMIT clauses"
+script = ["./scripts/validate_sparql_limits.sh"]
+cwd = "${CARGO_MAKE_WORKING_DIRECTORY}"
+
 [tasks.pre-commit]
 description = "Sync, check, test before commit"
-dependencies = ["sync", "check", "test"]
+dependencies = ["validate-sparql-limits", "sync", "check", "test"]
 
 [tasks.ci]
 description = "Full CI pipeline: format, lint, check, test"
-dependencies = ["fmt-check", "lint", "check", "test-all"]
+dependencies = ["fmt-check", "lint", "validate-sparql-limits", "check", "test-all"]
 
 [tasks.dev]
 description = "Development workflow: sync, build, test"

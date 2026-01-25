@@ -112,8 +112,12 @@ async fn test_read_valid_ontology() -> Result<()> {
 
     // THEN: Ontology parsed successfully
     assert!(result.valid);
-    assert_eq!(result.class_count, 1);  // User class
-    assert!(result.classes.contains(&"http://test.example.org/User".to_string()));
+    assert_eq!(result.class_count, 1); // User class
+    assert!(
+        result
+            .classes
+            .contains(&"http://test.example.org/User".to_string())
+    );
 
     Ok(())
 }
@@ -128,16 +132,22 @@ async fn test_read_ontology_with_properties() -> Result<()> {
     let result = simulate_read_ontology(harness.ontology_path().as_path()).await?;
 
     // THEN: Properties parsed
-    assert_eq!(result.property_count, 3);  // userId, userName, userEmail
-    assert!(result
-        .properties
-        .contains(&"http://test.example.org/userId".to_string()));
-    assert!(result
-        .properties
-        .contains(&"http://test.example.org/userName".to_string()));
-    assert!(result
-        .properties
-        .contains(&"http://test.example.org/userEmail".to_string()));
+    assert_eq!(result.property_count, 3); // userId, userName, userEmail
+    assert!(
+        result
+            .properties
+            .contains(&"http://test.example.org/userId".to_string())
+    );
+    assert!(
+        result
+            .properties
+            .contains(&"http://test.example.org/userName".to_string())
+    );
+    assert!(
+        result
+            .properties
+            .contains(&"http://test.example.org/userEmail".to_string())
+    );
 
     Ok(())
 }
@@ -186,7 +196,7 @@ async fn test_add_aggregate_to_ontology() -> Result<()> {
     // AND: Ontology still valid
     let result = simulate_read_ontology(harness.ontology_path().as_path()).await?;
     assert!(result.valid);
-    assert_eq!(result.class_count, 2);  // User + Order
+    assert_eq!(result.class_count, 2); // User + Order
 
     Ok(())
 }
@@ -367,10 +377,12 @@ async fn test_validate_missing_prefix() -> Result<()> {
 
     // THEN: Validation fails
     assert!(!result.valid);
-    assert!(result
-        .errors
-        .iter()
-        .any(|e| e.contains("prefix") || e.contains("undefined")));
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("prefix") || e.contains("undefined"))
+    );
 
     Ok(())
 }
@@ -403,12 +415,16 @@ async fn test_query_aggregate_roots() -> Result<()> {
 
     // THEN: Both aggregates returned
     assert_eq!(result.entities.len(), 2);
-    assert!(result
-        .entities
-        .contains(&"http://test.example.org/User".to_string()));
-    assert!(result
-        .entities
-        .contains(&"http://test.example.org/Order".to_string()));
+    assert!(
+        result
+            .entities
+            .contains(&"http://test.example.org/User".to_string())
+    );
+    assert!(
+        result
+            .entities
+            .contains(&"http://test.example.org/Order".to_string())
+    );
 
     Ok(())
 }
@@ -427,13 +443,17 @@ async fn test_query_value_objects() -> Result<()> {
     .await?;
 
     // THEN: Value objects returned
-    assert_eq!(result.entities.len(), 2);  // UserId, Email
-    assert!(result
-        .entities
-        .contains(&"http://test.example.org/UserId".to_string()));
-    assert!(result
-        .entities
-        .contains(&"http://test.example.org/Email".to_string()));
+    assert_eq!(result.entities.len(), 2); // UserId, Email
+    assert!(
+        result
+            .entities
+            .contains(&"http://test.example.org/UserId".to_string())
+    );
+    assert!(
+        result
+            .entities
+            .contains(&"http://test.example.org/Email".to_string())
+    );
 
     Ok(())
 }
@@ -452,7 +472,7 @@ async fn test_query_properties_by_entity() -> Result<()> {
     .await?;
 
     // THEN: All User properties returned
-    assert_eq!(result.entities.len(), 3);  // userId, userName, userEmail
+    assert_eq!(result.entities.len(), 3); // userId, userName, userEmail
 
     Ok(())
 }

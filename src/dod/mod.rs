@@ -3,9 +3,9 @@
 //! Provides profile-based validation for ggen-mcp compilation readiness.
 
 // Phase 1: Core infrastructure
+pub mod scoring;
 pub mod types;
 pub mod verdict;
-pub mod scoring;
 
 // Phase 3: Check infrastructure and implementations
 pub mod check;
@@ -26,8 +26,8 @@ pub mod validator;
 pub mod report;
 
 // Phase 7: Receipt generator and evidence bundling
-pub mod receipt;
 pub mod evidence;
+pub mod receipt;
 
 // Phase 8: MCP Integration
 pub mod mcp_handler;
@@ -36,17 +36,19 @@ pub mod mcp_handler;
 pub mod metrics;
 
 // Re-exports
-pub use types::*;
-pub use verdict::*;
-pub use scoring::*;
-pub use check::{CheckContext, DodCheck, CheckRegistry};
-pub use profile::{DodProfile, ParallelismConfig, TimeoutConfig, ThresholdConfig};
-pub use executor::CheckExecutor;
-pub use remediation::{RemediationGenerator, RemediationSuggestion, Priority};
-pub use result::{DodResult, Verdict, ResultSummary};
-pub use validator::DodValidator;
-pub use report::ReportGenerator;
-pub use receipt::{Receipt, CheckHash, ReceiptGenerator, ReceiptMetadata};
+pub use check::{CheckContext, CheckRegistry, DodCheck};
 pub use evidence::{EvidenceBundleGenerator, EvidenceManifest, FileEntry, FileType};
-pub use mcp_handler::{validate_definition_of_done, ValidateDefinitionOfDoneParams, ValidateDefinitionOfDoneResponse};
+pub use executor::CheckExecutor;
+pub use mcp_handler::{
+    ValidateDefinitionOfDoneParams, ValidateDefinitionOfDoneResponse, validate_definition_of_done,
+};
 pub use metrics::{DodMetrics, DodSpan, MetricsRecorder};
+pub use profile::{DodProfile, ParallelismConfig, ThresholdConfig, TimeoutConfig};
+pub use receipt::{CheckHash, Receipt, ReceiptGenerator, ReceiptMetadata};
+pub use remediation::{Priority, RemediationGenerator, RemediationSuggestion};
+pub use report::ReportGenerator;
+pub use result::{DodResult, ResultSummary, Verdict};
+pub use scoring::*;
+pub use types::*;
+pub use validator::DodValidator;
+pub use verdict::*;

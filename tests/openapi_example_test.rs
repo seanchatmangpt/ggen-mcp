@@ -153,8 +153,7 @@ test!(test_workflow_json_structure, {
 
     // Verify first step is load-ontology
     assert_eq!(
-        steps[0]["id"],
-        "load-ontology",
+        steps[0]["id"], "load-ontology",
         "First step should be load-ontology"
     );
 
@@ -261,10 +260,7 @@ test!(test_render_openapi_info, {
     init_test_output()?;
     let engine = load_ontology_engine()?;
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::from_directory(
-        workspace_path("templates/openapi"),
-        config,
-    )?;
+    let renderer = SafeRenderer::from_directory(workspace_path("templates/openapi"), config)?;
 
     // Act - Execute query and render template
     let query = r#"
@@ -290,11 +286,17 @@ LIMIT 1
     let output = render_template_safe(&renderer, "openapi-info.tera", sparql_results)?;
 
     // Assert - Verify rendered output
-    assert!(output.contains("openapi: \"3.0.0\""), "Missing OpenAPI version");
+    assert!(
+        output.contains("openapi: \"3.0.0\""),
+        "Missing OpenAPI version"
+    );
     assert!(output.contains("title: Blog API"), "Missing API title");
     assert!(output.contains("version: 1.0.0"), "Missing API version");
     assert!(output.contains("servers:"), "Missing servers section");
-    assert!(output.contains("http://localhost:3000"), "Missing server URL");
+    assert!(
+        output.contains("http://localhost:3000"),
+        "Missing server URL"
+    );
 
     // Write output for inspection
     fs::write(test_output_path("openapi/api-info.yaml"), &output)?;
@@ -307,10 +309,7 @@ test!(test_render_zod_schemas, {
     init_test_output()?;
     let engine = load_ontology_engine()?;
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::from_directory(
-        workspace_path("templates/openapi"),
-        config,
-    )?;
+    let renderer = SafeRenderer::from_directory(workspace_path("templates/openapi"), config)?;
 
     // Act - Execute query and render template
     let query = r#"
@@ -352,10 +351,7 @@ ORDER BY ?entityName ?propertyName
         "Missing postSchema definition"
     );
     assert!(output.contains("z.string()"), "Missing string type");
-    assert!(
-        output.contains(".email("),
-        "Missing email validation"
-    );
+    assert!(output.contains(".email("), "Missing email validation");
 
     // Write output for inspection
     fs::write(test_output_path("schemas/entities.mjs"), &output)?;
@@ -368,10 +364,7 @@ test!(test_full_workflow_execution, {
     init_test_output()?;
     let engine = load_ontology_engine()?;
     let config = RenderConfig::default();
-    let renderer = SafeRenderer::from_directory(
-        workspace_path("templates/openapi"),
-        config,
-    )?;
+    let renderer = SafeRenderer::from_directory(workspace_path("templates/openapi"), config)?;
     let workflow = load_workflow()?;
     let steps = workflow["steps"].as_array().expect("steps is not an array");
 

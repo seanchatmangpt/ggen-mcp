@@ -20,15 +20,15 @@ use crate::error::{ErrorCode, McpError};
 use crate::sparql::{
     AntiPattern, Optimization, PerformanceBudget, PerformanceError, PerformanceMetrics,
     QueryAnalyzer, QueryComplexity, QueryOptimizer, QueryProfiler, SlowQueryConfig,
-    SlowQueryDetector, SparqlSecurityError, SparqlSanitizer,
+    SlowQueryDetector, SparqlSanitizer, SparqlSecurityError,
 };
 use anyhow::{Context, Result};
 use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 // =============================================================================
 // SAFETY METRICS
@@ -132,7 +132,7 @@ impl SafetyStats {
 #[derive(Debug)]
 pub struct SafeQueryResult {
     /// Query results
-    pub results: QueryResults,
+    pub results: QueryResults<'static>,
     /// Performance metrics
     pub metrics: PerformanceMetrics,
     /// Query complexity analysis
@@ -171,7 +171,10 @@ impl SafeQueryResult {
                 AntiPattern::LateFilter { recommendation, .. } => {
                     recommendations.push(recommendation.clone());
                 }
-                AntiPattern::DeepNesting { depth, recommendation } => {
+                AntiPattern::DeepNesting {
+                    depth,
+                    recommendation,
+                } => {
                     recommendations.push(format!(
                         "Excessive nesting depth ({}): {}",
                         depth, recommendation
@@ -320,9 +323,9 @@ impl SparqlSafetyExecutor {
 
         // Step 4: Get optimization suggestions
         let anti_patterns = self.analyzer.read().get_anti_patterns().to_vec();
-        let optimizations = self
-            .optimizer
-            .suggest_optimizations(query, &complexity, &anti_patterns);
+        let optimizations =
+            self.optimizer
+                .suggest_optimizations(query, &complexity, &anti_patterns);
 
         // Step 5: Fail fast on critical anti-patterns if configured
         if self.config.fail_on_anti_patterns && !anti_patterns.is_empty() {
@@ -365,27 +368,23 @@ impl SparqlSafetyExecutor {
         // Check for dangerous patterns in the actual query
         if query.contains("DROP") && query.to_uppercase().contains("DROP") {
             self.metrics.record_blocked_query();
-            return Err(
-                McpError::builder(ErrorCode::SparqlError)
-                    .message("Query contains potentially dangerous DROP statement")
-                    .operation("sparql_query_validation")
-                    .param("query", query)
-                    .suggestion("DROP statements are not allowed for safety reasons")
-                    .suggestion("Use read-only queries instead")
-                    .build_and_track(),
-            );
+            return Err(McpError::builder(ErrorCode::SparqlError)
+                .message("Query contains potentially dangerous DROP statement")
+                .operation("sparql_query_validation")
+                .param("query", query)
+                .suggestion("DROP statements are not allowed for safety reasons")
+                .suggestion("Use read-only queries instead")
+                .build_and_track());
         }
 
         if query.contains("CLEAR") && query.to_uppercase().contains("CLEAR") {
             self.metrics.record_blocked_query();
-            return Err(
-                McpError::builder(ErrorCode::SparqlError)
-                    .message("Query contains potentially dangerous CLEAR statement")
-                    .operation("sparql_query_validation")
-                    .param("query", query)
-                    .suggestion("CLEAR statements are not allowed for safety reasons")
-                    .build_and_track(),
-            );
+            return Err(McpError::builder(ErrorCode::SparqlError)
+                .message("Query contains potentially dangerous CLEAR statement")
+                .operation("sparql_query_validation")
+                .param("query", query)
+                .suggestion("CLEAR statements are not allowed for safety reasons")
+                .build_and_track());
         }
 
         Ok(())
@@ -401,13 +400,10 @@ impl SparqlSafetyExecutor {
 
     /// Validate query against budget (static analysis)
     fn validate_budget(&self, complexity: &QueryComplexity) -> Result<(), McpError> {
-        self.config
-            .budget
-            .validate_query(complexity)
-            .map_err(|e| {
-                self.metrics.record_budget_violation();
-                Self::performance_error_to_mcp(e, "")
-            })
+        self.config.budget.validate_query(complexity).map_err(|e| {
+            self.metrics.record_budget_violation();
+            Self::performance_error_to_mcp(e, "")
+        })
     }
 
     /// Execute query with profiling
@@ -421,6 +417,7 @@ impl SparqlSafetyExecutor {
         profiler.start();
 
         // Execute the query
+        #[allow(deprecated)]
         let results = store
             .query(query)
             .context("Failed to execute SPARQL query")
@@ -456,13 +453,10 @@ impl SparqlSafetyExecutor {
 
     /// Validate execution metrics against budget
     fn validate_execution_metrics(&self, metrics: &PerformanceMetrics) -> Result<(), McpError> {
-        self.config
-            .budget
-            .validate_execution(metrics)
-            .map_err(|e| {
-                self.metrics.record_budget_violation();
-                Self::performance_error_to_mcp(e, "")
-            })
+        self.config.budget.validate_execution(metrics).map_err(|e| {
+            self.metrics.record_budget_violation();
+            Self::performance_error_to_mcp(e, "")
+        })
     }
 
     /// Check if query is slow and log it
@@ -521,7 +515,10 @@ impl SparqlSafetyExecutor {
                 AntiPattern::LateFilter { recommendation, .. } => {
                     builder = builder.suggestion(recommendation.clone());
                 }
-                AntiPattern::DeepNesting { depth, recommendation } => {
+                AntiPattern::DeepNesting {
+                    depth,
+                    recommendation,
+                } => {
                     builder = builder.suggestion(format!(
                         "Reduce nesting depth ({}): {}",
                         depth, recommendation

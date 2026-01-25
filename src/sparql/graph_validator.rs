@@ -82,33 +82,47 @@ pub enum ObjectType {
 
 impl SubjectType {
     /// Check if a subject matches this type
-    pub fn matches(&self, subject: &Subject) -> bool {
-        match (self, subject) {
-            (SubjectType::IRI, Subject::NamedNode(_)) => true,
-            (SubjectType::BlankNode, Subject::BlankNode(_)) => true,
-            (SubjectType::SpecificIRI(iri), Subject::NamedNode(node)) => node.as_str() == iri,
-            (SubjectType::IRIWithPrefix(prefix), Subject::NamedNode(node)) => {
-                node.as_str().starts_with(prefix)
+    pub fn matches(&self, subject: oxigraph::model::NamedOrBlankNodeRef) -> bool {
+        match self {
+            SubjectType::IRI => subject.is_named_node(),
+            SubjectType::BlankNode => subject.is_blank_node(),
+            SubjectType::SpecificIRI(iri) => {
+                match subject {
+                    oxigraph::model::NamedOrBlankNodeRef::NamedNode(n) => n.as_str() == iri,
+                    _ => false,
+                }
             }
-            (SubjectType::Any, _) => true,
-            _ => false,
+            SubjectType::IRIWithPrefix(prefix) => {
+                match subject {
+                    oxigraph::model::NamedOrBlankNodeRef::NamedNode(n) => n.as_str().starts_with(prefix),
+                    _ => false,
+                }
+            }
+            SubjectType::Any => true,
         }
     }
 }
 
 impl ObjectType {
     /// Check if an object matches this type
-    pub fn matches(&self, object: &Term) -> bool {
-        match (self, object) {
-            (ObjectType::IRI, Term::NamedNode(_)) => true,
-            (ObjectType::BlankNode, Term::BlankNode(_)) => true,
-            (ObjectType::Literal, Term::Literal(_)) => true,
-            (ObjectType::LiteralWithDatatype(dt), Term::Literal(lit)) => {
-                lit.datatype().as_str() == dt
+    pub fn matches(&self, object: oxigraph::model::TermRef) -> bool {
+        match self {
+            ObjectType::IRI => object.is_named_node(),
+            ObjectType::BlankNode => object.is_blank_node(),
+            ObjectType::Literal => object.is_literal(),
+            ObjectType::LiteralWithDatatype(dt) => {
+                match object {
+                    oxigraph::model::TermRef::Literal(l) => l.datatype().as_str() == dt,
+                    _ => false,
+                }
             }
-            (ObjectType::SpecificIRI(iri), Term::NamedNode(node)) => node.as_str() == iri,
-            (ObjectType::Any, _) => true,
-            _ => false,
+            ObjectType::SpecificIRI(iri) => {
+                match object {
+                    oxigraph::model::TermRef::NamedNode(n) => n.as_str() == iri,
+                    _ => false,
+                }
+            }
+            ObjectType::Any => true,
         }
     }
 }
@@ -217,8 +231,14 @@ impl GraphValidator {
         }
 
         // Validate all triples match expected patterns
-        for triple in graph.iter() {
-            self.validate_triple(triple)?;
+        for triple_ref in graph.iter() {
+            // Convert TripleRef to owned Triple for validation
+            let triple = Triple::new(
+                triple_ref.subject.to_owned(),
+                triple_ref.predicate.to_owned(),
+                triple_ref.object.to_owned(),
+            );
+            self.validate_triple(&triple)?;
         }
 
         // Check property specifications
@@ -247,8 +267,8 @@ impl GraphValidator {
         pattern: &TriplePattern,
     ) -> Result<(), GraphValidationError> {
         let found = graph.iter().any(|triple| {
-            pattern.subject_type.matches(triple.subject)
-                && pattern.object_type.matches(triple.object)
+            pattern.subject_type.matches(triple.subject.as_ref())
+                && pattern.object_type.matches(triple.object.as_ref())
                 && if let Some(ref pred) = pattern.predicate {
                     triple.predicate.as_str() == pred
                 } else {
@@ -271,8 +291,8 @@ impl GraphValidator {
         // If we have patterns, at least one must match
         if !self.patterns.is_empty() {
             let matches = self.patterns.iter().any(|pattern| {
-                pattern.subject_type.matches(triple.subject)
-                    && pattern.object_type.matches(triple.object)
+                pattern.subject_type.matches(triple.subject.as_ref())
+                    && pattern.object_type.matches(triple.object.as_ref())
                     && if let Some(ref pred) = pattern.predicate {
                         triple.predicate.as_str() == pred
                     } else {
@@ -305,7 +325,7 @@ impl GraphValidator {
                 .or_default()
                 .entry(predicate_str)
                 .or_default()
-                .push(triple.object.clone());
+                .push(triple.object.to_owned());
         }
 
         // Check each subject against its property specs
@@ -377,11 +397,14 @@ impl GraphValidator {
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
 
         for triple in graph.iter() {
-            if let Term::NamedNode(obj_node) = triple.object {
-                let subject_str = triple.subject.to_string();
-                let object_str = obj_node.as_str().to_string();
+            match &triple.object {
+                Term::NamedNode(obj_node) => {
+                    let subject_str = triple.subject.to_string();
+                    let object_str = obj_node.as_str().to_string();
 
-                adjacency.entry(subject_str).or_default().push(object_str);
+                    adjacency.entry(subject_str).or_default().push(object_str);
+                }
+                _ => {}
             }
         }
 
@@ -431,12 +454,18 @@ impl GraphValidator {
 
         // Collect all blank nodes and references
         for triple in graph.iter() {
-            if let Subject::BlankNode(bn) = triple.subject {
-                blank_nodes.insert(bn.as_str().to_string());
+            match &triple.subject {
+                Subject::BlankNode(bn) => {
+                    blank_nodes.insert(bn.as_str().to_string());
+                }
+                _ => {}
             }
 
-            if let Term::BlankNode(bn) = triple.object {
-                referenced_blanks.insert(bn.as_str().to_string());
+            match &triple.object {
+                Term::BlankNode(bn) => {
+                    referenced_blanks.insert(bn.as_str().to_string());
+                }
+                _ => {}
             }
         }
 
@@ -444,20 +473,18 @@ impl GraphValidator {
         for bn in blank_nodes.difference(&referenced_blanks) {
             // Allow if blank node appears as subject (it's a root)
             let has_incoming = graph.iter().any(|t| {
-                if let Term::BlankNode(obj_bn) = t.object {
-                    obj_bn.as_str() == bn
-                } else {
-                    false
+                match &t.object {
+                    Term::BlankNode(obj_bn) => obj_bn.as_str() == bn,
+                    _ => false,
                 }
             });
 
             if !has_incoming {
                 // Check if it has outgoing edges (not completely orphaned)
                 let has_outgoing = graph.iter().any(|t| {
-                    if let Subject::BlankNode(subj_bn) = t.subject {
-                        subj_bn.as_str() == bn
-                    } else {
-                        false
+                    match &t.subject {
+                        Subject::BlankNode(subj_bn) => subj_bn.as_str() == bn,
+                        _ => false,
                     }
                 });
 
@@ -475,8 +502,8 @@ impl GraphValidator {
         graph
             .iter()
             .filter(|triple| {
-                pattern.subject_type.matches(triple.subject)
-                    && pattern.object_type.matches(triple.object)
+                pattern.subject_type.matches(triple.subject.as_ref())
+                    && pattern.object_type.matches(triple.object.as_ref())
                     && if let Some(ref pred) = pattern.predicate {
                         triple.predicate.as_str() == pred
                     } else {

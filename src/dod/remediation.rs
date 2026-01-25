@@ -151,17 +151,16 @@ impl RemediationGenerator {
                 "Fix compilation errors".to_string(),
                 Some("cargo check".to_string()),
             ),
-            _ => (
-                Priority::High,
-                format!("Fix {}", result.id),
-                None,
-            ),
+            _ => (Priority::High, format!("Fix {}", result.id), None),
         };
 
         let mut steps = result.remediation.clone();
         if steps.is_empty() {
             steps = vec![
-                format!("Run: {}", automation.as_ref().unwrap_or(&"cargo build".to_string())),
+                format!(
+                    "Run: {}",
+                    automation.as_ref().unwrap_or(&"cargo build".to_string())
+                ),
                 "Fix all errors and warnings".to_string(),
                 "Verify with: cargo check".to_string(),
             ];
@@ -353,10 +352,10 @@ impl RemediationGenerator {
     ) -> Vec<RemediationSuggestion> {
         // Sort by priority: Critical > High > Medium > Low
         suggestions.sort_by_key(|s| s.priority.clone());
-        
+
         // Could add deduplication logic here if needed
         // For now, just return sorted list
-        
+
         suggestions
     }
 }
@@ -434,14 +433,26 @@ mod tests {
         assert_eq!(suggestions.len(), 4);
 
         // Verify automation commands are category-specific
-        let fmt_suggestion = suggestions.iter().find(|s| s.check_id == "BUILD_FMT").unwrap();
+        let fmt_suggestion = suggestions
+            .iter()
+            .find(|s| s.check_id == "BUILD_FMT")
+            .unwrap();
         assert_eq!(fmt_suggestion.automation, Some("cargo fmt".to_string()));
 
-        let test_suggestion = suggestions.iter().find(|s| s.check_id == "TEST_UNIT").unwrap();
+        let test_suggestion = suggestions
+            .iter()
+            .find(|s| s.check_id == "TEST_UNIT")
+            .unwrap();
         assert_eq!(test_suggestion.automation, Some("cargo test".to_string()));
 
-        let ggen_suggestion = suggestions.iter().find(|s| s.check_id == "GGEN_DRY_RUN").unwrap();
-        assert_eq!(ggen_suggestion.automation, Some("cargo make sync".to_string()));
+        let ggen_suggestion = suggestions
+            .iter()
+            .find(|s| s.check_id == "GGEN_DRY_RUN")
+            .unwrap();
+        assert_eq!(
+            ggen_suggestion.automation,
+            Some("cargo make sync".to_string())
+        );
     }
 
     #[test]

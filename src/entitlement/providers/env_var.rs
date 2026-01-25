@@ -20,8 +20,8 @@ impl EntitlementProvider for EnvVarProvider {
         // Read GGEN_LICENSE env var
         let license_json = std::env::var("GGEN_LICENSE").unwrap_or_else(|_| "{}".to_string());
 
-        let license: serde_json::Value = serde_json::from_str(&license_json)
-            .context("Failed to parse GGEN_LICENSE JSON")?;
+        let license: serde_json::Value =
+            serde_json::from_str(&license_json).context("Failed to parse GGEN_LICENSE JSON")?;
 
         // Extract capabilities array
         let capabilities = license["capabilities"]
@@ -53,8 +53,8 @@ impl EntitlementProvider for EnvVarProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use chrono::Utc;
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_env_var_no_license() {
@@ -75,18 +75,24 @@ mod tests {
 
         let provider = EnvVarProvider::new();
 
-        assert!(provider
-            .check_capability(Capability::ApplyMode)
-            .await
-            .unwrap());
-        assert!(provider
-            .check_capability(Capability::JiraCreate)
-            .await
-            .unwrap());
-        assert!(!provider
-            .check_capability(Capability::JiraSync)
-            .await
-            .unwrap());
+        assert!(
+            provider
+                .check_capability(Capability::ApplyMode)
+                .await
+                .unwrap()
+        );
+        assert!(
+            provider
+                .check_capability(Capability::JiraCreate)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !provider
+                .check_capability(Capability::JiraSync)
+                .await
+                .unwrap()
+        );
 
         std::env::remove_var("GGEN_LICENSE");
     }

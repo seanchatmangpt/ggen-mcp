@@ -8,3 +8,4 @@ WHERE {
   ?svc ddd:uses ?repo .
   ?repo rdfs:label ?repository_name .
 }
+LIMIT 10000

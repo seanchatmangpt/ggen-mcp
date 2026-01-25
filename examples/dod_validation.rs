@@ -37,9 +37,18 @@ async fn example_basic_validation() -> Result<()> {
         .context("Failed to execute checks")?;
 
     // Print summary
-    let passed = results.iter().filter(|r| r.status == CheckStatus::Pass).count();
-    let failed = results.iter().filter(|r| r.status == CheckStatus::Fail).count();
-    let warned = results.iter().filter(|r| r.status == CheckStatus::Warn).count();
+    let passed = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Pass)
+        .count();
+    let failed = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Fail)
+        .count();
+    let warned = results
+        .iter()
+        .filter(|r| r.status == CheckStatus::Warn)
+        .count();
 
     println!("\nResults:");
     println!("  Passed: {}", passed);
@@ -87,19 +96,32 @@ async fn example_custom_profile() -> Result<()> {
 
     // Customize category weights
     profile.category_weights.clear();
-    profile.category_weights.insert("BuildCorrectness".to_string(), 0.30);
-    profile.category_weights.insert("TestTruth".to_string(), 0.30);
-    profile.category_weights.insert("GgenPipeline".to_string(), 0.25);
-    profile.category_weights.insert("SafetyInvariants".to_string(), 0.15);
+    profile
+        .category_weights
+        .insert("BuildCorrectness".to_string(), 0.30);
+    profile
+        .category_weights
+        .insert("TestTruth".to_string(), 0.30);
+    profile
+        .category_weights
+        .insert("GgenPipeline".to_string(), 0.25);
+    profile
+        .category_weights
+        .insert("SafetyInvariants".to_string(), 0.15);
 
     // Validate profile
-    profile.validate().context("Invalid profile configuration")?;
+    profile
+        .validate()
+        .context("Invalid profile configuration")?;
 
     println!("Custom Profile:");
     println!("  Name: {}", profile.name);
     println!("  Min Score: {}", profile.thresholds.min_readiness_score);
     println!("  Max Warnings: {}", profile.thresholds.max_warnings);
-    println!("  Require All Tests Pass: {}", profile.thresholds.require_all_tests_pass);
+    println!(
+        "  Require All Tests Pass: {}",
+        profile.thresholds.require_all_tests_pass
+    );
 
     let executor = CheckExecutor::new(registry, profile);
     let context = CheckContext::new(PathBuf::from("."));
@@ -182,8 +204,8 @@ async fn example_custom_check() -> Result<()> {
             let readme_path = context.workspace_root.join("README.md");
 
             let (status, message, remediation) = if readme_path.exists() {
-                let content = std::fs::read_to_string(&readme_path)
-                    .context("Failed to read README.md")?;
+                let content =
+                    std::fs::read_to_string(&readme_path).context("Failed to read README.md")?;
 
                 if content.trim().is_empty() {
                     (
@@ -281,10 +303,18 @@ async fn example_remediation() -> Result<()> {
     if suggestions.is_empty() {
         println!("✓ All checks passed! No remediation needed.");
     } else {
-        println!("Found {} issues requiring remediation:\n", suggestions.len());
+        println!(
+            "Found {} issues requiring remediation:\n",
+            suggestions.len()
+        );
 
         for (i, suggestion) in suggestions.iter().enumerate() {
-            println!("{}. {} (Priority: {:?})", i + 1, suggestion.title, suggestion.priority);
+            println!(
+                "{}. {} (Priority: {:?})",
+                i + 1,
+                suggestion.title,
+                suggestion.priority
+            );
             println!("   Check: {}", suggestion.check_id);
 
             if !suggestion.steps.is_empty() {
@@ -381,7 +411,11 @@ async fn example_evidence() -> Result<()> {
 
                 // Truncate content for display
                 let content_preview = if evidence.content.len() > 100 {
-                    format!("{}... ({} bytes)", &evidence.content[..100], evidence.content.len())
+                    format!(
+                        "{}... ({} bytes)",
+                        &evidence.content[..100],
+                        evidence.content.len()
+                    )
                 } else {
                     evidence.content.clone()
                 };
@@ -443,12 +477,11 @@ fail_on_clippy_warnings = false
 "#;
 
     // Write temporary profile file
-    std::fs::write("example-profile.toml", profile_toml)
-        .context("Failed to write profile file")?;
+    std::fs::write("example-profile.toml", profile_toml).context("Failed to write profile file")?;
 
     // Load profile from file
-    let profile = DodProfile::load_from_file("example-profile.toml")
-        .context("Failed to load profile")?;
+    let profile =
+        DodProfile::load_from_file("example-profile.toml").context("Failed to load profile")?;
 
     println!("Loaded Profile:");
     println!("  Name: {}", profile.name);

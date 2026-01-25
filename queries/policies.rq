@@ -9,3 +9,4 @@ WHERE {
   OPTIONAL { ?p ddd:ensures ?ensures_what . }
 }
 ORDER BY ?policy_name
+LIMIT 10000

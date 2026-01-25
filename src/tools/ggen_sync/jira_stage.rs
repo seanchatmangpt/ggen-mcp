@@ -16,7 +16,7 @@
 
 use crate::tools::jira_integration::{ConflictResolution, JiraSyncColumnMapping, SyncReport};
 use crate::tools::jira_unified::{
-    manage_jira_integration, JiraOperation, ManageJiraParams, ManageJiraResponse,
+    JiraOperation, ManageJiraParams, ManageJiraResponse, manage_jira_integration,
 };
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
@@ -280,7 +280,8 @@ impl JiraStage {
                     priority_column: None,
                     assignee_column: Some(config.mapping.assignee_column.clone()),
                     labels_column: Some("generated,ggen".to_string()),
-                    component_column: Some("code-generation".to_string()),
+                    epic_link_column: None,
+                    story_points_column: None,
                 },
                 dry_run: false,
                 start_row: 2,
@@ -351,7 +352,7 @@ impl JiraStage {
                     created: report.created,
                     updated: report.updated,
                     skipped: report.skipped,
-                    conflicts: report.conflicts,
+                    conflicts: report.conflicts.len(),
                 })
             }
             _ => Err(anyhow!("Unexpected Jira operation result type")),
@@ -588,14 +589,8 @@ mod tests {
         let create = JiraMode::Create;
         let sync = JiraMode::Sync;
 
-        assert_eq!(
-            serde_json::to_string(&dry_run).unwrap(),
-            r#""dry_run""#
-        );
-        assert_eq!(
-            serde_json::to_string(&create).unwrap(),
-            r#""create""#
-        );
+        assert_eq!(serde_json::to_string(&dry_run).unwrap(), r#""dry_run""#);
+        assert_eq!(serde_json::to_string(&create).unwrap(), r#""create""#);
         assert_eq!(serde_json::to_string(&sync).unwrap(), r#""sync""#);
     }
 }

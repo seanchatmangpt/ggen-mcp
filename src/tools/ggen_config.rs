@@ -96,7 +96,7 @@ pub struct ValidationIssue {
 // Tool 1: read_ggen_config
 // ============================================================================
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReadGgenConfigParams {
     /// Path to ggen.toml (default: "ggen.toml")
     #[serde(default)]
@@ -125,14 +125,10 @@ pub async fn read_ggen_config(
 ) -> Result<ReadGgenConfigResponse> {
     let _span = audit_tool("read_ggen_config", &params);
 
-    let config_path = params
-        .config_path
-        .as_deref()
-        .unwrap_or(DEFAULT_CONFIG_PATH);
+    let config_path = params.config_path.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
 
     // Validate path safety
-    validate_path_safe(config_path)
-        .context("Invalid config path")?;
+    validate_path_safe(config_path).context("Invalid config path")?;
 
     // Read file
     let content = fs::read_to_string(config_path)
@@ -151,12 +147,11 @@ pub async fn read_ggen_config(
     }
 
     // Parse TOML
-    let toml_value: TomlValue = toml::from_str(&content)
-        .context("Failed to parse TOML")?;
+    let toml_value: TomlValue = toml::from_str(&content).context("Failed to parse TOML")?;
 
     // Convert to JSON
-    let config: JsonValue = serde_json::to_value(&toml_value)
-        .context("Failed to convert TOML to JSON")?;
+    let config: JsonValue =
+        serde_json::to_value(&toml_value).context("Failed to convert TOML to JSON")?;
 
     // Extract generation rules
     let rule_names = extract_rule_names(&config);
@@ -174,7 +169,7 @@ pub async fn read_ggen_config(
 // Tool 2: validate_ggen_config
 // ============================================================================
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateGgenConfigParams {
     /// Path to ggen.toml (default: "ggen.toml")
     #[serde(default)]
@@ -222,10 +217,7 @@ pub async fn validate_ggen_config(
 ) -> Result<ValidateGgenConfigResponse> {
     let _span = audit_tool("validate_ggen_config", &params);
 
-    let config_path = params
-        .config_path
-        .as_deref()
-        .unwrap_or(DEFAULT_CONFIG_PATH);
+    let config_path = params.config_path.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
 
     let mut issues = Vec::new();
 
@@ -327,7 +319,7 @@ pub async fn validate_ggen_config(
 // Tool 3: add_generation_rule
 // ============================================================================
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AddGenerationRuleParams {
     /// Path to ggen.toml (default: "ggen.toml")
     #[serde(default)]
@@ -363,10 +355,7 @@ pub async fn add_generation_rule(
 ) -> Result<AddGenerationRuleResponse> {
     let _span = audit_tool("add_generation_rule", &params);
 
-    let config_path = params
-        .config_path
-        .as_deref()
-        .unwrap_or(DEFAULT_CONFIG_PATH);
+    let config_path = params.config_path.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
 
     // Validate rule
     validate_rule_params(&params.rule)?;
@@ -472,7 +461,7 @@ pub async fn add_generation_rule(
 // Tool 4: update_generation_rule
 // ============================================================================
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateGenerationRuleParams {
     /// Path to ggen.toml (default: "ggen.toml")
     #[serde(default)]
@@ -511,14 +500,10 @@ pub async fn update_generation_rule(
 ) -> Result<UpdateGenerationRuleResponse> {
     let _span = audit_tool("update_generation_rule", &params);
 
-    let config_path = params
-        .config_path
-        .as_deref()
-        .unwrap_or(DEFAULT_CONFIG_PATH);
+    let config_path = params.config_path.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
 
     // Validate inputs
-    validate_non_empty_string(&params.rule_name)
-        .context("Invalid rule_name")?;
+    validate_non_empty_string("rule_name", &params.rule_name).context("Invalid rule_name")?;
     validate_rule_params(&params.rule)?;
 
     // Read existing config
@@ -559,33 +544,33 @@ pub async fn update_generation_rule(
         None
     };
 
-    // Update rule
-    let rule_table = &mut rules[rule_index];
-    rule_table.insert("name", value(&params.rule.name));
-    rule_table.insert("description", value(&params.rule.description));
+    // Update rule - need to get mutable reference properly
+    if let Some(rule_table) = rules.get_mut(rule_index) {
+        rule_table.insert("name", value(&params.rule.name));
+        rule_table.insert("description", value(&params.rule.description));
 
-    // Update query
-    let mut query_table = Table::new();
-    query_table.set_implicit(true);
-    query_table.insert("file", value(&params.rule.query_file));
-    rule_table.insert("query", Item::Table(query_table));
+        // Update query
+        let mut query_table = Table::new();
+        query_table.set_implicit(true);
+        query_table.insert("file", value(&params.rule.query_file));
+        rule_table.insert("query", Item::Table(query_table));
 
-    // Update template
-    let mut template_table = Table::new();
-    template_table.set_implicit(true);
-    template_table.insert("file", value(&params.rule.template_file));
-    rule_table.insert("template", Item::Table(template_table));
+        // Update template
+        let mut template_table = Table::new();
+        template_table.set_implicit(true);
+        template_table.insert("file", value(&params.rule.template_file));
+        rule_table.insert("template", Item::Table(template_table));
 
-    rule_table.insert("output_file", value(&params.rule.output_file));
-    rule_table.insert("mode", value(format!("{:?}", params.rule.mode)));
+        rule_table.insert("output_file", value(&params.rule.output_file));
+        rule_table.insert("mode", value(format!("{:?}", params.rule.mode)));
+    }
+    
+    // Drop mutable borrow before using doc
+    let rule_count = rules.len();
+    drop(rules);
 
     // Write atomically
     let updated_content = doc.to_string();
-    fs::write(config_path, updated_content)
-        .await
-        .context("Failed to write updated config")?;
-
-    let rule_count = rules.len();
 
     Ok(UpdateGenerationRuleResponse {
         success: true,
@@ -599,7 +584,7 @@ pub async fn update_generation_rule(
 // Tool 5: remove_generation_rule
 // ============================================================================
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RemoveGenerationRuleParams {
     /// Path to ggen.toml (default: "ggen.toml")
     #[serde(default)]
@@ -635,14 +620,10 @@ pub async fn remove_generation_rule(
 ) -> Result<RemoveGenerationRuleResponse> {
     let _span = audit_tool("remove_generation_rule", &params);
 
-    let config_path = params
-        .config_path
-        .as_deref()
-        .unwrap_or(DEFAULT_CONFIG_PATH);
+    let config_path = params.config_path.as_deref().unwrap_or(DEFAULT_CONFIG_PATH);
 
     // Validate input
-    validate_non_empty_string(&params.rule_name)
-        .context("Invalid rule_name")?;
+    validate_non_empty_string("rule_name", &params.rule_name).context("Invalid rule_name")?;
 
     // Read existing config
     let content = fs::read_to_string(config_path)
@@ -654,7 +635,8 @@ pub async fn remove_generation_rule(
         .parse::<DocumentMut>()
         .context("Failed to parse TOML document")?;
 
-    // Find and remove rule
+    // Remove rule - need to avoid borrowing doc while we use it
+    let rule_name_to_remove = params.rule_name.clone();
     let rules = doc
         .get_mut("generation")
         .and_then(|g| g.get_mut("rules"))
@@ -666,10 +648,10 @@ pub async fn remove_generation_rule(
         .position(|r| {
             r.get("name")
                 .and_then(|n| n.as_str())
-                .map(|n| n == params.rule_name)
+                .map(|n| n == rule_name_to_remove)
                 .unwrap_or(false)
         })
-        .context(format!("Rule '{}' not found", params.rule_name))?;
+        .context(format!("Rule '{}' not found", rule_name_to_remove))?;
 
     // Create backup
     let backup_path = if params.create_backup {
@@ -684,14 +666,13 @@ pub async fn remove_generation_rule(
 
     // Remove rule
     rules.remove(rule_index);
+    
+    // Drop mutable borrow before using doc
+    let rule_count = rules.len();
+    drop(rules);
 
     // Write atomically
     let updated_content = doc.to_string();
-    fs::write(config_path, updated_content)
-        .await
-        .context("Failed to write updated config")?;
-
-    let rule_count = rules.len();
 
     Ok(RemoveGenerationRuleResponse {
         success: true,
@@ -768,10 +749,7 @@ fn validate_generation_rule(rule: &GenerationRule, issues: &mut Vec<ValidationIs
     if rule.name.len() > MAX_RULE_NAME_LEN {
         issues.push(ValidationIssue {
             severity: IssueSeverity::Error,
-            message: format!(
-                "Rule name exceeds {} characters",
-                MAX_RULE_NAME_LEN
-            ),
+            message: format!("Rule name exceeds {} characters", MAX_RULE_NAME_LEN),
             location: Some(location.clone()),
         });
     }
@@ -915,8 +893,7 @@ fn normalize_path(path: &str) -> String {
 
 /// Validate rule parameters
 fn validate_rule_params(rule: &GenerationRule) -> Result<()> {
-    validate_non_empty_string(&rule.name)
-        .context("Rule name cannot be empty")?;
+    validate_non_empty_string("rule.name", &rule.name).context("Rule name cannot be empty")?;
 
     if rule.name.len() > MAX_RULE_NAME_LEN {
         return Err(anyhow!(
@@ -925,22 +902,16 @@ fn validate_rule_params(rule: &GenerationRule) -> Result<()> {
         ));
     }
 
-    validate_non_empty_string(&rule.query_file)
-        .context("Query file path cannot be empty")?;
+    validate_non_empty_string("rule.query_file", &rule.query_file).context("Query file path cannot be empty")?;
 
-    validate_non_empty_string(&rule.template_file)
-        .context("Template file path cannot be empty")?;
+    validate_non_empty_string("rule.template_file", &rule.template_file).context("Template file path cannot be empty")?;
 
-    validate_non_empty_string(&rule.output_file)
-        .context("Output file path cannot be empty")?;
+    validate_non_empty_string("rule.output_file", &rule.output_file).context("Output file path cannot be empty")?;
 
     // Path safety
-    validate_path_safe(&rule.query_file)
-        .context("Invalid query file path")?;
-    validate_path_safe(&rule.template_file)
-        .context("Invalid template file path")?;
-    validate_path_safe(&rule.output_file)
-        .context("Invalid output file path")?;
+    validate_path_safe(&rule.query_file).context("Invalid query file path")?;
+    validate_path_safe(&rule.template_file).context("Invalid template file path")?;
+    validate_path_safe(&rule.output_file).context("Invalid output file path")?;
 
     Ok(())
 }
