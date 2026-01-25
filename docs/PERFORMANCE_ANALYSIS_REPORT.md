@@ -1,7 +1,7 @@
 # ggen-mcp Performance Analysis Report
 
 **Date:** 2026-01-20
-**Version:** 0.9.0
+**Version:** 1.0.0
 **Analyzer:** Claude Code
 **Framework:** Toyota Production System (TPS) Waste Elimination
 

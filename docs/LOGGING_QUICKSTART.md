@@ -24,7 +24,7 @@ You'll see colorized, pretty-printed logs:
 ```
 2026-01-20T12:34:56.789Z  INFO spreadsheet_mcp: structured logging and tracing initialized
     at src/tracing_setup.rs:336
-    service="spreadsheet-mcp" version="0.9.0" environment="development"
+    service="spreadsheet-mcp" version="1.0.0" environment="development"
 ```
 
 ### 2. Production Setup (JSON Logs)
@@ -54,7 +54,7 @@ Example log entry:
   "target": "spreadsheet_mcp::fork",
   "fields": {
     "service": "spreadsheet-mcp",
-    "version": "0.9.0",
+    "version": "1.0.0",
     "mcp.fork_id": "fork_456",
     "mcp.workbook_id": "wb_123",
     "duration_ms": 145

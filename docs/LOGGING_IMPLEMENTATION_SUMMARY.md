@@ -210,7 +210,7 @@ pub use logging::{LoggingConfig, init_logging, shutdown_telemetry};
   },
   "fields": {
     "service": "spreadsheet-mcp",
-    "version": "0.9.0",
+    "version": "1.0.0",
     "mcp.fork_id": "fork_456",
     "mcp.workbook_id": "wb_123",
     "duration_ms": 145,

@@ -335,7 +335,7 @@ fi
     {
       "name": "Schema Version",
       "passed": false,
-      "message": "Unsupported version: 0.9.0"
+      "message": "Unsupported version: 1.0.0"
     }
   ],
   "summary": "❌ Receipt invalid (1 of 7 checks failed)"

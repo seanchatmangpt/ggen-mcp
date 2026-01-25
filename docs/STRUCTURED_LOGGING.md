@@ -86,7 +86,7 @@ Example:
   },
   "fields": {
     "service": "spreadsheet-mcp",
-    "version": "0.9.0",
+    "version": "1.0.0",
     "mcp.workbook_id": "wb_123",
     "mcp.fork_id": "fork_456",
     "duration_ms": 145,
@@ -103,7 +103,7 @@ Example:
 ```
 2026-01-20T12:34:56.789Z  INFO spreadsheet_mcp::tools::fork: Tool invocation completed
     at src/tools/fork.rs:45
-    in mcp_tool with mcp.tool=fork_create, service=spreadsheet-mcp, version=0.9.0
+    in mcp_tool with mcp.tool=fork_create, service=spreadsheet-mcp, version=1.0.0
     mcp.workbook_id="wb_123" mcp.fork_id="fork_456" duration_ms=145 result="success"
 ```
 
@@ -125,7 +125,7 @@ All log entries include:
 | Field | Description | Example |
 |-------|-------------|---------|
 | `service` | Service name | `spreadsheet-mcp` |
-| `version` | Service version | `0.9.0` |
+| `version` | Service version | `1.0.0` |
 | `mcp.tool` | MCP tool name | `fork_create` |
 | `mcp.workbook_id` | Workbook identifier | `wb_123` |
 | `mcp.fork_id` | Fork identifier | `fork_456` |
@@ -236,7 +236,7 @@ When configured with an OTLP endpoint, ggen-mcp sends distributed traces to Open
 ```
 mcp_tool (span)
 ├─ service=spreadsheet-mcp
-├─ version=0.9.0
+├─ version=1.0.0
 ├─ mcp.tool=fork_create
 └─ workbook_operation (child span)
    ├─ mcp.workbook_id=wb_123

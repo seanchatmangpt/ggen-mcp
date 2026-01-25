@@ -119,7 +119,7 @@ ggen:WorkbookResource a mcp:Resource ;
 ggen:SpreadsheetMcpServer a mcp:Server ;
     rdfs:label "SpreadsheetMCPServer" ;
     rdfs:comment "MCP server for spreadsheet operations" ;
-    mcp:version "0.9.0" ;
+    mcp:version "1.0.0" ;
     mcp:providesTool ggen:ReadSpreadsheetTool ;
     mcp:providesTool ggen:WriteSpreadsheetTool ;
     mcp:providesTool ggen:ListWorkbooksTool ;

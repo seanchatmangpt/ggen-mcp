@@ -516,7 +516,7 @@ spreadsheet_mcp_circuit_breaker_state{name="recalc"} 0
 ┌─────────────────────────────────────────────┐
 │ System Health: ✓ HEALTHY                   │
 │ Uptime: 2d 14h 23m                          │
-│ Version: 0.9.0                              │
+│ Version: 1.0.0                              │
 ├─────────────────────────────────────────────┤
 │ Component Status:                           │
 │ ✓ Workspace       Accessible               │

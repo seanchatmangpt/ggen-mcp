@@ -619,7 +619,7 @@ mod tests {
         let receipt_path = temp_dir.path().join("receipt.json");
 
         let invalid_receipt = r#"{
-            "version": "0.9.0",
+            "version": "1.0.0",
             "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             "timestamp": "2026-01-20T00:00:00Z",
             "workspace": {"fingerprint": "abc", "root": null},

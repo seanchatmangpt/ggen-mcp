@@ -20,7 +20,7 @@ Tool manifest generation creates `ggen.tools.json` - a JSON schema catalog of al
 
 ```json
 {
-  "version": "0.9.0",           // Package version (Cargo.toml)
+  "version": "1.0.0",           // Package version (Cargo.toml)
   "schema_hash": "abc123...",   // SHA256 of tools array
   "tools": [                     // Array of tool definitions
     {
