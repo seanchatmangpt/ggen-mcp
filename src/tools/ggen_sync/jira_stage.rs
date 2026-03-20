@@ -14,13 +14,13 @@
 //! - Input validation (poka-yoke)
 //! - Environment-based auth token
 
-use crate::tools::jira_integration::{ConflictResolution, JiraSyncColumnMapping, SyncReport};
+use crate::tools::jira_integration::{ConflictResolution, JiraSyncColumnMapping};
 use crate::tools::jira_unified::{
-    JiraOperation, ManageJiraParams, ManageJiraResponse, manage_jira_integration,
+    JiraOperation, ManageJiraParams, manage_jira_integration,
 };
 use anyhow::{Context, Result, anyhow};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -45,7 +45,7 @@ pub struct JiraConfig {
     pub mapping: ColumnMapping,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum JiraMode {
     /// Generate plan only, no API calls
@@ -118,7 +118,7 @@ impl JiraConfig {
             .unwrap_or("JIRA_TOKEN")
             .to_string();
 
-        let auth_token = std::env::var(&auth_token_env).context(format!(
+        let _auth_token = std::env::var(&auth_token_env).context(format!(
             "Missing Jira auth token in env var: {}",
             auth_token_env
         ))?;
@@ -383,14 +383,14 @@ pub struct GeneratedFileInfo {
 }
 
 /// Jira stage execution result
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct JiraStageResult {
     pub mode: JiraMode,
     pub duration_ms: u64,
     pub details: JiraStageDetails,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JiraStageDetails {
     DryRun(JiraPlan),
@@ -398,14 +398,14 @@ pub enum JiraStageDetails {
     Synced(SyncTicketsResult),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct JiraPlan {
     pub project_key: String,
     pub tickets: Vec<JiraTicketPlan>,
     pub dry_run: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct JiraTicketPlan {
     pub summary: String,
     pub description: String,
@@ -413,7 +413,7 @@ pub struct JiraTicketPlan {
     pub component: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct CreateTicketsResult {
     pub created_count: usize,
     pub failed_count: usize,
@@ -421,7 +421,7 @@ pub struct CreateTicketsResult {
     pub notes: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SyncTicketsResult {
     pub created: usize,
     pub updated: usize,

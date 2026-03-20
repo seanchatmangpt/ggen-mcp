@@ -17,7 +17,6 @@
 //! - Error context per row
 
 use crate::audit::integration::audit_tool;
-use crate::error::{ErrorCode, McpError as CustomMcpError};
 use crate::model::WorkbookId;
 use crate::state::AppState;
 use crate::validation::{validate_non_empty_string, validate_numeric_range};
@@ -235,7 +234,7 @@ impl CreateJiraTicketsParams {
         self.jira_auth.validate()?;
         self.column_mapping.validate()?;
 
-        validate_numeric_range("start_row", self.start_row as usize, 1, 1_048_576)?;
+        validate_numeric_range("start_row", self.start_row, 1u32, 1_048_576u32)?;
 
         if self.max_tickets == 0 || self.max_tickets > MAX_BATCH_SIZE {
             return Err(anyhow!(
@@ -538,7 +537,7 @@ fn get_cell_value(sheet: &umya_spreadsheet::Worksheet, column: &str, row: u32) -
     let cell_ref = format!("{}{}", column, row);
     sheet
         .get_cell(cell_ref.as_str())
-        .and_then(|cell| cell.get_value().as_ref().map(|v| v.to_string()))
+        .map(|cell| cell.get_value().to_string())
         .unwrap_or_default()
 }
 

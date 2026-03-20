@@ -35,7 +35,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use oxigraph::model::{
-    Literal, NamedNode, NamedOrBlankNode, Term, Triple,
+    Literal, NamedNode, NamedOrBlankNode, Subject, Term, Triple,
     vocab::{rdf, xsd},
 };
 use oxigraph::store::Store;
@@ -725,7 +725,7 @@ impl ReferenceChecker {
         let mut visited = HashSet::new();
         let mut path = Vec::new();
 
-        for quad in store.quads_for_pattern(None, Some(property), None, None) {
+        for quad in store.quads_for_pattern(None, Some(property.as_ref()), None, None) {
             let quad = quad?;
             if let Subject::NamedNode(start) = &quad.subject {
                 self.dfs_cycle_detection(
@@ -776,7 +776,7 @@ impl ReferenceChecker {
         path.push(current_str.clone());
 
         for quad in
-            store.quads_for_pattern(Some(current.clone().into()), Some(property), None, None)
+            store.quads_for_pattern(Some(current.as_ref().into()), Some(property.as_ref()), None, None)
         {
             let quad = quad?;
             match &quad.object {
@@ -814,7 +814,7 @@ impl TypeChecker {
                 .map_err(|e| anyhow!("Invalid abstract type URI {}: {}", abstract_type_uri, e))?;
 
             for quad in
-                store.quads_for_pattern(None, Some(rdf::TYPE), Some(type_node.into()), None)
+                store.quads_for_pattern(None, Some(rdf::TYPE), Some(type_node.as_ref().into()), None)
             {
                 let quad = quad?;
                 report.add_violation(
@@ -878,7 +878,7 @@ impl TypeChecker {
     pub fn get_types(&self, store: &Store, subject: &NamedOrBlankNode) -> Result<Vec<NamedNode>> {
         let mut types = Vec::new();
 
-        for quad in store.quads_for_pattern(Some(subject.clone()), Some(rdf::TYPE), None, None) {
+        for quad in store.quads_for_pattern(Some(subject.as_ref()), Some(rdf::TYPE), None, None) {
             let quad = quad?;
             match &quad.object {
                 Term::NamedNode(type_node) => {

@@ -18,22 +18,19 @@
 //! Input validation. Poka-yoke patterns. Fork-based atomic transactions.
 
 use crate::audit::integration::audit_tool;
-use crate::error::{ErrorCode, McpError as CustomMcpError};
 use crate::model::WorkbookId;
 use crate::state::AppState;
 use crate::tools::jira_export::{JiraAuth, JiraColumnMapping};
 use crate::tools::jira_integration::{
     ConflictResolution, JiraClient, JiraSyncColumnMapping, SyncReport,
 };
-use crate::validation::{validate_non_empty_string, validate_numeric_range};
-use anyhow::{Context, Result, anyhow, bail};
+use crate::validation::validate_non_empty_string;
+use anyhow::{Context, Result, anyhow};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::info;
 
 // =============================================================================
 // Constants
@@ -62,7 +59,7 @@ pub struct ManageJiraParams {
     pub operation: JiraOperation,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JiraOperation {
     /// Execute JQL query, return ticket data
@@ -128,7 +125,7 @@ pub enum JiraOperation {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DashboardView {
     Summary,
@@ -569,18 +566,18 @@ async fn handle_import_tickets(
 }
 
 async fn handle_sync_to_spreadsheet(
-    state: Arc<AppState>,
-    fork_id: &str,
-    sheet_name: &str,
+    _state: Arc<AppState>,
+    _fork_id: &str,
+    _sheet_name: &str,
     _client: &JiraClient,
-    jql_query: String,
-    column_mapping: JiraSyncColumnMapping,
-    start_row: usize,
-    conflict_resolution: ConflictResolution,
+    _jql_query: String,
+    _column_mapping: JiraSyncColumnMapping,
+    _start_row: usize,
+    _conflict_resolution: ConflictResolution,
 ) -> Result<(JiraOperationResult, usize)> {
     info!(
         "Syncing Jira → Spreadsheet (fork: {}, sheet: {})",
-        fork_id, sheet_name
+        _fork_id, _sheet_name
     );
 
     // Delegate to existing jira_integration logic
@@ -592,17 +589,17 @@ async fn handle_sync_to_spreadsheet(
     #[cfg(feature = "recalc")]
     {
         let params = crate::tools::jira_integration::SyncJiraToSpreadsheetParams {
-            fork_id: fork_id.to_string(),
-            sheet_name: sheet_name.to_string(),
+            fork_id: _fork_id.to_string(),
+            sheet_name: _sheet_name.to_string(),
             jira_base_url: _client.base_url.clone(),
             jira_auth_token: _client.auth_token.clone(),
-            jql_query,
-            column_mapping,
-            start_row,
-            conflict_resolution,
+            jql_query: _jql_query,
+            column_mapping: _column_mapping,
+            start_row: _start_row,
+            conflict_resolution: _conflict_resolution,
         };
 
-        let response = crate::tools::jira_integration::sync_jira_to_spreadsheet(state, params).await?;
+        let response = crate::tools::jira_integration::sync_jira_to_spreadsheet(_state, params).await?;
 
         let api_calls = response.report.created + response.report.updated;
 

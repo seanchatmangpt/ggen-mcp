@@ -207,7 +207,7 @@ impl ResultSetValidator {
         // Check for required variables
         for spec in &self.variables {
             if spec.required {
-                match solution.get(&spec.name) {
+                match solution.get(spec.name.as_str()) {
                     None => {
                         return Err(ValidationError::UnboundRequired(spec.name.clone()));
                     }
@@ -222,7 +222,7 @@ impl ResultSetValidator {
                         }
                     }
                 }
-            } else if let Some(term) = solution.get(&spec.name) {
+            } else if let Some(term) = solution.get(spec.name.as_str()) {
                 // Type check optional variables if present
                 if !spec.expected_type.matches(term) {
                     return Err(ValidationError::TypeMismatch(
@@ -258,14 +258,14 @@ impl ResultSetValidator {
         // Check for duplicates
         let mut seen_values: HashMap<String, HashSet<String>> = HashMap::new();
 
-        for solution in &results {
+        for solution in results {
             // Validate individual solution
             self.validate_solution(solution)?;
 
             // Check for duplicates
             for spec in &self.variables {
                 if !spec.allow_duplicates {
-                    if let Some(term) = solution.get(&spec.name) {
+                    if let Some(term) = solution.get(spec.name.as_str()) {
                         let value = term.to_string();
                         let values = seen_values.entry(spec.name.clone()).or_default();
 
@@ -315,7 +315,6 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
-        Term::Triple(_) => "Triple".to_string(),
     }
 }
 

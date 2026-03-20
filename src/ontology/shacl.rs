@@ -367,7 +367,7 @@ impl<'a> ShapeDiscovery<'a> {
     fn has_type(&self, node: &NamedNode, class: &NamedNode, store: &Store) -> Result<bool> {
         let rdf_type = NamedNode::new_unchecked(format!("{}type", RDF_NS));
         let quad = QuadRef::new(node, &rdf_type, class, GraphNameRef::DefaultGraph);
-        Ok(store.contains(&quad)?)
+        Ok(store.contains(quad)?)
     }
 
     fn is_subject_of(
@@ -473,7 +473,7 @@ impl<'a> ShapeDiscovery<'a> {
         let sh_path = NamedNode::new_unchecked(format!("{}path", SH_NS));
 
         // Get the path (required)
-        let path = match self.get_object(prop_id.into(), &sh_path)? {
+        let path = match self.get_object::<&BlankNode>(prop_id, &sh_path)? {
             Some(Term::NamedNode(n)) => n,
             _ => return Ok(None),
         };
@@ -482,32 +482,32 @@ impl<'a> ShapeDiscovery<'a> {
 
         // Load constraints
         prop.datatype =
-            self.get_named_node_value(&prop_id.clone().into(), &format!("{}datatype", SH_NS))?;
+            self.get_named_node_value::<&BlankNode>(prop_id, &format!("{}datatype", SH_NS))?;
         prop.class =
-            self.get_named_node_value(&prop_id.clone().into(), &format!("{}class", SH_NS))?;
+            self.get_named_node_value::<&BlankNode>(prop_id, &format!("{}class", SH_NS))?;
         prop.min_count =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}minCount", SH_NS))?;
+            self.get_integer_value::<&BlankNode>(prop_id, &format!("{}minCount", SH_NS))?;
         prop.max_count =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}maxCount", SH_NS))?;
+            self.get_integer_value::<&BlankNode>(prop_id, &format!("{}maxCount", SH_NS))?;
         prop.pattern =
-            self.get_string_value(&prop_id.clone().into(), &format!("{}pattern", SH_NS))?;
+            self.get_string_value::<&BlankNode>(prop_id, &format!("{}pattern", SH_NS))?;
         prop.min_length =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}minLength", SH_NS))?;
+            self.get_integer_value::<&BlankNode>(prop_id, &format!("{}minLength", SH_NS))?;
         prop.max_length =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}maxLength", SH_NS))?;
-        prop.name = self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}name", SH_NS))?;
+            self.get_integer_value::<&BlankNode>(prop_id, &format!("{}maxLength", SH_NS))?;
+        prop.name = self.get_string_value::<&BlankNode>(prop_id, &format!("{}name", SH_NS))?;
         prop.message =
-            self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}message", SH_NS))?;
+            self.get_string_value::<&BlankNode>(prop_id, &format!("{}message", SH_NS))?;
 
         // Load numeric range constraints
         prop.min_inclusive =
-            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}minInclusive", SH_NS))?;
+            self.get_literal_value::<&BlankNode>(prop_id, &format!("{}minInclusive", SH_NS))?;
         prop.max_inclusive =
-            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}maxInclusive", SH_NS))?;
+            self.get_literal_value::<&BlankNode>(prop_id, &format!("{}maxInclusive", SH_NS))?;
 
         // Load sh:in values
-        if let Some(list_head) = self.get_object(
-            prop_id.into(),
+        if let Some(list_head) = self.get_object::<&BlankNode>(
+            prop_id,
             &NamedNode::new_unchecked(format!("{}in", SH_NS)),
         )? {
             prop.in_values = self.parse_rdf_list(&list_head)?;
@@ -515,7 +515,7 @@ impl<'a> ShapeDiscovery<'a> {
 
         // Load sh:uniqueLang
         if let Some(unique_lang) =
-            self.get_boolean_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}uniqueLang", SH_NS))?
+            self.get_boolean_value::<&BlankNode>(prop_id, &format!("{}uniqueLang", SH_NS))?
         {
             prop.unique_lang = unique_lang;
         }
@@ -640,11 +640,11 @@ impl<'a> ShapeDiscovery<'a> {
             match &current {
                 Term::BlankNode(node) => {
                     // Get first
-                    if let Some(first) = self.get_object(&node.clone().into(), &rdf_first)? {
+                    if let Some(first) = self.get_object::<&BlankNode>(node, &rdf_first)? {
                         values.push(first);
                     }
                     // Get rest
-                    if let Some(rest) = self.get_object(&node.clone().into(), &rdf_rest)? {
+                    if let Some(rest) = self.get_object::<&BlankNode>(node, &rdf_rest)? {
                         current = rest;
                     } else {
                         break;
@@ -761,7 +761,7 @@ impl<'a> ConstraintChecker<'a> {
         // Check sh:datatype
         if let Some(expected_datatype) = &property.datatype {
             if let Term::Literal(lit) = value {
-                if lit.datatype().as_ref() != expected_datatype.as_ref() {
+                if lit.datatype() != expected_datatype.as_ref() {
                     let message = property
                         .message
                         .as_ref()
@@ -1069,8 +1069,8 @@ impl<'a> CustomConstraints<'a> {
             None,
         ) {
             if let Ok(quad) = quad {
-                if let Some(lit) = quad.object.as_literal() {
-                    let invariant = lit.value();
+                if let Term::Literal(lit) = &quad.object {
+                    let invariant: &str = lit.value();
                     // In a real implementation, you would evaluate the invariant
                     // For now, we just log that an invariant exists
                     results.push(
@@ -1283,11 +1283,11 @@ impl ShapeValidator {
         let data_store = Store::new()?;
         
         // Try to parse as Turtle first (if TripleStore supports it)
-        // Otherwise, parse JSON-LD and convert
+        // Otherwise, try N-Triples format as fallback
         if let Err(_) = data_store.load_from_reader(oxigraph::io::RdfFormat::Turtle, json_result.as_bytes()) {
-            // If Turtle parsing fails, try JSON-LD
+            // If Turtle parsing fails, try N-Triples
             data_store
-                .load_from_reader(oxigraph::io::RdfFormat::JsonLd, json_result.as_bytes())
+                .load_from_reader(oxigraph::io::RdfFormat::NTriples, json_result.as_bytes())
                 .context("Failed to load TripleStore data into Store for validation")?;
         }
         

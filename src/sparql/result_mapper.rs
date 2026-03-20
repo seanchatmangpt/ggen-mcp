@@ -3,10 +3,10 @@
 // =============================================================================
 // Map SPARQL query results to Rust types with validation and error accumulation
 
+use super::result_validation::ValidationError;
 use super::typed_binding::{BindingError, TypedBinding};
 use oxigraph::sparql::QuerySolution;
 use std::collections::HashMap;
-use std::fmt;
 use thiserror::Error;
 
 /// Errors that can occur during result mapping
@@ -28,6 +28,12 @@ pub enum MappingError {
     Custom(String),
 }
 
+impl From<ValidationError> for MappingError {
+    fn from(err: ValidationError) -> Self {
+        MappingError::Validation(err.to_string())
+    }
+}
+
 /// Trait for types that can be constructed from a SPARQL query solution
 ///
 /// This trait can be implemented manually or derived using the FromSparql derive macro
@@ -39,7 +45,7 @@ pub trait FromSparql: Sized {
     fn from_binding(binding: &TypedBinding) -> Result<Self, MappingError> {
         // Default implementation uses from_solution
         // Can be overridden for optimization
-        Self::from_solution(binding.solution)
+        Self::from_solution(binding.solution())
     }
 }
 

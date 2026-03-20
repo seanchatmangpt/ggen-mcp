@@ -13,6 +13,7 @@
 
 use crate::ontology::shacl::ShapeValidator;
 use anyhow::{Context, Result};
+#[allow(deprecated)]
 use oxigraph::sparql::{Query, QueryResults};
 use oxigraph::store::Store;
 use std::marker::PhantomData;
@@ -147,6 +148,7 @@ impl OntologyStore<Validated> {
     ///
     /// # Errors
     /// Returns `Err` if query execution fails
+    #[allow(deprecated)]
     pub fn execute_sparql(&self, query: &Query) -> Result<QueryResults> {
         // Convert &Query to owned Query for the deprecated query method
         let query_owned = query.clone();

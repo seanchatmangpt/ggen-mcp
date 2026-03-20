@@ -412,7 +412,7 @@ impl SparqlSafetyExecutor {
         query: &str,
         store: &Store,
         query_id: String,
-    ) -> Result<(QueryResults, PerformanceMetrics), McpError> {
+    ) -> Result<(QueryResults<'static>, PerformanceMetrics), McpError> {
         let mut profiler = QueryProfiler::new(query_id);
         profiler.start();
 
@@ -434,7 +434,7 @@ impl SparqlSafetyExecutor {
 
         // Record result size (approximate for iterators)
         let result_size = match &results {
-            QueryResults::Solutions(solutions) => {
+            QueryResults::Solutions(_solutions) => {
                 // We can't know the size without consuming the iterator
                 // Use a placeholder
                 0

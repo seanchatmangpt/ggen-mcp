@@ -1074,7 +1074,7 @@ impl SafeRenderer {
         context: &RenderContext,
     ) -> Result<String, RenderingError> {
         let mut guard = RenderGuard::new();
-        let mut recovery = ErrorRecovery::new(self.config.allow_partial_rendering);
+        let _recovery = ErrorRecovery::new(self.config.allow_partial_rendering);
 
         // Check recursion depth
         context.check_recursion_depth(self.config.max_recursion_depth)?;
@@ -1097,7 +1097,7 @@ impl SafeRenderer {
         let has_critical = OutputValidator::has_critical_errors(&validation_errors);
 
         if has_critical {
-            let error_msg = OutputValidator::format_errors(&validation_errors);
+            let _error_msg = OutputValidator::format_errors(&validation_errors);
             return Err(RenderingError::ValidationFailed {
                 errors: validation_errors
                     .iter()
@@ -1107,7 +1107,7 @@ impl SafeRenderer {
         }
 
         // Update metrics
-        let mut metrics = RenderMetrics {
+        let metrics = RenderMetrics {
             duration: start.elapsed(),
             output_size: output.len(),
             includes_count: context.recursion_depth(), // Track includes via recursion depth

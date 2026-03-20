@@ -922,7 +922,7 @@ impl TemplateRegistry {
         let template_dir = template_dir.as_ref().to_path_buf();
         let pattern = template_dir.join("**/*.tera");
 
-        let mut tera = Tera::new(pattern.to_str().unwrap())
+        let tera = Tera::new(pattern.to_str().unwrap())
             .with_context(|| format!("failed to load templates from {:?}", template_dir))?;
 
         let validator = TemplateValidator::new(&template_dir)?;
