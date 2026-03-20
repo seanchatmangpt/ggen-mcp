@@ -33,12 +33,11 @@
 //! }
 //! ```
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow};
 use oxigraph::model::{
-    BlankNode, Graph, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term, Triple,
-    vocab::{rdf, rdfs, xsd},
+    Literal, NamedNode, NamedOrBlankNode, Term, Triple,
+    vocab::{rdf, xsd},
 };
-use oxigraph::sparql::QueryResults;
 use oxigraph::store::Store;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -426,7 +425,7 @@ impl GraphIntegrityChecker {
 
             // Find all instances of this class
             for quad in
-                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(class_node.into()), None)
+                store.quads_for_pattern(None, Some(rdf::TYPE), Some(class_node.as_ref().into()), None)
             {
                 let quad = quad?;
                 let instance = &quad.subject;
@@ -437,7 +436,7 @@ impl GraphIntegrityChecker {
                         .map_err(|e| anyhow!("Invalid property URI {}: {}", prop_uri, e))?;
 
                     let has_property = store
-                        .quads_for_pattern(Some(instance.clone()), Some(&prop_node), None, None)
+                        .quads_for_pattern(Some(instance.as_ref()), Some(prop_node.as_ref()), None, None)
                         .next()
                         .is_some();
 
@@ -484,11 +483,10 @@ impl TripleValidator {
     }
 
     /// Validate subject (must be IRI or blank node, not literal)
-    fn validate_subject(&self, subject: &Subject) -> Result<(), IntegrityError> {
+    fn validate_subject(&self, subject: &NamedOrBlankNode) -> Result<(), IntegrityError> {
         match subject {
-            Subject::NamedNode(node) => self.validate_iri(node.as_str()),
-            Subject::BlankNode(_) => Ok(()), // Blank nodes are always valid
-            Subject::Triple(_) => Ok(()),    // RDF-star triples are valid subjects
+            NamedOrBlankNode::NamedNode(node) => self.validate_iri(node.as_str()),
+            NamedOrBlankNode::BlankNode(_) => Ok(()), // Blank nodes are always valid
         }
     }
 
@@ -503,7 +501,7 @@ impl TripleValidator {
             Term::NamedNode(node) => self.validate_iri(node.as_str()),
             Term::BlankNode(_) => Ok(()), // Blank nodes are always valid
             Term::Literal(literal) => self.validate_literal(literal),
-            Term::Triple(_) => Ok(()), // RDF-star triples are valid objects
+            // Note: Term::Triple removed in oxigraph 0.5.x (RDF-star not supported)
         }
     }
 
@@ -534,11 +532,12 @@ impl TripleValidator {
 
     /// Validate literal
     fn validate_literal(&self, literal: &Literal) -> Result<(), IntegrityError> {
-        // Validate datatype if present
-        if let Some(datatype) = literal.datatype() {
-            self.validate_iri(datatype.as_str())?;
+        // Validate datatype
+        let datatype = literal.datatype();
+        self.validate_iri(datatype.as_str())?;
 
-            // Validate common XSD datatypes
+        // Validate common XSD datatypes
+        {
             if datatype == xsd::INTEGER || datatype == xsd::INT || datatype == xsd::LONG {
                 if literal.value().parse::<i64>().is_err() {
                     return Err(IntegrityError::InvalidLiteral(format!(
@@ -678,16 +677,16 @@ impl ReferenceChecker {
                 .map_err(|e| anyhow!("Invalid inverse property URI {}: {}", inverse_uri, e))?;
 
             // Check all instances of the property
-            for quad in store.quads_for_pattern(None, Some(&prop_node), None, None) {
+            for quad in store.quads_for_pattern(None, Some(prop_node.as_ref()), None, None) {
                 let quad = quad?;
 
                 // Check if inverse exists
                 if let Term::NamedNode(obj) = &quad.object {
                     let has_inverse = store
                         .quads_for_pattern(
-                            Some(obj.clone().into()),
-                            Some(&inverse_node),
-                            Some(quad.subject.clone().into()),
+                            Some(obj.as_ref().into()),
+                            Some(inverse_node.as_ref()),
+                            Some(quad.subject.as_ref().into()),
                             None,
                         )
                         .next()
@@ -815,7 +814,7 @@ impl TypeChecker {
                 .map_err(|e| anyhow!("Invalid abstract type URI {}: {}", abstract_type_uri, e))?;
 
             for quad in
-                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(type_node.into()), None)
+                store.quads_for_pattern(None, Some(rdf::TYPE), Some(type_node.into()), None)
             {
                 let quad = quad?;
                 report.add_violation(
@@ -845,7 +844,7 @@ impl TypeChecker {
         let mut subject_types: HashMap<String, Vec<String>> = HashMap::new();
 
         // Collect all type assertions
-        for quad in store.quads_for_pattern(None, Some(&*rdf::TYPE), None, None) {
+        for quad in store.quads_for_pattern(None, Some(rdf::TYPE), None, None) {
             let quad = quad?;
             match &quad.object {
                 Term::NamedNode(type_node) => {
@@ -879,7 +878,7 @@ impl TypeChecker {
     pub fn get_types(&self, store: &Store, subject: &NamedOrBlankNode) -> Result<Vec<NamedNode>> {
         let mut types = Vec::new();
 
-        for quad in store.quads_for_pattern(Some(subject.clone()), Some(&*rdf::TYPE), None, None) {
+        for quad in store.quads_for_pattern(Some(subject.clone()), Some(rdf::TYPE), None, None) {
             let quad = quad?;
             match &quad.object {
                 Term::NamedNode(type_node) => {

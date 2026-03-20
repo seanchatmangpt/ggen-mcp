@@ -16,13 +16,12 @@ use opentelemetry::{
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     Resource,
-    trace::{RandomIdGenerator, Sampler, TracerProvider},
+    trace::{RandomIdGenerator, Sampler, TracerProvider, Tracer},
 };
 use std::env;
 use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
-use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
     EnvFilter, Layer,
