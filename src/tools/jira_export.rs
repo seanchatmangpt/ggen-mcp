@@ -75,7 +75,7 @@ fn default_max_tickets() -> usize {
     100
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JiraAuth {
     Bearer {
@@ -89,7 +89,7 @@ pub enum JiraAuth {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JiraColumnMapping {
     pub summary_column: String,
     pub description_column: String,

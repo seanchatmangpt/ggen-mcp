@@ -28,8 +28,13 @@ pub mod services;
 pub mod value_objects;
 
 // Re-export all public types at domain level
+#[allow(unused_imports)]
 pub use aggregates::*;
+#[allow(unused_imports)]
 pub use entities::*;
+#[allow(unused_imports)]
 pub use events::*;
+#[allow(unused_imports)]
 pub use services::*;
+#[allow(unused_imports)]
 pub use value_objects::*;

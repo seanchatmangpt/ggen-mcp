@@ -174,19 +174,19 @@ impl ReportGenerator {
         report.push_str("Address the following issues to pass all checks:\n\n");
 
         // Group by priority
-        let mut critical: Vec<_> = suggestions
+        let critical: Vec<_> = suggestions
             .iter()
             .filter(|s| s.priority == Priority::Critical)
             .collect();
-        let mut high: Vec<_> = suggestions
+        let high: Vec<_> = suggestions
             .iter()
             .filter(|s| s.priority == Priority::High)
             .collect();
-        let mut medium: Vec<_> = suggestions
+        let medium: Vec<_> = suggestions
             .iter()
             .filter(|s| s.priority == Priority::Medium)
             .collect();
-        let mut low: Vec<_> = suggestions
+        let low: Vec<_> = suggestions
             .iter()
             .filter(|s| s.priority == Priority::Low)
             .collect();

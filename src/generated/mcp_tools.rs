@@ -15,11 +15,9 @@
 //! - Timeout wrapper for tool execution
 
 use crate::model::*;
-use crate::state::AppState;
 use crate::tools;
 use anyhow::Result;
-use rmcp::{ErrorData as McpError, Json, handler::server::wrapper::Parameters, tool};
-use std::sync::Arc;
+use rmcp::{ErrorData as McpError, Json, handler::server::wrapper::Parameters};
 
 use super::mcp_tool_params::*;
 
@@ -31,13 +29,9 @@ fn to_mcp_error(error: anyhow::Error) -> McpError {
 /// Handler for the `list_workbooks` tool
 ///
 /// List spreadsheet files in the workspace
-#[tool(
-    name = "list_workbooks",
-    description = "List spreadsheet files in the workspace"
-)]
 pub async fn list_workbooks(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<ListWorkbooksParams>,
+    params: ListWorkbooksParams,
 ) -> Result<Json<WorkbookListResponse>, McpError> {
     server
         .ensure_tool_enabled("list_workbooks")
@@ -55,10 +49,9 @@ pub async fn list_workbooks(
 /// Handler for the `describe_workbook` tool
 ///
 /// Describe workbook metadata
-#[tool(name = "describe_workbook", description = "Describe workbook metadata")]
 pub async fn describe_workbook(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<DescribeWorkbookParams>,
+    params: DescribeWorkbookParams,
 ) -> Result<Json<WorkbookDescription>, McpError> {
     server
         .ensure_tool_enabled("describe_workbook")
@@ -76,13 +69,9 @@ pub async fn describe_workbook(
 /// Handler for the `workbook_summary` tool
 ///
 /// Summarize workbook regions and entry points
-#[tool(
-    name = "workbook_summary",
-    description = "Summarize workbook regions and entry points"
-)]
 pub async fn workbook_summary(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<WorkbookSummaryParams>,
+    params: WorkbookSummaryParams,
 ) -> Result<Json<WorkbookSummaryResponse>, McpError> {
     server
         .ensure_tool_enabled("workbook_summary")
@@ -100,10 +89,9 @@ pub async fn workbook_summary(
 /// Handler for the `list_sheets` tool
 ///
 /// List sheets with summaries
-#[tool(name = "list_sheets", description = "List sheets with summaries")]
 pub async fn list_sheets(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<ListSheetsParams>,
+    params: ListSheetsParams,
 ) -> Result<Json<SheetListResponse>, McpError> {
     server
         .ensure_tool_enabled("list_sheets")
@@ -121,13 +109,9 @@ pub async fn list_sheets(
 /// Handler for the `sheet_overview` tool
 ///
 /// Get narrative overview for a sheet
-#[tool(
-    name = "sheet_overview",
-    description = "Get narrative overview for a sheet"
-)]
 pub async fn sheet_overview(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<SheetOverviewParams>,
+    params: SheetOverviewParams,
 ) -> Result<Json<SheetOverviewResponse>, McpError> {
     server
         .ensure_tool_enabled("sheet_overview")
@@ -145,13 +129,9 @@ pub async fn sheet_overview(
 /// Handler for the `read_table` tool
 ///
 /// Read structured data from a range or table
-#[tool(
-    name = "read_table",
-    description = "Read structured data from a range or table"
-)]
 pub async fn read_table(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<ReadTableParams>,
+    params: ReadTableParams,
 ) -> Result<Json<ReadTableResponse>, McpError> {
     server
         .ensure_tool_enabled("read_table")
@@ -169,10 +149,9 @@ pub async fn read_table(
 /// Handler for the `table_profile` tool
 ///
 /// Profile a region or table
-#[tool(name = "table_profile", description = "Profile a region or table")]
 pub async fn table_profile(
     server: &crate::server::SpreadsheetServer,
-    Parameters(params): Parameters<TableProfileParams>,
+    params: TableProfileParams,
 ) -> Result<Json<TableProfileResponse>, McpError> {
     server
         .ensure_tool_enabled("table_profile")

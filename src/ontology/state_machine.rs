@@ -59,7 +59,7 @@ impl OntologyStore<Unvalidated> {
     }
 
     /// Load ontology from a Turtle file
-    pub fn load_from_file<P: AsRef<Path>>(mut self, path: P) -> Result<Self> {
+    pub fn load_from_file<P: AsRef<Path>>(self, path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path.as_ref())
             .with_context(|| format!("Failed to read ontology file: {:?}", path.as_ref()))?;
 
@@ -71,7 +71,7 @@ impl OntologyStore<Unvalidated> {
     }
 
     /// Load ontology from Turtle string
-    pub fn load_from_turtle(mut self, turtle: &str) -> Result<Self> {
+    pub fn load_from_turtle(self, turtle: &str) -> Result<Self> {
         self.store
             .load_from_reader(oxigraph::io::RdfFormat::Turtle, turtle.as_bytes())
             .context("Failed to parse Turtle content")?;

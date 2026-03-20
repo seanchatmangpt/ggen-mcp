@@ -4,7 +4,7 @@
 // Validates CONSTRUCT query results and RDF graphs
 // Implements poka-yoke error-proofing for graph structures
 
-use oxigraph::model::{Graph, NamedOrBlankNode, Term, Triple};
+use oxigraph::model::{Graph, NamedOrBlankNode, NamedOrBlankNodeRef, Term, TermRef, Triple};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
@@ -291,8 +291,8 @@ impl GraphValidator {
         // If we have patterns, at least one must match
         if !self.patterns.is_empty() {
             let matches = self.patterns.iter().any(|pattern| {
-                pattern.subject_type.matches((&triple.subject).into())
-                    && pattern.object_type.matches((&triple.object).into())
+                pattern.subject_type.matches(triple.subject.as_ref())
+                    && pattern.object_type.matches(triple.object.as_ref())
                     && if let Some(ref pred) = pattern.predicate {
                         triple.predicate.as_str() == pred
                     } else {
@@ -325,7 +325,7 @@ impl GraphValidator {
                 .or_default()
                 .entry(predicate_str)
                 .or_default()
-                .push(triple.object.into_owned());
+                .push(Term::from(triple.object));
         }
 
         // Check each subject against its property specs
@@ -351,7 +351,7 @@ impl GraphValidator {
                         // Validate object types
                         if let Some(objects) = properties.get(&spec.predicate) {
                             for object in objects {
-                                if !spec.object_type.matches(object.as_ref()) {
+                                if !spec.object_type.matches(object.into()) {
                                     return Err(GraphValidationError::InvalidObjectType {
                                         expected: format!("{:?}", spec.object_type),
                                         actual: object.to_string(),
@@ -397,7 +397,7 @@ impl GraphValidator {
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
 
         for triple in graph.iter() {
-            if let oxigraph::model::TermRef::NamedNode(obj_node) = triple.object {
+            if let TermRef::NamedNode(obj_node) = triple.object {
                 let subject_str = triple.subject.to_string();
                 let object_str = obj_node.as_str().to_string();
 
@@ -451,11 +451,11 @@ impl GraphValidator {
 
         // Collect all blank nodes and references
         for triple in graph.iter() {
-            if let oxigraph::model::NamedOrBlankNodeRef::BlankNode(bn) = triple.subject {
+            if let NamedOrBlankNodeRef::BlankNode(bn) = triple.subject {
                 blank_nodes.insert(bn.as_str().to_string());
             }
 
-            if let oxigraph::model::TermRef::BlankNode(bn) = triple.object {
+            if let TermRef::BlankNode(bn) = triple.object {
                 referenced_blanks.insert(bn.as_str().to_string());
             }
         }
@@ -464,7 +464,7 @@ impl GraphValidator {
         for bn in blank_nodes.difference(&referenced_blanks) {
             // Allow if blank node appears as subject (it's a root)
             let has_incoming = graph.iter().any(|t| {
-                if let oxigraph::model::TermRef::BlankNode(obj_bn) = t.object {
+                if let TermRef::BlankNode(obj_bn) = t.object {
                     obj_bn.as_str() == bn
                 } else {
                     false
@@ -474,7 +474,7 @@ impl GraphValidator {
             if !has_incoming {
                 // Check if it has outgoing edges (not completely orphaned)
                 let has_outgoing = graph.iter().any(|t| {
-                    if let oxigraph::model::NamedOrBlankNodeRef::BlankNode(subj_bn) = t.subject {
+                    if let NamedOrBlankNodeRef::BlankNode(subj_bn) = t.subject {
                         subj_bn.as_str() == bn
                     } else {
                         false
@@ -520,10 +520,10 @@ mod tests {
     #[test]
     fn test_subject_type_matches() {
         let iri_type = SubjectType::IRI;
-        let named_node = NamedNode::new("http://example.org/test").unwrap();
-        let subject = Subject::NamedNode(named_node);
+        let named_node = oxigraph::model::NamedNode::new("http://example.org/test").unwrap();
+        let subject = NamedOrBlankNode::NamedNode(named_node);
 
-        assert!(iri_type.matches(&subject));
+        assert!(iri_type.matches(subject.as_ref()));
     }
 
     #[test]

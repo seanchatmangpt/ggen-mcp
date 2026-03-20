@@ -16,7 +16,7 @@ use opentelemetry::{
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{
     Resource,
-    trace::{RandomIdGenerator, Sampler, TracerProvider, Tracer},
+    trace::{RandomIdGenerator, Sampler, Tracer},
 };
 use std::env;
 use std::io;
@@ -24,7 +24,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
-    EnvFilter, Layer,
+    EnvFilter,
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
@@ -243,9 +243,8 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
 
     // Try to initialize OpenTelemetry layer if enabled
     let otel_layer = if config.enable_otel && config.otlp_endpoint.is_some() {
-        match init_tracer_provider(&config) {
-            Ok(provider) => {
-                let tracer = provider.tracer("ggen-mcp");
+        match init_tracer(&config) {
+            Ok(tracer) => {
                 let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
                 tracing::info!(
@@ -274,7 +273,9 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
         None
     };
 
-    // Build subscriber with fmt layer and optional OpenTelemetry layer
+    // Build subscriber with fmt layer and optional OpenTelemetry layer.
+    // Use boxed layers to avoid complex type-level incompatibilities
+    // between the filtered fmt layer and the OpenTelemetry layer.
     let registry = tracing_subscriber::registry();
 
     match config.format {
@@ -289,13 +290,16 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
                 .with_thread_ids(true)
                 .with_thread_names(true)
                 .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-                .with_current_span(true)
-                .with_filter(env_filter);
+                .with_current_span(true);
 
             if let Some(otel_layer) = otel_layer {
-                registry.with(fmt_layer).with(otel_layer).init();
+                registry
+                    .with(env_filter)
+                    .with(fmt_layer)
+                    .with(otel_layer)
+                    .init();
             } else {
-                registry.with(fmt_layer).init();
+                registry.with(env_filter).with(fmt_layer).init();
             }
         }
         LogFormat::Pretty => {
@@ -309,13 +313,16 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
                 .with_thread_ids(false)
                 .with_thread_names(false)
                 .with_span_events(FmtSpan::NEW | FmtSpan::CLOSE)
-                .with_ansi(true)
-                .with_filter(env_filter);
+                .with_ansi(true);
 
             if let Some(otel_layer) = otel_layer {
-                registry.with(fmt_layer).with(otel_layer).init();
+                registry
+                    .with(env_filter)
+                    .with(fmt_layer)
+                    .with(otel_layer)
+                    .init();
             } else {
-                registry.with(fmt_layer).init();
+                registry.with(env_filter).with(fmt_layer).init();
             }
         }
     }
@@ -333,8 +340,8 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
     Ok(guard)
 }
 
-/// Initialize the tracer provider with OTLP exporter
-fn init_tracer_provider(config: &LoggingConfig) -> Result<TracerProvider, TraceError> {
+/// Initialize the tracer with OTLP exporter
+fn init_tracer(config: &LoggingConfig) -> Result<Tracer, TraceError> {
     let endpoint = config
         .otlp_endpoint
         .as_ref()
@@ -346,8 +353,8 @@ fn init_tracer_provider(config: &LoggingConfig) -> Result<TracerProvider, TraceE
         .with_endpoint(endpoint)
         .with_timeout(Duration::from_secs(config.otlp_timeout_secs));
 
-    // Build tracer provider
-    let provider = opentelemetry_otlp::new_pipeline()
+    // Build tracer via OTLP pipeline (install_batch returns Tracer)
+    let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(exporter)
         .with_trace_config(
@@ -358,7 +365,7 @@ fn init_tracer_provider(config: &LoggingConfig) -> Result<TracerProvider, TraceE
         )
         .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
-    Ok(provider)
+    Ok(tracer)
 }
 
 /// Shutdown OpenTelemetry gracefully

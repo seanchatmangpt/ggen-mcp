@@ -78,6 +78,7 @@ pub mod mcp_tool_params;
 pub mod mcp_tools;
 
 // Re-export commonly used types for convenience
+#[allow(unused_imports)]
 pub use domain::{aggregates, entities, events, services, value_objects};
 
 // Re-export MCP tool types
@@ -85,6 +86,7 @@ pub use mcp_tool_params::*;
 pub use mcp_tools::*;
 
 /// Prelude module for convenient imports
+#[allow(unused_imports)]
 pub mod prelude {
     pub use super::commands::*;
     pub use super::domain::aggregates::*;

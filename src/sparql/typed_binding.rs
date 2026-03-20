@@ -3,7 +3,7 @@
 // =============================================================================
 // Extract and convert SPARQL bindings to Rust types with comprehensive validation
 
-use oxigraph::model::{BlankNode, Literal, NamedNode, Term};
+use oxigraph::model::Term;
 use oxigraph::sparql::QuerySolution;
 use std::str::FromStr;
 use thiserror::Error;
@@ -141,6 +141,11 @@ impl<'a> TypedBinding<'a> {
     /// Create a new typed binding extractor
     pub fn new(solution: &'a QuerySolution) -> Self {
         Self { solution }
+    }
+
+    /// Get a reference to the underlying query solution
+    pub fn solution(&self) -> &'a QuerySolution {
+        self.solution
     }
 
     /// Get raw term for a variable
@@ -428,11 +433,6 @@ fn term_to_typed_value(term: &Term) -> Result<TypedValue, BindingError> {
                 datatype: datatype.to_string(),
             })
         }
-        Term::Triple(_) => Err(BindingError::UnsupportedType {
-            variable: "unknown".to_string(),
-            expected: "Term".to_string(),
-            found: "Triple".to_string(),
-        }),
     }
 }
 
@@ -448,7 +448,6 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
-        Term::Triple(_) => "Triple".to_string(),
     }
 }
 

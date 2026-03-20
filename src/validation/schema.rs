@@ -9,7 +9,7 @@ use thiserror::Error;
 /// JSON schema validation error
 #[derive(Debug, Error)]
 pub enum SchemaValidationError {
-    #[error("Schema validation failed for tool '{tool}': {errors}")]
+    #[error("Schema validation failed for tool '{tool}': {}", errors.join(", "))]
     ValidationFailed { tool: String, errors: Vec<String> },
 
     #[error("Schema generation failed for tool '{tool}': {error}")]
@@ -90,7 +90,7 @@ impl SchemaValidator {
 
         // Get the actual schema definition (handle $ref if present)
         let definitions = schema_obj.get("definitions");
-        let schema_def = if let Some(ref_path) = schema_obj.get("$ref") {
+        let schema_def: &Value = if let Some(ref_path) = schema_obj.get("$ref") {
             // Handle $ref to definitions
             if let Some(ref_str) = ref_path.as_str() {
                 if let Some(def_name) = ref_str.strip_prefix("#/definitions/") {
@@ -101,13 +101,13 @@ impl SchemaValidator {
                         }
                     })?
                 } else {
-                    schema_obj
+                    schema
                 }
             } else {
-                schema_obj
+                schema
             }
         } else {
-            schema_obj
+            schema
         };
 
         // Validate type
@@ -122,16 +122,16 @@ impl SchemaValidator {
             // Get required fields
             let required_fields: Vec<String> = schema_def
                 .get("required")
-                .and_then(|r| r.as_array())
-                .map(|arr| {
+                .and_then(|r: &Value| r.as_array())
+                .map(|arr: &Vec<Value>| {
                     arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
+                        .filter_map(|v: &Value| v.as_str().map(String::from))
                         .collect()
                 })
                 .unwrap_or_default();
 
             // Get properties schema
-            let properties = schema_def.get("properties").and_then(|p| p.as_object());
+            let properties = schema_def.get("properties").and_then(|p: &Value| p.as_object());
 
             // Check required fields
             for required_field in &required_fields {
@@ -143,7 +143,7 @@ impl SchemaValidator {
             // Validate each property
             if let Some(props) = properties {
                 for (key, value) in params_obj {
-                    if let Some(prop_schema) = props.get(key) {
+                    if let Some(prop_schema) = props.get(key.as_str()) {
                         if let Err(e) =
                             self.validate_property(tool_name, key, value, prop_schema, definitions)
                         {
@@ -153,7 +153,7 @@ impl SchemaValidator {
                         // Check if additional properties are allowed
                         let additional_props = schema_def
                             .get("additionalProperties")
-                            .and_then(|v| v.as_bool())
+                            .and_then(|v: &Value| v.as_bool())
                             .unwrap_or(true);
 
                         if !additional_props {

@@ -143,7 +143,7 @@ impl ParameterType {
             (ParameterType::Object(fields), JsonValue::Object(obj)) => fields
                 .iter()
                 .all(|(k, t)| obj.get(k).map(|v| t.matches(v)).unwrap_or(false)),
-            (ParameterType::Optional(inner), JsonValue::Null) => true,
+            (ParameterType::Optional(_inner), JsonValue::Null) => true,
             (ParameterType::Optional(inner), v) => inner.matches(v),
             (ParameterType::Any, _) => true,
             _ => false,
@@ -176,7 +176,7 @@ impl fmt::Display for ParameterType {
 // ============================================================================
 
 /// Validation rules for parameter values
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ValidationRule {
     /// Minimum length for strings or arrays
     MinLength(usize),
@@ -194,6 +194,21 @@ pub enum ValidationRule {
     OneOf(Vec<JsonValue>),
     /// Value must not be empty (for strings, arrays, objects)
     NotEmpty,
+}
+
+impl fmt::Debug for ValidationRule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ValidationRule::MinLength(n) => f.debug_tuple("MinLength").field(n).finish(),
+            ValidationRule::MaxLength(n) => f.debug_tuple("MaxLength").field(n).finish(),
+            ValidationRule::Min(n) => f.debug_tuple("Min").field(n).finish(),
+            ValidationRule::Max(n) => f.debug_tuple("Max").field(n).finish(),
+            ValidationRule::Regex(re) => f.debug_tuple("Regex").field(&re.as_str()).finish(),
+            ValidationRule::Custom(_) => f.debug_tuple("Custom").field(&"<fn>").finish(),
+            ValidationRule::OneOf(opts) => f.debug_tuple("OneOf").field(opts).finish(),
+            ValidationRule::NotEmpty => write!(f, "NotEmpty"),
+        }
+    }
 }
 
 impl ValidationRule {
@@ -610,7 +625,7 @@ impl TemplateContext {
 
     /// Convert to Tera Context
     pub fn to_tera_context(&self) -> Result<Context> {
-        let json_str = serde_json::to_string(&self.context)?;
+        let _json_str = serde_json::to_string(&self.context)?;
         Context::from_serialize(&self.context).with_context(|| {
             format!(
                 "failed to create Tera context for template '{}'",
