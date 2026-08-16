@@ -35,7 +35,7 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use oxigraph::model::{
-    BlankNode, Graph, GraphName, Literal, NamedNode, NamedOrBlankNode, Quad, Subject, Term, Triple,
+    BlankNode, Graph, GraphName, Literal, NamedNode, NamedNodeRef, NamedOrBlankNode, NamedOrBlankNodeRef, Quad, Subject, Term, Triple,
     vocab::{rdf, rdfs, xsd},
 };
 use oxigraph::sparql::QueryResults;
@@ -425,8 +425,9 @@ impl GraphIntegrityChecker {
                 .map_err(|e| anyhow!("Invalid class URI {}: {}", class_uri, e))?;
 
             // Find all instances of this class
+            let rdf_type_ref: NamedNodeRef = rdf::TYPE.as_ref();
             for quad in
-                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(class_node.into()), None)
+                store.quads_for_pattern(None, Some(rdf_type_ref), Some(class_node.as_ref()), None)
             {
                 let quad = quad?;
                 let instance = &quad.subject;
@@ -437,7 +438,7 @@ impl GraphIntegrityChecker {
                         .map_err(|e| anyhow!("Invalid property URI {}: {}", prop_uri, e))?;
 
                     let has_property = store
-                        .quads_for_pattern(Some(instance.clone()), Some(&prop_node), None, None)
+                        .quads_for_pattern(Some(instance.as_ref()), Some(prop_node.as_ref()), None, None)
                         .next()
                         .is_some();
 
@@ -488,7 +489,7 @@ impl TripleValidator {
         match subject {
             Subject::NamedNode(node) => self.validate_iri(node.as_str()),
             Subject::BlankNode(_) => Ok(()), // Blank nodes are always valid
-            Subject::Triple(_) => Ok(()),    // RDF-star triples are valid subjects
+            // RDF-star triples not supported in Oxigraph 0.5.x
         }
     }
 
@@ -503,7 +504,7 @@ impl TripleValidator {
             Term::NamedNode(node) => self.validate_iri(node.as_str()),
             Term::BlankNode(_) => Ok(()), // Blank nodes are always valid
             Term::Literal(literal) => self.validate_literal(literal),
-            Term::Triple(_) => Ok(()), // RDF-star triples are valid objects
+            // RDF-star triples not supported in Oxigraph 0.5.x
         }
     }
 
@@ -534,33 +535,33 @@ impl TripleValidator {
 
     /// Validate literal
     fn validate_literal(&self, literal: &Literal) -> Result<(), IntegrityError> {
-        // Validate datatype if present
-        if let Some(datatype) = literal.datatype() {
-            self.validate_iri(datatype.as_str())?;
+        // Validate datatype (always present, even if default)
+        let datatype = literal.datatype();
+        self.validate_iri(datatype.as_str())?;
 
-            // Validate common XSD datatypes
-            if datatype == xsd::INTEGER || datatype == xsd::INT || datatype == xsd::LONG {
-                if literal.value().parse::<i64>().is_err() {
-                    return Err(IntegrityError::InvalidLiteral(format!(
-                        "Invalid integer value: {}",
-                        literal.value()
-                    )));
-                }
-            } else if datatype == xsd::DECIMAL || datatype == xsd::DOUBLE || datatype == xsd::FLOAT
-            {
-                if literal.value().parse::<f64>().is_err() {
-                    return Err(IntegrityError::InvalidLiteral(format!(
-                        "Invalid numeric value: {}",
-                        literal.value()
-                    )));
-                }
-            } else if datatype == xsd::BOOLEAN {
-                if !matches!(literal.value(), "true" | "false" | "0" | "1") {
-                    return Err(IntegrityError::InvalidLiteral(format!(
-                        "Invalid boolean value: {}",
-                        literal.value()
-                    )));
-                }
+        // Validate common XSD datatypes
+        let datatype_str = datatype.as_str();
+        if datatype_str == xsd::INTEGER || datatype_str == xsd::INT || datatype_str == xsd::LONG {
+            if literal.value().parse::<i64>().is_err() {
+                return Err(IntegrityError::InvalidLiteral(format!(
+                    "Invalid integer value: {}",
+                    literal.value()
+                )));
+            }
+        } else if datatype_str == xsd::DECIMAL || datatype_str == xsd::DOUBLE || datatype_str == xsd::FLOAT
+        {
+            if literal.value().parse::<f64>().is_err() {
+                return Err(IntegrityError::InvalidLiteral(format!(
+                    "Invalid numeric value: {}",
+                    literal.value()
+                )));
+            }
+        } else if datatype_str == xsd::BOOLEAN {
+            if !matches!(literal.value(), "true" | "false" | "0" | "1") {
+                return Err(IntegrityError::InvalidLiteral(format!(
+                    "Invalid boolean value: {}",
+                    literal.value()
+                )));
             }
         }
 

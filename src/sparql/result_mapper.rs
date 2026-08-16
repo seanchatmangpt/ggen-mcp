@@ -39,7 +39,7 @@ pub trait FromSparql: Sized {
     fn from_binding(binding: &TypedBinding) -> Result<Self, MappingError> {
         // Default implementation uses from_solution
         // Can be overridden for optimization
-        Self::from_solution(binding.solution)
+        Self::from_solution(binding.solution())
     }
 }
 

@@ -16,6 +16,7 @@ serde_with = "3.8"
 serde_yaml = "0.9"
 rmcp = { version = "0.11.0", features = ["transport-io", "transport-streamable-http-server"] }
 rmcp-macros = "0.11.0"
+a2a-rs = { version = "0.1", features = ["http-server", "http-client", "ws-server", "ws-client", "tracing"] }
 tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "sync", "time", "fs", "signal", "net", "process"] }
 parking_lot = "0.12"
 lru = "0.12"
@@ -71,6 +72,9 @@ tera = "1.20"
 toml = "0.8"
 toml_edit = "0.24"
 futures = "0.3"
+syn = { version = "2.0", features = ["full"] }
+rayon = "1.10"
+prettyplease = "0.3"
 
 [features]
 default = []
@@ -94,7 +98,7 @@ http-body-util = "0.1"
 toml = "0.8"
 num_cpus = "1.16"
 similar = "2.6"
-chicago-tdd-tools = { path = "chicago-tdd-tools", features = ["testing-extras"] }
+chicago-tdd-tools = { path = "../chicago-tdd-tools", features = ["testing-extras"] }
 
 [[bench]]
 name = "mcp_performance_benchmarks"

@@ -381,7 +381,9 @@ impl QueryResultCache {
             ttl: entry.ttl,
             remaining_ttl: entry.remaining_ttl(),
             size_bytes: entry.size_bytes,
-            result_count: entry.solutions.len(),
+            result_count: serde_json::from_str::<Vec<QuerySolution>>(&entry.solutions_json)
+                .map(|s| s.len())
+                .unwrap_or(0),
             tags: entry.tags.clone(),
             is_expired: entry.is_expired(),
         })

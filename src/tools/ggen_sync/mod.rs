@@ -47,6 +47,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use sha2::{Digest, Sha256};
 use tera::Context as TeraContext;
+use rayon::prelude::*;
 
 // ============================================================================
 // Constants
@@ -1014,7 +1015,7 @@ impl PipelineExecutor {
                     // Try cache first
                     // TPS: Handle poisoned mutex - fail fast instead of panicking
                     let cached = {
-                        let cache_guard = cache_mutex.lock()
+                        let mut cache_guard = cache_mutex.lock()
                             .map_err(|e| anyhow!("Cache mutex poisoned: {}", e))?;
                         cache_guard.get(&cache_key)
                     };
@@ -1413,7 +1414,7 @@ impl PipelineExecutor {
         let mut writer = ReportWriter::new(&self.params.workspace_root, self.params.mode.clone());
 
         // Add input discovery
-        let config_rules = extract_config_rules_count(&self.params.workspace_root.join("ggen.toml"))
+        let config_rules = extract_config_rules_count(&std::path::Path::new(&self.params.workspace_root).join("ggen.toml"))
             .unwrap_or(0);
         let discovery = InputDiscovery {
             config_path: "ggen.toml".to_string(),

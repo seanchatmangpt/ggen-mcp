@@ -2481,7 +2481,7 @@ pub async fn table_profile(
     })??;
 
     // Validate sample size doesn't exceed total rows
-    let sample_size = validate_sample_size(requested_sample_size, total_rows)
+    let sample_size = validate_sample_size(requested_sample_size, total_rows as usize)
         .map_err(|e| anyhow!("sample size validation failed: {}", e))?;
 
     let column_types = summarize_columns(&headers, &rows);

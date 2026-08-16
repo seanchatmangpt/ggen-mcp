@@ -150,6 +150,11 @@ impl<'a> TypedBinding<'a> {
             .ok_or_else(|| BindingError::NotFound(var.to_string()))
     }
 
+    /// Get the underlying QuerySolution (for advanced use cases)
+    pub fn solution(&self) -> &'a QuerySolution {
+        self.solution
+    }
+
     /// Get optional term for a variable
     pub fn get_term_opt(&self, var: &str) -> Option<&Term> {
         self.solution.get(var)
@@ -428,10 +433,11 @@ fn term_to_typed_value(term: &Term) -> Result<TypedValue, BindingError> {
                 datatype: datatype.to_string(),
             })
         }
-        Term::Triple(_) => Err(BindingError::UnsupportedType {
-            variable: "unknown".to_string(),
+        // RDF-star triples not supported in Oxigraph 0.5.x
+        _ => Err(BindingError::TypeMismatch {
+            var: "unknown".to_string(),
             expected: "Term".to_string(),
-            found: "Triple".to_string(),
+            actual: "Unknown".to_string(),
         }),
     }
 }
@@ -448,7 +454,7 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
-        Term::Triple(_) => "Triple".to_string(),
+        // RDF-star triples not supported in Oxigraph 0.5.x
     }
 }
 

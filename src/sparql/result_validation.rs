@@ -315,7 +315,7 @@ fn term_type_name(term: &Term) -> String {
                 format!("Literal<{}>", lit.datatype())
             }
         }
-        Term::Triple(_) => "Triple".to_string(),
+        // RDF-star triples not supported in Oxigraph 0.5.x
     }
 }
 

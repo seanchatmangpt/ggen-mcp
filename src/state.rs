@@ -105,7 +105,7 @@ impl AppState {
         };
         let query_cache_advanced = Arc::new(
             QueryResultCache::new(query_cache_config)
-                .context("Failed to create query cache - invalid configuration")?
+                .expect("Failed to create query cache - invalid configuration")
         );
 
         // Initialize entitlement gate
