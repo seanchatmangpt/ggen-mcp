@@ -287,7 +287,7 @@ impl CheckExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dod::checks::DodCheck;
+    use crate::dod::check::DodCheck;
     use async_trait::async_trait;
 
     struct MockCheck {
@@ -303,7 +303,7 @@ mod tests {
             &self.id
         }
 
-        fn name(&self) -> &str {
+        fn description(&self) -> &str {
             "Mock Check"
         }
 

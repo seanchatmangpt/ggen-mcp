@@ -129,10 +129,9 @@ impl SafetyStats {
 // =============================================================================
 
 /// Query execution result with performance metrics and safety information
-#[derive(Debug)]
-pub struct SafeQueryResult {
+pub struct SafeQueryResult<'a> {
     /// Query results
-    pub results: QueryResults<'static>,
+    pub results: QueryResults<'a>,
     /// Performance metrics
     pub metrics: PerformanceMetrics,
     /// Query complexity analysis
@@ -143,7 +142,7 @@ pub struct SafeQueryResult {
     pub optimizations: Vec<Optimization>,
 }
 
-impl SafeQueryResult {
+impl SafeQueryResult<'_> {
     /// Check if query had performance issues
     pub fn has_performance_issues(&self) -> bool {
         !self.anti_patterns.is_empty() || self.complexity.complexity_score > 10.0
@@ -304,12 +303,12 @@ impl SparqlSafetyExecutor {
     /// - Injection attempts (SparqlError)
     /// - Budget violations (ResourceExhausted)
     /// - Query execution failures (SparqlError)
-    pub fn validate_and_execute(
+    pub fn validate_and_execute<'a>(
         &self,
         query: &str,
-        store: &Store,
+        store: &'a Store,
         query_id: String,
-    ) -> Result<SafeQueryResult, McpError> {
+    ) -> Result<SafeQueryResult<'a>, McpError> {
         self.metrics.record_analysis();
 
         // Step 1: Basic sanitization check
@@ -407,12 +406,12 @@ impl SparqlSafetyExecutor {
     }
 
     /// Execute query with profiling
-    fn execute_with_profiling(
+    fn execute_with_profiling<'a>(
         &self,
         query: &str,
-        store: &Store,
+        store: &'a Store,
         query_id: String,
-    ) -> Result<(QueryResults, PerformanceMetrics), McpError> {
+    ) -> Result<(QueryResults<'a>, PerformanceMetrics), McpError> {
         let mut profiler = QueryProfiler::new(query_id);
         profiler.start();
 

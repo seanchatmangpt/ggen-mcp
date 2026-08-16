@@ -425,9 +425,9 @@ impl GraphIntegrityChecker {
                 .map_err(|e| anyhow!("Invalid class URI {}: {}", class_uri, e))?;
 
             // Find all instances of this class
-            let rdf_type_ref: NamedNodeRef = rdf::TYPE.as_ref();
+            let rdf_type_ref: NamedNodeRef = rdf::TYPE;
             for quad in
-                store.quads_for_pattern(None, Some(rdf_type_ref), Some(class_node.as_ref()), None)
+                store.quads_for_pattern(None, Some(rdf_type_ref), Some(class_node.as_ref().into()), None)
             {
                 let quad = quad?;
                 let instance = &quad.subject;
@@ -679,16 +679,16 @@ impl ReferenceChecker {
                 .map_err(|e| anyhow!("Invalid inverse property URI {}: {}", inverse_uri, e))?;
 
             // Check all instances of the property
-            for quad in store.quads_for_pattern(None, Some(&prop_node), None, None) {
+            for quad in store.quads_for_pattern(None, Some(prop_node.as_ref()), None, None) {
                 let quad = quad?;
 
                 // Check if inverse exists
                 if let Term::NamedNode(obj) = &quad.object {
                     let has_inverse = store
                         .quads_for_pattern(
-                            Some(obj.clone().into()),
-                            Some(&inverse_node),
-                            Some(quad.subject.clone().into()),
+                            Some(obj.as_ref().into()),
+                            Some(inverse_node.as_ref()),
+                            Some(quad.subject.as_ref().into()),
                             None,
                         )
                         .next()
@@ -727,7 +727,7 @@ impl ReferenceChecker {
         let mut visited = HashSet::new();
         let mut path = Vec::new();
 
-        for quad in store.quads_for_pattern(None, Some(property), None, None) {
+        for quad in store.quads_for_pattern(None, Some(property.as_ref()), None, None) {
             let quad = quad?;
             if let Subject::NamedNode(start) = &quad.subject {
                 self.dfs_cycle_detection(
@@ -778,7 +778,7 @@ impl ReferenceChecker {
         path.push(current_str.clone());
 
         for quad in
-            store.quads_for_pattern(Some(current.clone().into()), Some(property), None, None)
+            store.quads_for_pattern(Some(current.as_ref().into()), Some(property.as_ref()), None, None)
         {
             let quad = quad?;
             match &quad.object {
@@ -816,7 +816,7 @@ impl TypeChecker {
                 .map_err(|e| anyhow!("Invalid abstract type URI {}: {}", abstract_type_uri, e))?;
 
             for quad in
-                store.quads_for_pattern(None, Some(&*rdf::TYPE), Some(type_node.into()), None)
+                store.quads_for_pattern(None, Some(rdf::TYPE), Some(type_node.as_ref().into()), None)
             {
                 let quad = quad?;
                 report.add_violation(
@@ -846,7 +846,7 @@ impl TypeChecker {
         let mut subject_types: HashMap<String, Vec<String>> = HashMap::new();
 
         // Collect all type assertions
-        for quad in store.quads_for_pattern(None, Some(&*rdf::TYPE), None, None) {
+        for quad in store.quads_for_pattern(None, Some(rdf::TYPE), None, None) {
             let quad = quad?;
             match &quad.object {
                 Term::NamedNode(type_node) => {
@@ -880,7 +880,7 @@ impl TypeChecker {
     pub fn get_types(&self, store: &Store, subject: &NamedOrBlankNode) -> Result<Vec<NamedNode>> {
         let mut types = Vec::new();
 
-        for quad in store.quads_for_pattern(Some(subject.clone()), Some(&*rdf::TYPE), None, None) {
+        for quad in store.quads_for_pattern(Some(subject.as_ref()), Some(rdf::TYPE), None, None) {
             let quad = quad?;
             match &quad.object {
                 Term::NamedNode(type_node) => {

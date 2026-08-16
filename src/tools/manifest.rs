@@ -100,7 +100,7 @@ impl ManifestGenerator {
 
         // Compute hash for breaking change detection
         let tools_json = serde_json::to_string(&tools).expect("Failed to serialize tools");
-        let schema_hash = format!("{:x}", sha256::digest(&tools_json));
+        let schema_hash = sha256::digest(&tools_json);
 
         ToolManifest {
             version: env!("CARGO_PKG_VERSION").to_string(),

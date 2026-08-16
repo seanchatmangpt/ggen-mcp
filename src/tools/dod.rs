@@ -278,9 +278,9 @@ impl DodValidator {
     /// Load profile by name
     fn load_profile(name: &str) -> Result<DodProfile> {
         match name {
-            "minimal" => Ok(DodProfile::minimal()),
-            "standard" => Ok(DodProfile::standard()),
-            "comprehensive" => Ok(DodProfile::comprehensive()),
+            "minimal" => DodProfile::load_by_name("minimal"),
+            "standard" => DodProfile::load_by_name("standard"),
+            "comprehensive" => DodProfile::load_by_name("comprehensive"),
             _ => Err(anyhow!(
                 "Unknown profile: {}. Valid options: minimal, standard, comprehensive",
                 name

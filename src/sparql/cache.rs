@@ -54,6 +54,9 @@ pub enum CacheInvalidationStrategy {
     Custom,
 }
 
+/// A cached SPARQL solution row: variable name -> term string form.
+pub type CachedSolution = serde_json::Map<String, serde_json::Value>;
+
 /// Cached query result entry
 #[derive(Debug, Clone)]
 struct CacheEntry {
@@ -191,7 +194,12 @@ impl QueryResultCache {
     }
 
     /// Get cached query results
-    pub fn get(&self, query: &str) -> Option<Vec<QuerySolution>> {
+    ///
+    /// Returns the cached rows in their serialized form: one JSON object per
+    /// solution, mapping variable name to the term's string form. `QuerySolution`
+    /// is not `serde::Deserialize`, so the cache cannot round-trip it directly;
+    /// `put` already stores this lossy projection.
+    pub fn get(&self, query: &str) -> Option<Vec<CachedSolution>> {
         let fingerprint = Self::fingerprint(query);
         let mut cache = self.cache.write();
 
@@ -381,7 +389,7 @@ impl QueryResultCache {
             ttl: entry.ttl,
             remaining_ttl: entry.remaining_ttl(),
             size_bytes: entry.size_bytes,
-            result_count: serde_json::from_str::<Vec<QuerySolution>>(&entry.solutions_json)
+            result_count: serde_json::from_str::<Vec<CachedSolution>>(&entry.solutions_json)
                 .map(|s| s.len())
                 .unwrap_or(0),
             tags: entry.tags.clone(),

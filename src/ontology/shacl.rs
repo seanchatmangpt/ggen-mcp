@@ -367,7 +367,7 @@ impl<'a> ShapeDiscovery<'a> {
     fn has_type(&self, node: &NamedNode, class: &NamedNode, store: &Store) -> Result<bool> {
         let rdf_type = NamedNode::new_unchecked(format!("{}type", RDF_NS));
         let quad = QuadRef::new(node, &rdf_type, class, GraphNameRef::DefaultGraph);
-        Ok(store.contains(&quad)?)
+        Ok(store.contains(quad)?)
     }
 
     fn is_subject_of(
@@ -419,25 +419,25 @@ impl<'a> ShapeDiscovery<'a> {
         let mut shape = NodeShape::new(shape_id.clone());
 
         // Load basic properties
-        shape.name = self.get_string_value(shape_id, &format!("{}name", SH_NS))?;
-        shape.description = self.get_string_value(shape_id, &format!("{}description", SH_NS))?;
+        shape.name = self.get_string_value(shape_id.as_ref().into(), &format!("{}name", SH_NS))?;
+        shape.description = self.get_string_value(shape_id.as_ref().into(), &format!("{}description", SH_NS))?;
 
         // Load severity
         if let Some(severity_iri) =
-            self.get_named_node_value(shape_id, &format!("{}severity", SH_NS))?
+            self.get_named_node_value(shape_id.as_ref().into(), &format!("{}severity", SH_NS))?
         {
             shape.severity = Severity::from_iri(&severity_iri);
         }
 
         // Load target selectors
         shape.target_class =
-            self.get_named_node_value(shape_id, &format!("{}targetClass", SH_NS))?;
+            self.get_named_node_value(shape_id.as_ref().into(), &format!("{}targetClass", SH_NS))?;
         shape.target_nodes =
-            self.get_named_node_values(shape_id, &format!("{}targetNode", SH_NS))?;
+            self.get_named_node_values(shape_id.as_ref().into(), &format!("{}targetNode", SH_NS))?;
         shape.target_subjects_of =
-            self.get_named_node_values(shape_id, &format!("{}targetSubjectsOf", SH_NS))?;
+            self.get_named_node_values(shape_id.as_ref().into(), &format!("{}targetSubjectsOf", SH_NS))?;
         shape.target_objects_of =
-            self.get_named_node_values(shape_id, &format!("{}targetObjectsOf", SH_NS))?;
+            self.get_named_node_values(shape_id.as_ref().into(), &format!("{}targetObjectsOf", SH_NS))?;
 
         // Load property shapes
         shape.properties = self.load_property_shapes(shape_id)?;
@@ -473,7 +473,7 @@ impl<'a> ShapeDiscovery<'a> {
         let sh_path = NamedNode::new_unchecked(format!("{}path", SH_NS));
 
         // Get the path (required)
-        let path = match self.get_object(prop_id.into(), &sh_path)? {
+        let path = match self.get_object(prop_id.as_ref().into(), &sh_path)? {
             Some(Term::NamedNode(n)) => n,
             _ => return Ok(None),
         };
@@ -482,32 +482,32 @@ impl<'a> ShapeDiscovery<'a> {
 
         // Load constraints
         prop.datatype =
-            self.get_named_node_value(&prop_id.clone().into(), &format!("{}datatype", SH_NS))?;
+            self.get_named_node_value(prop_id.as_ref().into(), &format!("{}datatype", SH_NS))?;
         prop.class =
-            self.get_named_node_value(&prop_id.clone().into(), &format!("{}class", SH_NS))?;
+            self.get_named_node_value(prop_id.as_ref().into(), &format!("{}class", SH_NS))?;
         prop.min_count =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}minCount", SH_NS))?;
+            self.get_integer_value(prop_id.as_ref().into(), &format!("{}minCount", SH_NS))?;
         prop.max_count =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}maxCount", SH_NS))?;
+            self.get_integer_value(prop_id.as_ref().into(), &format!("{}maxCount", SH_NS))?;
         prop.pattern =
-            self.get_string_value(&prop_id.clone().into(), &format!("{}pattern", SH_NS))?;
+            self.get_string_value(prop_id.as_ref().into(), &format!("{}pattern", SH_NS))?;
         prop.min_length =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}minLength", SH_NS))?;
+            self.get_integer_value(prop_id.as_ref().into(), &format!("{}minLength", SH_NS))?;
         prop.max_length =
-            self.get_integer_value(&prop_id.clone().into(), &format!("{}maxLength", SH_NS))?;
-        prop.name = self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}name", SH_NS))?;
+            self.get_integer_value(prop_id.as_ref().into(), &format!("{}maxLength", SH_NS))?;
+        prop.name = self.get_string_value(prop_id.as_ref().into(), &format!("{}name", SH_NS))?;
         prop.message =
-            self.get_string_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}message", SH_NS))?;
+            self.get_string_value(prop_id.as_ref().into(), &format!("{}message", SH_NS))?;
 
         // Load numeric range constraints
         prop.min_inclusive =
-            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}minInclusive", SH_NS))?;
+            self.get_literal_value(prop_id.as_ref().into(), &format!("{}minInclusive", SH_NS))?;
         prop.max_inclusive =
-            self.get_literal_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}maxInclusive", SH_NS))?;
+            self.get_literal_value(prop_id.as_ref().into(), &format!("{}maxInclusive", SH_NS))?;
 
         // Load sh:in values
         if let Some(list_head) = self.get_object(
-            prop_id.into(),
+            prop_id.as_ref().into(),
             &NamedNode::new_unchecked(format!("{}in", SH_NS)),
         )? {
             prop.in_values = self.parse_rdf_list(&list_head)?;
@@ -515,7 +515,7 @@ impl<'a> ShapeDiscovery<'a> {
 
         // Load sh:uniqueLang
         if let Some(unique_lang) =
-            self.get_boolean_value::<&oxigraph::model::BlankNode>(&prop_id, &format!("{}uniqueLang", SH_NS))?
+            self.get_boolean_value(prop_id.as_ref().into(), &format!("{}uniqueLang", SH_NS))?
         {
             prop.unique_lang = unique_lang;
         }
@@ -523,13 +523,13 @@ impl<'a> ShapeDiscovery<'a> {
         Ok(Some(prop))
     }
 
-    fn get_object<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_object(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate: &NamedNode,
     ) -> Result<Option<Term>> {
         for quad in self.shapes_store.quads_for_pattern(
-            Some(subject.clone().into()),
+            Some(subject.into()),
             Some(predicate.into()),
             None,
             None,
@@ -540,9 +540,9 @@ impl<'a> ShapeDiscovery<'a> {
         Ok(None)
     }
 
-    fn get_string_value<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_string_value(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Option<String>> {
         let predicate = NamedNode::new_unchecked(predicate_iri);
@@ -553,9 +553,9 @@ impl<'a> ShapeDiscovery<'a> {
         }
     }
 
-    fn get_integer_value<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_integer_value(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Option<i32>> {
         if let Some(s) = self.get_string_value(subject, predicate_iri)? {
@@ -565,9 +565,9 @@ impl<'a> ShapeDiscovery<'a> {
         }
     }
 
-    fn get_boolean_value<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_boolean_value(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Option<bool>> {
         if let Some(s) = self.get_string_value(subject, predicate_iri)? {
@@ -577,9 +577,9 @@ impl<'a> ShapeDiscovery<'a> {
         }
     }
 
-    fn get_named_node_value<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_named_node_value(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Option<NamedNode>> {
         let predicate = NamedNode::new_unchecked(predicate_iri);
@@ -590,16 +590,16 @@ impl<'a> ShapeDiscovery<'a> {
         }
     }
 
-    fn get_named_node_values<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_named_node_values(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Vec<NamedNode>> {
         let predicate = NamedNode::new_unchecked(predicate_iri);
         let mut values = Vec::new();
 
         for quad in self.shapes_store.quads_for_pattern(
-            Some(subject.clone().into()),
+            Some(subject.into()),
             Some(predicate.as_ref().into()),
             None,
             None,
@@ -616,9 +616,9 @@ impl<'a> ShapeDiscovery<'a> {
         Ok(values)
     }
 
-    fn get_literal_value<S: Into<SubjectRef<'a>> + Clone>(
+    fn get_literal_value(
         &self,
-        subject: S,
+        subject: NamedOrBlankNodeRef<'_>,
         predicate_iri: &str,
     ) -> Result<Option<Literal>> {
         let predicate = NamedNode::new_unchecked(predicate_iri);
@@ -640,11 +640,11 @@ impl<'a> ShapeDiscovery<'a> {
             match &current {
                 Term::BlankNode(node) => {
                     // Get first
-                    if let Some(first) = self.get_object(&node.clone().into(), &rdf_first)? {
+                    if let Some(first) = self.get_object(node.as_ref().into(), &rdf_first)? {
                         values.push(first);
                     }
                     // Get rest
-                    if let Some(rest) = self.get_object(&node.clone().into(), &rdf_rest)? {
+                    if let Some(rest) = self.get_object(node.as_ref().into(), &rdf_rest)? {
                         current = rest;
                     } else {
                         break;
@@ -761,11 +761,11 @@ impl<'a> ConstraintChecker<'a> {
         // Check sh:datatype
         if let Some(expected_datatype) = &property.datatype {
             if let Term::Literal(lit) = value {
-                if lit.datatype().as_ref() != expected_datatype.as_ref() {
+                if lit.datatype() != expected_datatype.as_ref() {
                     let message = property
                         .message
                         .as_ref()
-                        .unwrap_or(&format!("Value must have datatype {}", expected_datatype));
+                        .cloned().unwrap_or_else(|| format!("Value must have datatype {}", expected_datatype));
                     results.push(
                         ValidationResult::new(
                             focus_node.to_string(),
@@ -779,7 +779,7 @@ impl<'a> ConstraintChecker<'a> {
                     );
                 }
             } else {
-                let message = property.message.as_ref().unwrap_or(&format!(
+                let message = property.message.as_ref().cloned().unwrap_or_else(|| format!(
                     "Value must be a literal with datatype {}",
                     expected_datatype
                 ));
@@ -804,7 +804,7 @@ impl<'a> ConstraintChecker<'a> {
                     let message = property
                         .message
                         .as_ref()
-                        .unwrap_or(&format!("Value must be an instance of {}", expected_class));
+                        .cloned().unwrap_or_else(|| format!("Value must be an instance of {}", expected_class));
                     results.push(
                         ValidationResult::new(
                             focus_node.to_string(),
@@ -821,7 +821,7 @@ impl<'a> ConstraintChecker<'a> {
                 let message = property
                     .message
                     .as_ref()
-                    .unwrap_or(&format!("Value must be an instance of {}", expected_class));
+                    .cloned().unwrap_or_else(|| format!("Value must be an instance of {}", expected_class));
                 results.push(
                     ValidationResult::new(
                         focus_node.to_string(),
@@ -847,7 +847,7 @@ impl<'a> ConstraintChecker<'a> {
                         let message = property
                             .message
                             .as_ref()
-                            .unwrap_or(&format!("Value must match pattern: {}", pattern));
+                            .cloned().unwrap_or_else(|| format!("Value must match pattern: {}", pattern));
                         results.push(
                             ValidationResult::new(
                                 focus_node.to_string(),
@@ -866,7 +866,7 @@ impl<'a> ConstraintChecker<'a> {
             // Check sh:minLength
             if let Some(min_length) = property.min_length {
                 if (value_str.len() as i32) < min_length {
-                    let message = property.message.as_ref().unwrap_or(&format!(
+                    let message = property.message.as_ref().cloned().unwrap_or_else(|| format!(
                         "Value must have at least {} characters",
                         min_length
                     ));
@@ -887,7 +887,7 @@ impl<'a> ConstraintChecker<'a> {
             // Check sh:maxLength
             if let Some(max_length) = property.max_length {
                 if (value_str.len() as i32) > max_length {
-                    let message = property.message.as_ref().unwrap_or(&format!(
+                    let message = property.message.as_ref().cloned().unwrap_or_else(|| format!(
                         "Value must have at most {} characters",
                         max_length
                     ));
@@ -913,7 +913,7 @@ impl<'a> ConstraintChecker<'a> {
                             let message = property
                                 .message
                                 .as_ref()
-                                .unwrap_or(&format!("Value must be >= {}", min_num));
+                                .cloned().unwrap_or_else(|| format!("Value must be >= {}", min_num));
                             results.push(
                                 ValidationResult::new(
                                     focus_node.to_string(),
@@ -937,7 +937,7 @@ impl<'a> ConstraintChecker<'a> {
                             let message = property
                                 .message
                                 .as_ref()
-                                .unwrap_or(&format!("Value must be <= {}", max_num));
+                                .cloned().unwrap_or_else(|| format!("Value must be <= {}", max_num));
                             results.push(
                                 ValidationResult::new(
                                     focus_node.to_string(),
@@ -959,7 +959,7 @@ impl<'a> ConstraintChecker<'a> {
         if !property.in_values.is_empty() && !property.in_values.contains(value) {
             let allowed_values: Vec<String> =
                 property.in_values.iter().map(|v| v.to_string()).collect();
-            let message = property.message.as_ref().unwrap_or(&format!(
+            let message = property.message.as_ref().cloned().unwrap_or_else(|| format!(
                 "Value must be one of: {}",
                 allowed_values.join(", ")
             ));
@@ -1069,7 +1069,7 @@ impl<'a> CustomConstraints<'a> {
             None,
         ) {
             if let Ok(quad) = quad {
-                if let Some(lit) = quad.object.as_literal() {
+                if let Term::Literal(lit) = &quad.object {
                     let invariant = lit.value();
                     // In a real implementation, you would evaluate the invariant
                     // For now, we just log that an invariant exists
@@ -1287,7 +1287,7 @@ impl ShapeValidator {
         if let Err(_) = data_store.load_from_reader(oxigraph::io::RdfFormat::Turtle, json_result.as_bytes()) {
             // If Turtle parsing fails, try JSON-LD
             data_store
-                .load_from_reader(oxigraph::io::RdfFormat::JsonLd, json_result.as_bytes())
+                .load_from_reader(oxigraph::io::RdfFormat::JsonLd { profile: Default::default() }, json_result.as_bytes())
                 .context("Failed to load TripleStore data into Store for validation")?;
         }
         

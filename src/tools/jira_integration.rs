@@ -190,7 +190,7 @@ impl JiraFieldUpdate {
 }
 
 /// Column mapping for Jira sync
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JiraSyncColumnMapping {
     pub jira_key_column: String,
     pub summary_column: String,
@@ -223,7 +223,7 @@ impl Default for JiraSyncColumnMapping {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ConflictResolution {
     JiraWins,
@@ -237,7 +237,7 @@ impl Default for ConflictResolution {
     }
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SyncReport {
     pub created: usize,
     pub updated: usize,
@@ -246,14 +246,14 @@ pub struct SyncReport {
     pub conflicts: Vec<ConflictReport>,
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SyncError {
     pub row: usize,
     pub jira_key: Option<String>,
     pub error: String,
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConflictReport {
     pub row: usize,
     pub jira_key: String,

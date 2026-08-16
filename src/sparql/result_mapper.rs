@@ -28,6 +28,12 @@ pub enum MappingError {
     Custom(String),
 }
 
+impl From<crate::sparql::result_validation::ValidationError> for MappingError {
+    fn from(err: crate::sparql::result_validation::ValidationError) -> Self {
+        MappingError::Validation(err.to_string())
+    }
+}
+
 /// Trait for types that can be constructed from a SPARQL query solution
 ///
 /// This trait can be implemented manually or derived using the FromSparql derive macro

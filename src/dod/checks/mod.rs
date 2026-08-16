@@ -46,7 +46,7 @@ pub fn create_registry() -> CheckRegistry {
 }
 
 #[cfg(test)]
-mod tests {
+mod registry_tests {
     use super::*;
 
     #[test]

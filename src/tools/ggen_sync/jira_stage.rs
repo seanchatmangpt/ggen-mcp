@@ -383,10 +383,12 @@ pub struct GeneratedFileInfo {
 }
 
 /// Jira stage execution result
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, schemars::JsonSchema)]
 pub struct JiraStageResult {
+    #[schemars(with = "String")]
     pub mode: JiraMode,
     pub duration_ms: u64,
+    #[schemars(with = "serde_json::Value")]
     pub details: JiraStageDetails,
 }
 

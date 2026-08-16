@@ -9,7 +9,7 @@ use thiserror::Error;
 /// JSON schema validation error
 #[derive(Debug, Error)]
 pub enum SchemaValidationError {
-    #[error("Schema validation failed for tool '{tool}': {errors}")]
+    #[error("Schema validation failed for tool '{tool}': {errors:?}")]
     ValidationFailed { tool: String, errors: Vec<String> },
 
     #[error("Schema generation failed for tool '{tool}': {error}")]
@@ -101,13 +101,13 @@ impl SchemaValidator {
                         }
                     })?
                 } else {
-                    schema_obj
+                    schema
                 }
             } else {
-                schema_obj
+                schema
             }
         } else {
-            schema_obj
+            schema
         };
 
         // Validate type

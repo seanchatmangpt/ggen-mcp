@@ -296,7 +296,7 @@ impl QueryAnalyzer {
         let has_specific_predicates = query.contains("rdfs:label") || query.contains("rdf:type");
         let has_literals = query.contains('\"');
 
-        let mut selectivity: f32 = 0.3; // Base selectivity
+        let mut selectivity: f64 = 0.3; // Base selectivity
 
         if has_filters {
             selectivity += 0.2;

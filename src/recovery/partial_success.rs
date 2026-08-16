@@ -320,6 +320,7 @@ pub fn aggregate_batch_results<T>(results: Vec<BatchResult<T>>) -> BatchResult<T
 
 #[cfg(test)]
 mod tests {
+    use anyhow::anyhow;
     use super::*;
 
     #[test]

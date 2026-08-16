@@ -276,6 +276,7 @@ impl ReportGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
     fn create_test_result() -> DodValidationResult {

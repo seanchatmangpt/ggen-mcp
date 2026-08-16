@@ -232,7 +232,7 @@ impl DodValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dod::checks::DodCheck;
+    use crate::dod::check::DodCheck;
     use async_trait::async_trait;
 
     // Mock check for testing

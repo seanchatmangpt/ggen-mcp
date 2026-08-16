@@ -9,7 +9,11 @@
 //! This module contains the generated tool handler implementations for the
 //! MCP (Model Context Protocol) server. Each tool is defined in the ontology
 //! and automatically generates:
-//! - The #[tool(...)] attribute macro with name and description
+//! NOTE (hand-patch, 2026-08): the generating template still emits `#[tool(...)]`
+//! on free functions taking `&SpreadsheetServer`. rmcp 0.11's `tool` macro boxes a
+//! `'static` future, so that form does not compile. The attributes are stripped here.
+//! The live tool router is the `#[tool_router] impl SpreadsheetServer` in `src/server.rs`;
+//! these functions are unused helpers. Fix belongs in the ggen template.
 //! - The async handler function
 //! - Error handling with MCP error conversion
 //! - Timeout wrapper for tool execution
@@ -18,7 +22,7 @@ use crate::model::*;
 use crate::state::AppState;
 use crate::tools;
 use anyhow::Result;
-use rmcp::{ErrorData as McpError, Json, handler::server::wrapper::Parameters, tool};
+use rmcp::{ErrorData as McpError, Json, handler::server::wrapper::Parameters};
 use std::sync::Arc;
 
 use super::mcp_tool_params::*;
@@ -31,10 +35,6 @@ fn to_mcp_error(error: anyhow::Error) -> McpError {
 /// Handler for the `list_workbooks` tool
 ///
 /// List spreadsheet files in the workspace
-#[tool(
-    name = "list_workbooks",
-    description = "List spreadsheet files in the workspace"
-)]
 pub async fn list_workbooks(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<ListWorkbooksParams>,
@@ -55,7 +55,6 @@ pub async fn list_workbooks(
 /// Handler for the `describe_workbook` tool
 ///
 /// Describe workbook metadata
-#[tool(name = "describe_workbook", description = "Describe workbook metadata")]
 pub async fn describe_workbook(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<DescribeWorkbookParams>,
@@ -76,10 +75,6 @@ pub async fn describe_workbook(
 /// Handler for the `workbook_summary` tool
 ///
 /// Summarize workbook regions and entry points
-#[tool(
-    name = "workbook_summary",
-    description = "Summarize workbook regions and entry points"
-)]
 pub async fn workbook_summary(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<WorkbookSummaryParams>,
@@ -100,7 +95,6 @@ pub async fn workbook_summary(
 /// Handler for the `list_sheets` tool
 ///
 /// List sheets with summaries
-#[tool(name = "list_sheets", description = "List sheets with summaries")]
 pub async fn list_sheets(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<ListSheetsParams>,
@@ -121,10 +115,6 @@ pub async fn list_sheets(
 /// Handler for the `sheet_overview` tool
 ///
 /// Get narrative overview for a sheet
-#[tool(
-    name = "sheet_overview",
-    description = "Get narrative overview for a sheet"
-)]
 pub async fn sheet_overview(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<SheetOverviewParams>,
@@ -145,10 +135,6 @@ pub async fn sheet_overview(
 /// Handler for the `read_table` tool
 ///
 /// Read structured data from a range or table
-#[tool(
-    name = "read_table",
-    description = "Read structured data from a range or table"
-)]
 pub async fn read_table(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<ReadTableParams>,
@@ -169,7 +155,6 @@ pub async fn read_table(
 /// Handler for the `table_profile` tool
 ///
 /// Profile a region or table
-#[tool(name = "table_profile", description = "Profile a region or table")]
 pub async fn table_profile(
     server: &crate::server::SpreadsheetServer,
     Parameters(params): Parameters<TableProfileParams>,

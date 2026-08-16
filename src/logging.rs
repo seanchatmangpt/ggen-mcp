@@ -245,11 +245,9 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
     // Try to initialize OpenTelemetry layer if enabled
     let otel_layer = if config.enable_otel && config.otlp_endpoint.is_some() {
         match init_tracer_provider(&config) {
-            Ok(()) => {
-                // Get the global tracer provider
-                let provider = opentelemetry::global::tracer_provider();
-                let tracer = provider.tracer("ggen-mcp");
-                let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+            Ok(tracer) => {
+                let telemetry = tracing_opentelemetry::layer::<tracing_subscriber::Registry>()
+                    .with_tracer(tracer);
 
                 tracing::info!(
                     endpoint = ?config.otlp_endpoint,
@@ -341,7 +339,9 @@ pub fn init_logging(config: LoggingConfig) -> Result<Option<WorkerGuard>> {
 }
 
 /// Initialize the tracer provider with OTLP exporter
-fn init_tracer_provider(config: &LoggingConfig) -> Result<(), TraceError> {
+fn init_tracer_provider(
+    config: &LoggingConfig,
+) -> Result<opentelemetry_sdk::trace::Tracer, TraceError> {
     let endpoint = config
         .otlp_endpoint
         .as_ref()
@@ -363,9 +363,7 @@ fn init_tracer_provider(config: &LoggingConfig) -> Result<(), TraceError> {
                 .with_id_generator(RandomIdGenerator::default())
                 .with_resource(config.resource()),
         )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-
-    Ok(())
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
 }
 
 /// Shutdown OpenTelemetry gracefully

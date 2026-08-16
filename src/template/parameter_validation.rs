@@ -176,7 +176,7 @@ impl fmt::Display for ParameterType {
 // ============================================================================
 
 /// Validation rules for parameter values
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ValidationRule {
     /// Minimum length for strings or arrays
     MinLength(usize),
@@ -194,6 +194,21 @@ pub enum ValidationRule {
     OneOf(Vec<JsonValue>),
     /// Value must not be empty (for strings, arrays, objects)
     NotEmpty,
+}
+
+impl std::fmt::Debug for ValidationRule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MinLength(v) => write!(f, "MinLength({})", v),
+            Self::MaxLength(v) => write!(f, "MaxLength({})", v),
+            Self::Min(v) => write!(f, "Min({})", v),
+            Self::Max(v) => write!(f, "Max({})", v),
+            Self::Regex(r) => write!(f, "Regex({})", r.as_str()),
+            Self::Custom(_) => write!(f, "Custom(<fn>)"),
+            Self::OneOf(v) => write!(f, "OneOf({:?})", v),
+            Self::NotEmpty => write!(f, "NotEmpty"),
+        }
+    }
 }
 
 impl ValidationRule {

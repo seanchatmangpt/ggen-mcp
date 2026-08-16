@@ -62,7 +62,7 @@ pub struct ManageJiraParams {
     pub operation: JiraOperation,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JiraOperation {
     /// Execute JQL query, return ticket data
@@ -128,7 +128,7 @@ pub enum JiraOperation {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DashboardView {
     Summary,

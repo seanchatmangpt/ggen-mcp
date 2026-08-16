@@ -433,7 +433,7 @@ fn validate_with_shacl_triple_store(store: &TripleStore, ontology_path: &Path, o
         ShapeValidator::from_file(&shapes_path).context("failed to load SHACL shapes")?;
 
     let report = validator
-        .validate_triple_store(store, ontology_content)
+        .validate_triple_store(store)
         .context("SHACL validation failed")?;
 
     Ok(ValidationSummary {

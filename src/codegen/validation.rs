@@ -1222,6 +1222,8 @@ impl CodeValidationReport {
         let mut warnings = Vec::new();
         let mut suggestions = Vec::new();
 
+        let has_errors = report.has_errors();
+
         for issue in report.issues {
             match issue.severity {
                 ValidationSeverity::Error => {
@@ -1247,7 +1249,7 @@ impl CodeValidationReport {
         }
 
         Self {
-            valid: !report.has_errors(),
+            valid: !has_errors,
             errors,
             warnings,
             suggestions,

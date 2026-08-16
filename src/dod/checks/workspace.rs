@@ -119,10 +119,10 @@ impl DodCheck for WorkspaceIntegrityCheck {
             status,
             severity: self.severity(),
             message: messages.join("; "),
+            check_hash: compute_check_hash(&evidence),
             evidence,
             remediation,
             duration_ms,
-            check_hash: compute_check_hash(&evidence),
         })
     }
 }

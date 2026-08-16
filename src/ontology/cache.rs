@@ -153,6 +153,7 @@ impl CacheStats {
 mod tests {
     use super::*;
     use crate::tools::ontology_sparql::{QueryPerformance, QueryResult};
+    use oxigraph::store::Store;
 
     #[test]
     fn test_ontology_cache() {

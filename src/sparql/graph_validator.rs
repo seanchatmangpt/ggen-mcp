@@ -4,7 +4,8 @@
 // Validates CONSTRUCT query results and RDF graphs
 // Implements poka-yoke error-proofing for graph structures
 
-use oxigraph::model::{BlankNode, Graph, NamedNode, Subject, Term, Triple};
+use oxigraph::model::{BlankNode, Graph, NamedNode, NamedOrBlankNode, NamedOrBlankNodeRef, Term, TermRef, Triple};
+use oxigraph::model::NamedOrBlankNode as Subject;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 
@@ -267,8 +268,8 @@ impl GraphValidator {
         pattern: &TriplePattern,
     ) -> Result<(), GraphValidationError> {
         let found = graph.iter().any(|triple| {
-            pattern.subject_type.matches(triple.subject.as_ref())
-                && pattern.object_type.matches(triple.object.as_ref())
+            pattern.subject_type.matches(triple.subject)
+                && pattern.object_type.matches(triple.object)
                 && if let Some(ref pred) = pattern.predicate {
                     triple.predicate.as_str() == pred
                 } else {
@@ -325,7 +326,7 @@ impl GraphValidator {
                 .or_default()
                 .entry(predicate_str)
                 .or_default()
-                .push(triple.object.to_owned());
+                .push(triple.object.into_owned());
         }
 
         // Check each subject against its property specs
@@ -351,7 +352,7 @@ impl GraphValidator {
                         // Validate object types
                         if let Some(objects) = properties.get(&spec.predicate) {
                             for object in objects {
-                                if !spec.object_type.matches(object) {
+                                if !spec.object_type.matches(object.as_ref()) {
                                     return Err(GraphValidationError::InvalidObjectType {
                                         expected: format!("{:?}", spec.object_type),
                                         actual: object.to_string(),
@@ -397,8 +398,8 @@ impl GraphValidator {
         let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
 
         for triple in graph.iter() {
-            match &triple.object {
-                Term::NamedNode(obj_node) => {
+            match triple.object {
+                TermRef::NamedNode(obj_node) => {
                     let subject_str = triple.subject.to_string();
                     let object_str = obj_node.as_str().to_string();
 
@@ -454,15 +455,15 @@ impl GraphValidator {
 
         // Collect all blank nodes and references
         for triple in graph.iter() {
-            match &triple.subject {
-                Subject::BlankNode(bn) => {
+            match triple.subject {
+                NamedOrBlankNodeRef::BlankNode(bn) => {
                     blank_nodes.insert(bn.as_str().to_string());
                 }
                 _ => {}
             }
 
-            match &triple.object {
-                Term::BlankNode(bn) => {
+            match triple.object {
+                TermRef::BlankNode(bn) => {
                     referenced_blanks.insert(bn.as_str().to_string());
                 }
                 _ => {}
@@ -473,8 +474,8 @@ impl GraphValidator {
         for bn in blank_nodes.difference(&referenced_blanks) {
             // Allow if blank node appears as subject (it's a root)
             let has_incoming = graph.iter().any(|t| {
-                match &t.object {
-                    Term::BlankNode(obj_bn) => obj_bn.as_str() == bn,
+                match t.object {
+                    TermRef::BlankNode(obj_bn) => obj_bn.as_str() == bn,
                     _ => false,
                 }
             });
@@ -482,8 +483,8 @@ impl GraphValidator {
             if !has_incoming {
                 // Check if it has outgoing edges (not completely orphaned)
                 let has_outgoing = graph.iter().any(|t| {
-                    match &t.subject {
-                        Subject::BlankNode(subj_bn) => subj_bn.as_str() == bn,
+                    match t.subject {
+                        NamedOrBlankNodeRef::BlankNode(subj_bn) => subj_bn.as_str() == bn,
                         _ => false,
                     }
                 });
@@ -502,8 +503,8 @@ impl GraphValidator {
         graph
             .iter()
             .filter(|triple| {
-                pattern.subject_type.matches(triple.subject.as_ref())
-                    && pattern.object_type.matches(triple.object.as_ref())
+                pattern.subject_type.matches(triple.subject)
+                    && pattern.object_type.matches(triple.object)
                     && if let Some(ref pred) = pattern.predicate {
                         triple.predicate.as_str() == pred
                     } else {

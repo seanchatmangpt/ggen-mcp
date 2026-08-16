@@ -75,7 +75,7 @@ fn default_max_tickets() -> usize {
     100
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JiraAuth {
     Bearer {
@@ -89,7 +89,7 @@ pub enum JiraAuth {
     },
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JiraColumnMapping {
     pub summary_column: String,
     pub description_column: String,
@@ -235,7 +235,7 @@ impl CreateJiraTicketsParams {
         self.jira_auth.validate()?;
         self.column_mapping.validate()?;
 
-        validate_numeric_range("start_row", self.start_row as usize, 1, 1_048_576)?;
+        validate_numeric_range("start_row", self.start_row, 1u32, 1_048_576u32)?;
 
         if self.max_tickets == 0 || self.max_tickets > MAX_BATCH_SIZE {
             return Err(anyhow!(
@@ -538,7 +538,7 @@ fn get_cell_value(sheet: &umya_spreadsheet::Worksheet, column: &str, row: u32) -
     let cell_ref = format!("{}{}", column, row);
     sheet
         .get_cell(cell_ref.as_str())
-        .and_then(|cell| cell.get_value().as_ref().map(|v| v.to_string()))
+        .map(|cell| cell.get_value().to_string())
         .unwrap_or_default()
 }
 

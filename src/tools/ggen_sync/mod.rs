@@ -210,7 +210,7 @@ pub enum SyncStatus {
     Failed,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct StageResult {
     pub stage_number: u8,
     pub stage_name: String,
@@ -227,7 +227,7 @@ pub enum StageStatus {
     Skipped,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct GeneratedFileInfo {
     pub path: String,
     pub hash: String,
@@ -236,7 +236,7 @@ pub struct GeneratedFileInfo {
     pub source_template: String,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct ValidationSummary {
     pub ontology_valid: bool,
     pub queries_valid: bool,
@@ -244,7 +244,7 @@ pub struct ValidationSummary {
     pub generated_code_valid: bool,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct AuditReceipt {
     pub receipt_id: String,
     pub ontology_hash: String,
@@ -253,7 +253,7 @@ pub struct AuditReceipt {
     pub receipt_path: String,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SyncStatistics {
     pub total_duration_ms: u64,
     pub files_generated: usize,
@@ -264,7 +264,7 @@ pub struct SyncStatistics {
     pub cache_misses: usize,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct SyncError {
     pub stage: String,
     pub severity: ErrorSeverity,
@@ -507,9 +507,8 @@ impl FileTransaction {
     /// Commit all staged writes (ATOMIC: all succeed or all rollback)
     fn commit(&mut self) -> Result<()> {
         // Phase 1: Write all files - collect paths first to avoid borrow issues
-        let paths_to_write: Vec<_> = self.staged.keys().cloned().collect();
-        for path in &paths_to_write {
-            let content = &self.staged[path];
+        let staged_writes: Vec<(PathBuf, String)> = self.staged.clone();
+        for (path, content) in &staged_writes {
             if let Err(e) = std::fs::write(path, content) {
                 // Rollback on first failure
                 self.rollback()?;
@@ -1131,8 +1130,8 @@ impl PipelineExecutor {
                 renderer.add_template(name, &template_content)?;
 
                 // Build context
-                let mut tera_context = tera::Context::new();
-                tera_context.insert("data", context);
+                let mut tera_context = crate::template::rendering_safety::RenderContext::new();
+                tera_context.insert("data", context)?;
 
                 // Render
                 let output = renderer.render_safe(name, &tera_context)?;
