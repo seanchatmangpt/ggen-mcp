@@ -2,9 +2,9 @@
 //!
 //! Tests validate_definition_of_done tool registration and invocation via MCP server.
 
-use ggen_mcp::config::ServerConfig;
-use ggen_mcp::server::SpreadsheetServer;
-use ggen_mcp::state::AppState;
+use spreadsheet_mcp::config::ServerConfig;
+use spreadsheet_mcp::server::SpreadsheetServer;
+use spreadsheet_mcp::state::AppState;
 use rmcp::ServerHandler;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::ServerInfo;
@@ -18,7 +18,32 @@ use tempfile::TempDir;
 
 fn create_test_server() -> (TempDir, SpreadsheetServer) {
     let temp_dir = TempDir::new().unwrap();
-    let config = ServerConfig::new(temp_dir.path().to_str().unwrap().to_string());
+    let config = ServerConfig {
+        workspace_root: temp_dir.path().to_path_buf(),
+        cache_capacity: 8,
+        supported_extensions: vec!["xlsx".to_string()],
+        single_workbook: None,
+        enabled_tools: None,
+        transport: spreadsheet_mcp::TransportKind::Stdio,
+        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        recalc_enabled: false,
+        vba_enabled: false,
+        max_concurrent_recalcs: 2,
+        tool_timeout_ms: Some(30_000),
+        max_response_bytes: Some(1_000_000),
+        allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+            provider_type: "disabled".to_string(),
+            local_path: ".ggen_license".to_string(),
+            gcp_config: Default::default(),
+        },
+    };
     let state = Arc::new(AppState::new(Arc::new(config)));
     let server = SpreadsheetServer::from_state(state);
     (temp_dir, server)
@@ -62,7 +87,7 @@ fn test_server_info_includes_instructions() {
 async fn test_validate_definition_of_done_minimal_profile() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "minimal".to_string(),
         workspace_path: None,
         include_remediation: true,
@@ -76,8 +101,8 @@ async fn test_validate_definition_of_done_minimal_profile() {
 
     assert!(
         result.is_ok(),
-        "Tool invocation should succeed: {:?}",
-        result
+        "Tool invocation should succeed: {}",
+        result.as_ref().err().map(|e| e.to_string()).unwrap_or_default()
     );
 
     let response = result.unwrap().0;
@@ -100,7 +125,7 @@ async fn test_validate_definition_of_done_minimal_profile() {
 async fn test_validate_definition_of_done_standard_profile() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "standard".to_string(),
         workspace_path: None,
         include_remediation: true,
@@ -129,7 +154,7 @@ async fn test_validate_definition_of_done_standard_profile() {
 async fn test_validate_definition_of_done_comprehensive_profile() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "comprehensive".to_string(),
         workspace_path: None,
         include_remediation: false,
@@ -158,7 +183,7 @@ async fn test_validate_definition_of_done_comprehensive_profile() {
 async fn test_validate_definition_of_done_unknown_profile() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "unknown_profile".to_string(),
         workspace_path: None,
         include_remediation: true,
@@ -177,7 +202,7 @@ async fn test_validate_definition_of_done_unknown_profile() {
 async fn test_validate_definition_of_done_with_workspace_path() {
     let (temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "minimal".to_string(),
         workspace_path: Some(temp_dir.path().to_str().unwrap().to_string()),
         include_remediation: true,
@@ -203,7 +228,7 @@ async fn test_validate_definition_of_done_with_workspace_path() {
 async fn test_validate_definition_of_done_response_format() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "minimal".to_string(),
         workspace_path: None,
         include_remediation: true,
@@ -288,7 +313,7 @@ async fn test_validate_definition_of_done_tool_enabled_by_default() {
     let (_temp_dir, server) = create_test_server();
 
     // Tool should be enabled by default (no SPREADSHEET_MCP_ENABLED_TOOLS restriction)
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "minimal".to_string(),
         workspace_path: None,
         include_remediation: false,
@@ -311,7 +336,7 @@ async fn test_validate_definition_of_done_tool_enabled_by_default() {
 async fn test_validate_definition_of_done_performance() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "comprehensive".to_string(),
         workspace_path: None,
         include_remediation: true,
@@ -347,7 +372,7 @@ async fn test_validate_definition_of_done_performance() {
 async fn test_validate_definition_of_done_serialization() {
     let (_temp_dir, server) = create_test_server();
 
-    let params = ggen_mcp::tools::dod::ValidateDefinitionOfDoneParams {
+    let params = spreadsheet_mcp::tools::dod::ValidateDefinitionOfDoneParams {
         profile: "minimal".to_string(),
         workspace_path: None,
         include_remediation: true,

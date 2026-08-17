@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ggen_mcp::dod::checks::workspace::WorkspaceIntegrityCheck;
-use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
+use spreadsheet_mcp::dod::checks::workspace::WorkspaceIntegrityCheck;
+use spreadsheet_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use std::path::PathBuf;
 
 #[tokio::test]

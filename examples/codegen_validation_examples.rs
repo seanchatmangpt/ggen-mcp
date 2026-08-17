@@ -378,10 +378,8 @@ fn example_complete_workflow(output_dir: &Path) -> Result<()> {
 
     // 5. Write safely
     let writer = SafeCodeWriter::new();
-    let code = result
-        .formatted_code
-        .as_ref()
-        .unwrap_or(&rendered.to_string());
+    let rendered_owned = rendered.to_string();
+    let code = result.formatted_code.as_ref().unwrap_or(&rendered_owned);
 
     match writer.write(&artifact_path, code) {
         Ok(_) => println!("✅ Code written to {:?}", artifact_path),
@@ -532,4 +530,22 @@ mod tests {
 
         Ok(())
     }
+}
+
+fn main() -> Result<()> {
+    let temp_dir = tempfile::TempDir::new()?;
+    let output_dir = temp_dir.path();
+
+    example_basic_validation()?;
+    example_detect_issues()?;
+    example_full_pipeline(output_dir)?;
+    example_safe_writing(output_dir)?;
+    example_artifact_tracking(output_dir)?;
+    example_receipts(output_dir)?;
+    example_complete_workflow(output_dir)?;
+    example_batch_processing(output_dir)?;
+    example_custom_validation()?;
+
+    println!("All examples completed successfully!");
+    Ok(())
 }

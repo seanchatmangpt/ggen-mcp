@@ -17,6 +17,7 @@ pub mod mcp_tool_workflow;
 pub mod ontology_generation_harness;
 pub mod order_processing_workflow;
 pub mod property_input_harness;
+pub mod snapshot_testing_harness;
 pub mod tera_template_harness;
 pub mod toml_config_harness;
 pub mod turtle_ontology_harness;
@@ -115,11 +116,20 @@ pub use ontology_generation_harness::{
     ValidationCheck,
     ValidationReport,
     WorkflowMetrics,
-    // Result Types
-    WorkflowResult,
 };
 
 pub use ggen_integration_harness::{
     CompilationResult, GenerationMetrics, GenerationResult, GgenIntegrationHarness,
     ValidationResult as GgenValidationResult,
+};
+
+pub use fixture_library::{
+    AAAPattern, AggregateBuilder, ConfigBuilder, FixtureCategory, FixtureComposer, FixtureMetadata,
+    FixtureVersion, Fixtures, OntologyBuilder, TestWorkspace,
+};
+
+pub use snapshot_testing_harness::{SnapshotFormat, SnapshotTestHarness, UpdateMode};
+
+pub use turtle_ontology_harness::{
+    OntologyBuilder as TurtleOntologyBuilder, OntologyTestHarness,
 };

@@ -672,7 +672,7 @@ mod tests {
 
     #[test]
     fn test_report_writer_creation() {
-        let writer = ReportWriter::new("/test/workspace", true);
+        let writer = ReportWriter::new("/test/workspace", SyncMode::Preview);
         assert_eq!(writer.workspace_hash.len(), 8);
         assert!(matches!(writer.mode, SyncMode::Preview));
         assert!(matches!(writer.status, SyncStatus::Success));

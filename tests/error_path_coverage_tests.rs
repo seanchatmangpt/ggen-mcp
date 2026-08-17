@@ -14,6 +14,7 @@
 //! 7. State Transition Errors
 
 use spreadsheet_mcp::model::*;
+use spreadsheet_mcp::tools::ReadTableParams;
 use spreadsheet_mcp::validation::*;
 use std::sync::Arc;
 use tokio::time::Duration;
@@ -78,6 +79,8 @@ fn test_max_cell_count_exceeded() {
         sheet_name: Some("Sheet1".to_string()),
         table_name: None,
         region_id: None,
+        header_rows: None,
+        sample_mode: None,
         range: Some("A1:ZZ100000".to_string()), // Very large range
         columns: None,
         filters: None,
@@ -124,7 +127,7 @@ async fn test_concurrent_workbook_modification_conflict() {
                 // Attempt concurrent modifications
                 // This should test the locking/conflict resolution code
                 let _result = format!("task_{}", i);
-                Ok::<_, Box<dyn std::error::Error>>(())
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
             })
         })
         .collect();
@@ -204,6 +207,8 @@ fn test_zero_values() {
         sheet_name: Some("Sheet1".to_string()),
         table_name: None,
         region_id: None,
+        header_rows: None,
+        sample_mode: None,
         range: None,
         columns: None,
         filters: None,
@@ -229,11 +234,13 @@ fn test_maximum_integer_values() {
         sheet_name: Some("Sheet1".to_string()),
         table_name: None,
         region_id: None,
+        header_rows: None,
+        sample_mode: None,
         range: None,
         columns: None,
         filters: None,
-        limit: Some(usize::MAX),  // Maximum limit
-        offset: Some(usize::MAX), // Maximum offset
+        limit: Some(u32::MAX),  // Maximum limit
+        offset: Some(u32::MAX), // Maximum offset
         header_row: None,
     };
 

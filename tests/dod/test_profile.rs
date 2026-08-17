@@ -1,4 +1,4 @@
-use ggen_mcp::dod::profile::*;
+use spreadsheet_mcp::dod::profile::*;
 
 #[test]
 fn load_default_dev_profile() {
@@ -42,7 +42,7 @@ fn enterprise_strict_has_strict_thresholds() {
 
 #[test]
 fn profile_get_timeout_for_category() {
-    use ggen_mcp::dod::types::CheckCategory;
+    use spreadsheet_mcp::dod::types::CheckCategory;
 
     let profile = DodProfile::default_dev();
     assert_eq!(

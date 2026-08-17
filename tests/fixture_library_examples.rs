@@ -6,9 +6,12 @@
 mod harness;
 
 use anyhow::Result;
+// NOTE: `TemplateContextBuilder` exists in both `fixture_library` and
+// `tera_template_harness`; this file exercises the fixture_library one.
+use harness::fixture_library::TemplateContextBuilder;
 use harness::{
     AAAPattern, AggregateBuilder, ConfigBuilder, FixtureComposer, Fixtures, OntologyBuilder,
-    TemplateContextBuilder, TestWorkspace,
+    TestWorkspace,
 };
 
 // =============================================================================

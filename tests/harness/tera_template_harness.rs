@@ -43,6 +43,9 @@ pub struct TemplateTestHarness {
     config: HarnessConfig,
 
     /// Cache of rendered outputs for testing
+    /// Raw source per registered template; tera's `Template` no longer
+    /// exposes a `source` field, so the harness keeps its own copy.
+    template_sources: HashMap<String, String>,
     render_cache: HashMap<String, String>,
 }
 
@@ -105,6 +108,7 @@ impl TemplateTestHarness {
             fixture_dir,
             config: HarnessConfig::default(),
             render_cache: HashMap::new(),
+            template_sources: HashMap::new(),
         })
     }
 
@@ -138,6 +142,8 @@ impl TemplateTestHarness {
         self.tera
             .add_raw_template(template_name, template_str)
             .context("Failed to add template")?;
+        self.template_sources
+            .insert(template_name.to_string(), template_str.to_string());
 
         let output = self
             .tera
@@ -243,17 +249,24 @@ impl TemplateTestHarness {
 
     /// Extracts all variables used in a template
     pub fn extract_template_variables(&self, template_name: &str) -> Result<HashSet<String>> {
-        let template = self
-            .tera
-            .get_template(template_name)
+        let source = self
+            .template_sources
+            .get(template_name)
+            .map(|s| s.to_string())
+            .or_else(|| {
+                self.template_dir
+                    .join(template_name)
+                    .canonicalize()
+                    .ok()
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+            })
             .context("Template not found")?;
 
         let mut variables = HashSet::new();
 
-        // Parse the template AST to extract variable references
+        // Parse the template source to extract variable references
         // This is a simplified version - real implementation would traverse AST
-        let source = &template.source;
-        extract_variables_from_source(source, &mut variables);
+        extract_variables_from_source(&source, &mut variables);
 
         Ok(variables)
     }
@@ -301,7 +314,7 @@ impl TemplateTestHarness {
         let delimiter_check = check_balanced_delimiters(code);
         if let Err(e) = delimiter_check {
             validation.valid = false;
-            validation.errors.push(e);
+            validation.errors.push(e.to_string());
         }
 
         // Check for basic Rust patterns
@@ -560,7 +573,7 @@ impl TemplateContextBuilder {
             .entry("fields".to_string())
             .or_insert_with(|| JsonValue::Array(Vec::new()));
 
-        if let JsonValue::Array(ref mut arr) = fields {
+        if let JsonValue::Array(arr) = fields {
             arr.push(field);
         }
 

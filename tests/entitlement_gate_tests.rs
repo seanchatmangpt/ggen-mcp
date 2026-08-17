@@ -287,7 +287,7 @@ async fn test_local_provider_denied_capability() -> Result<()> {
 async fn test_env_var_provider() -> Result<()> {
     // Arrange
     let license = create_test_license(vec![Capability::PreviewMode, Capability::ApplyMode]);
-    std::env::set_var("GGEN_LICENSE", serde_json::to_string(&license)?);
+    unsafe { std::env::set_var("GGEN_LICENSE", serde_json::to_string(&license)?); }
 
     let provider = EnvVarProvider::new();
 
@@ -298,7 +298,7 @@ async fn test_env_var_provider() -> Result<()> {
     assert!(allowed, "ApplyMode should be allowed");
 
     // Cleanup
-    std::env::remove_var("GGEN_LICENSE");
+    unsafe { std::env::remove_var("GGEN_LICENSE"); }
 
     Ok(())
 }
@@ -504,7 +504,7 @@ async fn test_invalid_license_json() -> Result<()> {
 #[tokio::test]
 async fn test_env_var_not_set() -> Result<()> {
     // Arrange
-    std::env::remove_var("GGEN_LICENSE"); // Ensure not set
+    unsafe { std::env::remove_var("GGEN_LICENSE") }; // Ensure not set
     let provider = EnvVarProvider::new();
 
     // Act

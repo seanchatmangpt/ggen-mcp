@@ -3,6 +3,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use chicago_tdd_tools::async_test_with_timeout;
 use chicago_tdd_tools::prelude::*;
 use http_body_util::BodyExt;
 use serde_json::Value;
@@ -119,6 +120,17 @@ async_test_with_timeout!(
             tool_timeout_ms: Some(30_000),
             max_response_bytes: Some(1_000_000),
             allow_overwrite: false,
+            graceful_shutdown_timeout_secs: 30,
+            ontology_cache_size: 16,
+            ontology_cache_ttl_secs: 300,
+            query_cache_size: 128,
+            query_cache_ttl_secs: 60,
+            entitlement_enabled: false,
+            entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+                provider_type: "disabled".to_string(),
+                local_path: ".ggen_license".to_string(),
+                gcp_config: Default::default(),
+            },
         };
 
         let state = Arc::new(spreadsheet_mcp::state::AppState::new(Arc::new(
@@ -291,6 +303,17 @@ async_test_with_timeout!(components_endpoint_shows_degraded_cache, 30, {
         tool_timeout_ms: Some(30_000),
         max_response_bytes: Some(1_000_000),
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+        provider_type: "disabled".to_string(),
+        local_path: ".ggen_license".to_string(),
+        gcp_config: Default::default(),
+        },
     };
 
     let state = Arc::new(spreadsheet_mcp::state::AppState::new(Arc::new(
@@ -369,6 +392,17 @@ async_test_with_timeout!(health_endpoints_handle_concurrent_requests, 30, {
         tool_timeout_ms: Some(30_000),
         max_response_bytes: Some(1_000_000),
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+        provider_type: "disabled".to_string(),
+        local_path: ".ggen_license".to_string(),
+        gcp_config: Default::default(),
+        },
     };
 
     let state = Arc::new(spreadsheet_mcp::state::AppState::new(Arc::new(
@@ -438,6 +472,17 @@ async_test_with_timeout!(components_endpoint_checks_libreoffice_when_enabled, 30
         tool_timeout_ms: Some(30_000),
         max_response_bytes: Some(1_000_000),
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+        provider_type: "disabled".to_string(),
+        local_path: ".ggen_license".to_string(),
+        gcp_config: Default::default(),
+        },
     };
 
     let state = Arc::new(spreadsheet_mcp::state::AppState::new(Arc::new(
@@ -633,6 +678,17 @@ async fn setup_test_server() -> Result<(Router, tempfile::TempDir), Box<dyn std:
         tool_timeout_ms: Some(30_000),
         max_response_bytes: Some(1_000_000),
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+        provider_type: "disabled".to_string(),
+        local_path: ".ggen_license".to_string(),
+        gcp_config: Default::default(),
+        },
     };
 
     let state = Arc::new(spreadsheet_mcp::state::AppState::new(Arc::new(

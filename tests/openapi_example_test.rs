@@ -18,6 +18,26 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+// `test!` requires the body's error type to implement `std::error::Error`,
+// which `anyhow::Error` deliberately does not. This wrapper lets `?` on
+// anyhow results keep working inside `test!` bodies.
+#[derive(Debug)]
+struct TestError(anyhow::Error);
+
+impl std::fmt::Display for TestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl std::error::Error for TestError {}
+
+impl From<anyhow::Error> for TestError {
+    fn from(e: anyhow::Error) -> Self {
+        TestError(e)
+    }
+}
+
 // ============================================================================
 // Test Configuration
 // ============================================================================
@@ -133,7 +153,7 @@ test!(test_load_ontology_and_schema, {
         "Expected at least 4 entities (User, Post, Comment, Tag)"
     );
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_workflow_json_structure, {
@@ -157,7 +177,7 @@ test!(test_workflow_json_structure, {
         "First step should be load-ontology"
     );
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_query_api_info, {
@@ -195,7 +215,7 @@ LIMIT 1
     assert!(info.contains_key("description"));
     assert!(info.contains_key("serverUrl"));
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_query_entity_schemas, {
@@ -252,7 +272,7 @@ ORDER BY ?entityName ?propertyName
         "User missing 'username' property"
     );
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_render_openapi_info, {
@@ -301,7 +321,7 @@ LIMIT 1
     // Write output for inspection
     fs::write(test_output_path("openapi/api-info.yaml"), &output)?;
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_render_zod_schemas, {
@@ -356,7 +376,7 @@ ORDER BY ?entityName ?propertyName
     // Write output for inspection
     fs::write(test_output_path("schemas/entities.mjs"), &output)?;
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_full_workflow_execution, {
@@ -437,7 +457,7 @@ test!(test_full_workflow_execution, {
         );
     }
 
-    Ok(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -484,5 +504,5 @@ test!(test_compare_with_golden_files, {
         }
     }
 
-    Ok(())
+    Ok::<(), TestError>(())
 });

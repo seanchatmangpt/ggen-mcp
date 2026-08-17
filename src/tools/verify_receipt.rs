@@ -107,7 +107,7 @@ pub struct ReceiptInfo {
 // Receipt Structure (ggen v6 format)
 // =============================================================================
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct Receipt {
     version: String,
     id: String,
@@ -119,13 +119,13 @@ struct Receipt {
     metadata: MetadataInfo,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct WorkspaceInfo {
     fingerprint: String,
     root: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct InputsInfo {
     config: FileInfo,
     ontologies: Vec<FileInfo>,
@@ -133,32 +133,32 @@ struct InputsInfo {
     templates: Vec<FileInfo>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct FileInfo {
     path: String,
     hash: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct OutputFile {
     path: String,
     hash: String,
     size_bytes: Option<usize>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct GuardsInfo {
     verdicts: Vec<GuardVerdict>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct GuardVerdict {
     guard_name: String,
     verdict: String,
     message: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 struct MetadataInfo {
     timestamp: String,
     compiler_version: String,

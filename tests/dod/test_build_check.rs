@@ -1,8 +1,8 @@
 //! Tests for build correctness checks
 
-use ggen_mcp::dod::check::{CheckContext, DodCheck};
-use ggen_mcp::dod::checks::build::{BuildCheckCheck, BuildClippyCheck, BuildFmtCheck};
-use ggen_mcp::dod::types::{CheckCategory, CheckSeverity, CheckStatus};
+use spreadsheet_mcp::dod::check::{CheckContext, DodCheck};
+use spreadsheet_mcp::dod::checks::build::{BuildCheckCheck, BuildClippyCheck, BuildFmtCheck};
+use spreadsheet_mcp::dod::types::{CheckCategory, CheckSeverity, CheckStatus};
 use std::path::PathBuf;
 
 // BUILD_FMT tests

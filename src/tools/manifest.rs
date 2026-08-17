@@ -174,11 +174,11 @@ mod tests {
     fn test_tool_categories() {
         let manifest = ManifestGenerator::generate();
         let categories: Vec<_> = manifest.tools.iter().map(|t| &t.category).collect();
-        assert!(categories.iter().all(|c| c == "core"
-            || c == "authoring"
-            || c == "jira"
-            || c == "vba"
-            || c == "verification"));
+        assert!(categories.iter().all(|c| c.as_str() == "core"
+            || c.as_str() == "authoring"
+            || c.as_str() == "jira"
+            || c.as_str() == "vba"
+            || c.as_str() == "verification"));
     }
 
     #[test]

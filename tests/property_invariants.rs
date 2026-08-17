@@ -606,7 +606,9 @@ proptest! {
         let original = RefCounted::new(42);
 
         // Create clones
-        let mut refs = vec![original.clone_ref(); clone_count];
+        // `vec![x; n]` would use `Clone`, which does not bump the refcount;
+        // call `clone_ref` per element so the invariant below is real.
+        let mut refs: Vec<_> = (0..clone_count).map(|_| original.clone_ref()).collect();
 
         // INVARIANT: Ref count should be clone_count + 1 (original)
         prop_assert_eq!(original.ref_count(), clone_count + 1);

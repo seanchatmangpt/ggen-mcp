@@ -13,7 +13,8 @@ mod harness_tests {
     // Note: The actual property tests are defined in tests/harness/property_input_harness.rs
     // This file demonstrates how to use the harness in integration tests
 
-    use proptest::prelude::*;
+    use proptest::strategy::ValueTree;
+use proptest::prelude::*;
     use serde_json::json;
 
     // Import harness utilities (when available)

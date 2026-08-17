@@ -5,10 +5,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ggen_mcp::dod::check::*;
-use ggen_mcp::dod::executor::*;
-use ggen_mcp::dod::profile::*;
-use ggen_mcp::dod::types::*;
+use spreadsheet_mcp::dod::check::*;
+use spreadsheet_mcp::dod::executor::*;
+use spreadsheet_mcp::dod::profile::*;
+use spreadsheet_mcp::dod::types::*;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -32,7 +32,7 @@ impl DodCheck for SimpleMockCheck {
         &self.id
     }
 
-    fn name(&self) -> &str {
+    fn description(&self) -> &str {
         "Simple Mock Check"
     }
 
@@ -91,7 +91,7 @@ impl DodCheck for DependentMockCheck {
         &self.id
     }
 
-    fn name(&self) -> &str {
+    fn description(&self) -> &str {
         "Dependent Mock Check"
     }
 
@@ -216,9 +216,9 @@ async fn test_executor_respects_dependencies() {
 
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
-    profile.required_checks.insert("CHECK_A".to_string());
-    profile.required_checks.insert("CHECK_B".to_string());
-    profile.required_checks.insert("CHECK_C".to_string());
+    profile.required_checks.push("CHECK_A".to_string());
+    profile.required_checks.push("CHECK_B".to_string());
+    profile.required_checks.push("CHECK_C".to_string());
 
     let executor = CheckExecutor::new(registry, profile);
 
@@ -253,7 +253,7 @@ async fn test_executor_handles_timeout() {
 
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
-    profile.required_checks.insert("SLOW_CHECK".to_string());
+    profile.required_checks.push("SLOW_CHECK".to_string());
 
     // Set very short timeout for build checks
     profile.timeouts_ms.build = 50; // 50ms timeout
@@ -292,7 +292,7 @@ async fn test_executor_respects_serial_mode() {
     profile.parallelism = ParallelismConfig::Serial;
     profile.required_checks.clear();
     for i in 1..=3 {
-        profile.required_checks.insert(format!("CHECK_{}", i));
+        profile.required_checks.push(format!("CHECK_{}", i));
     }
 
     let executor = CheckExecutor::new(registry, profile);
@@ -336,7 +336,7 @@ async fn test_executor_parallel_mode_is_faster() {
     for i in 1..=3 {
         profile
             .required_checks
-            .insert(format!("PARALLEL_CHECK_{}", i));
+            .push(format!("PARALLEL_CHECK_{}", i));
     }
 
     let executor = CheckExecutor::new(registry, profile);
@@ -448,10 +448,10 @@ async fn test_executor_complex_dependency_graph() {
 
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
-    profile.required_checks.insert("A".to_string());
-    profile.required_checks.insert("B".to_string());
-    profile.required_checks.insert("C".to_string());
-    profile.required_checks.insert("D".to_string());
+    profile.required_checks.push("A".to_string());
+    profile.required_checks.push("B".to_string());
+    profile.required_checks.push("C".to_string());
+    profile.required_checks.push("D".to_string());
 
     let executor = CheckExecutor::new(registry, profile);
 

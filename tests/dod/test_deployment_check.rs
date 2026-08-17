@@ -56,7 +56,7 @@ async fn test_artifact_build_check_properties() {
 async fn test_artifact_build_success() {
     let workspace = create_test_workspace();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast)
+    let context = CheckContext::new(workspace.path().to_path_buf())
         .with_timeout(300_000); // 5 minutes
 
     let check = ArtifactBuildCheck;
@@ -79,7 +79,7 @@ async fn test_artifact_build_invalid_cargo_toml() {
     fs::write(workspace.join("Cargo.toml"), "invalid toml content[[[").unwrap();
 
     let context =
-        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000); // 1 minute
+        CheckContext::new(workspace.to_path_buf()).with_timeout(60_000); // 1 minute
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();
@@ -94,7 +94,7 @@ async fn test_artifact_build_missing_cargo_toml() {
     let workspace = temp.path();
 
     let context =
-        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000);
+        CheckContext::new(workspace.to_path_buf()).with_timeout(60_000);
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();
@@ -108,7 +108,7 @@ async fn test_artifact_build_timeout() {
 
     // Set very short timeout
     let context =
-        CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast).with_timeout(1); // 1ms - will definitely timeout
+        CheckContext::new(workspace.path().to_path_buf()).with_timeout(1); // 1ms - will definitely timeout
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await;
@@ -121,7 +121,7 @@ async fn test_artifact_build_timeout() {
 async fn test_artifact_build_check_evidence_collection() {
     let workspace = create_test_workspace();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast)
+    let context = CheckContext::new(workspace.path().to_path_buf())
         .with_timeout(300_000);
 
     let check = ArtifactBuildCheck;
@@ -155,7 +155,7 @@ async fn test_artifact_build_check_remediation() {
     fs::write(workspace.join("Cargo.toml"), "[package]\nname = \"broken\"").unwrap();
 
     let context =
-        CheckContext::new(workspace.to_path_buf(), ValidationMode::Fast).with_timeout(60_000);
+        CheckContext::new(workspace.to_path_buf()).with_timeout(60_000);
 
     let check = ArtifactBuildCheck;
     let result = check.execute(&context).await.unwrap();
@@ -175,7 +175,7 @@ async fn test_artifact_build_check_remediation() {
 async fn test_artifact_build_duration_tracking() {
     let workspace = create_test_workspace();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast)
+    let context = CheckContext::new(workspace.path().to_path_buf())
         .with_timeout(300_000);
 
     let check = ArtifactBuildCheck;

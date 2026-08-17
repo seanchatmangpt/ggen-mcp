@@ -128,7 +128,7 @@ fn create_test_jira_params_dashboard() -> serde_json::Value {
 #[test]
 fn test_query_tickets_params_deserialization() {
     let params_json = create_test_jira_params_query();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
@@ -137,7 +137,7 @@ fn test_query_tickets_params_deserialization() {
     assert_eq!(params.sheet_name, "Jira");
     assert_eq!(params.jira_base_url, "https://company.atlassian.net");
 
-    if let ggen_mcp::tools::jira_unified::JiraOperation::QueryTickets {
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::QueryTickets {
         jql_query,
         max_results,
         ..
@@ -153,12 +153,12 @@ fn test_query_tickets_params_deserialization() {
 #[test]
 fn test_create_tickets_params_deserialization() {
     let params_json = create_test_jira_params_create();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
     let params = result.unwrap();
-    if let ggen_mcp::tools::jira_unified::JiraOperation::CreateTickets {
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::CreateTickets {
         jira_project_key,
         dry_run,
         ..
@@ -174,12 +174,12 @@ fn test_create_tickets_params_deserialization() {
 #[test]
 fn test_import_tickets_params_deserialization() {
     let params_json = create_test_jira_params_import();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
     let params = result.unwrap();
-    if let ggen_mcp::tools::jira_unified::JiraOperation::ImportTickets {
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::ImportTickets {
         jql_query, fields, ..
     } = params.operation
     {
@@ -194,12 +194,12 @@ fn test_import_tickets_params_deserialization() {
 #[test]
 fn test_sync_to_spreadsheet_params_deserialization() {
     let params_json = create_test_jira_params_sync_to_spreadsheet();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
     let params = result.unwrap();
-    if let ggen_mcp::tools::jira_unified::JiraOperation::SyncToSpreadsheet {
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::SyncToSpreadsheet {
         fork_id,
         conflict_resolution,
         ..
@@ -208,7 +208,7 @@ fn test_sync_to_spreadsheet_params_deserialization() {
         assert_eq!(fork_id, "fork-123");
         assert!(matches!(
             conflict_resolution,
-            ggen_mcp::tools::jira_integration::ConflictResolution::JiraWins
+            spreadsheet_mcp::tools::jira_integration::ConflictResolution::JiraWins
         ));
     } else {
         panic!("Expected SyncToSpreadsheet operation");
@@ -218,12 +218,12 @@ fn test_sync_to_spreadsheet_params_deserialization() {
 #[test]
 fn test_sync_to_jira_params_deserialization() {
     let params_json = create_test_jira_params_sync_to_jira();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
     let params = result.unwrap();
-    if let ggen_mcp::tools::jira_unified::JiraOperation::SyncToJira {
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::SyncToJira {
         jira_project_key,
         conflict_resolution,
         ..
@@ -232,7 +232,7 @@ fn test_sync_to_jira_params_deserialization() {
         assert_eq!(jira_project_key, "TEST");
         assert!(matches!(
             conflict_resolution,
-            ggen_mcp::tools::jira_integration::ConflictResolution::SpreadsheetWins
+            spreadsheet_mcp::tools::jira_integration::ConflictResolution::SpreadsheetWins
         ));
     } else {
         panic!("Expected SyncToJira operation");
@@ -242,12 +242,12 @@ fn test_sync_to_jira_params_deserialization() {
 #[test]
 fn test_dashboard_params_deserialization() {
     let params_json = create_test_jira_params_dashboard();
-    let result: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let result: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(result.is_ok());
 
     let params = result.unwrap();
-    if let ggen_mcp::tools::jira_unified::JiraOperation::CreateDashboard { jql_query, views } =
+    if let spreadsheet_mcp::tools::jira_unified::JiraOperation::CreateDashboard { jql_query, views } =
         params.operation
     {
         assert_eq!(jql_query, "project = TEST");
@@ -276,11 +276,11 @@ fn test_validation_rejects_empty_workbook_id() {
         }
     });
 
-    let params: ggen_mcp::tools::jira_unified::ManageJiraParams =
+    let params: spreadsheet_mcp::tools::jira_unified::ManageJiraParams =
         serde_json::from_value(params_json).unwrap();
 
     // Validation happens in validate_common_params
-    let result = ggen_mcp::validation::validate_non_empty_string(
+    let result = spreadsheet_mcp::validation::validate_non_empty_string(
         "workbook_or_fork_id",
         &params.workbook_or_fork_id,
     );
@@ -302,7 +302,7 @@ fn test_validation_rejects_invalid_url() {
         }
     });
 
-    let params: ggen_mcp::tools::jira_unified::ManageJiraParams =
+    let params: spreadsheet_mcp::tools::jira_unified::ManageJiraParams =
         serde_json::from_value(params_json).unwrap();
 
     // Should fail URL validation
@@ -318,7 +318,7 @@ fn test_validation_rejects_invalid_url() {
 
 #[test]
 fn test_operation_result_query_structure() {
-    use ggen_mcp::tools::jira_unified::{JiraOperationResult, JiraTicketSummary};
+    use spreadsheet_mcp::tools::jira_unified::{JiraOperationResult, JiraTicketSummary};
 
     let result = JiraOperationResult::Query {
         tickets: vec![JiraTicketSummary {
@@ -348,7 +348,7 @@ fn test_operation_result_query_structure() {
 
 #[test]
 fn test_operation_result_create_tickets_structure() {
-    use ggen_mcp::tools::jira_unified::{JiraOperationResult, JiraTicketResult};
+    use spreadsheet_mcp::tools::jira_unified::{JiraOperationResult, JiraTicketResult};
 
     let result = JiraOperationResult::CreateTickets {
         tickets_created: 2,
@@ -382,7 +382,7 @@ fn test_operation_result_create_tickets_structure() {
 
 #[test]
 fn test_operation_result_import_structure() {
-    use ggen_mcp::tools::jira_unified::JiraOperationResult;
+    use spreadsheet_mcp::tools::jira_unified::JiraOperationResult;
 
     let result = JiraOperationResult::Import {
         rows_imported: 5,
@@ -407,7 +407,7 @@ fn test_operation_result_import_structure() {
 
 #[test]
 fn test_operation_result_dashboard_structure() {
-    use ggen_mcp::tools::jira_unified::JiraOperationResult;
+    use spreadsheet_mcp::tools::jira_unified::JiraOperationResult;
 
     let result = JiraOperationResult::Dashboard {
         sheet_name: "Dashboard".to_string(),
@@ -438,7 +438,7 @@ fn test_operation_result_dashboard_structure() {
 
 #[test]
 fn test_operation_metrics() {
-    use ggen_mcp::tools::jira_unified::OperationMetrics;
+    use spreadsheet_mcp::tools::jira_unified::OperationMetrics;
 
     let metrics = OperationMetrics {
         duration_ms: 1500,
@@ -457,7 +457,7 @@ fn test_operation_metrics() {
 
 #[test]
 fn test_column_letter_conversion() {
-    use ggen_mcp::tools::jira_unified;
+    use spreadsheet_mcp::tools::jira_unified;
 
     // Access via tests module since column_letter is private
     // We test the behavior indirectly through the public API
@@ -483,7 +483,7 @@ fn test_column_letter_conversion() {
         }
     });
 
-    let params: Result<ggen_mcp::tools::jira_unified::ManageJiraParams, _> =
+    let params: Result<spreadsheet_mcp::tools::jira_unified::ManageJiraParams, _> =
         serde_json::from_value(params_json);
     assert!(params.is_ok());
 }
@@ -519,7 +519,7 @@ fn test_unified_tool_consolidation_benefit() {
 #[test]
 fn test_all_operations_enum_coverage() {
     // Ensure all 6 operations are covered
-    use ggen_mcp::tools::jira_unified::JiraOperation;
+    use spreadsheet_mcp::tools::jira_unified::JiraOperation;
 
     let operations = vec![
         JiraOperation::QueryTickets {
@@ -529,7 +529,7 @@ fn test_all_operations_enum_coverage() {
         },
         JiraOperation::CreateTickets {
             jira_project_key: "TEST".to_string(),
-            column_mapping: ggen_mcp::tools::jira_export::JiraColumnMapping {
+            column_mapping: spreadsheet_mcp::tools::jira_export::JiraColumnMapping {
                 summary_column: "A".to_string(),
                 description_column: "B".to_string(),
                 issue_type_column: "C".to_string(),

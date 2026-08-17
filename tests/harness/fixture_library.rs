@@ -39,7 +39,7 @@
 #![allow(dead_code)]
 
 use anyhow::{Context, Result};
-use oxigraph::io::GraphFormat;
+use oxigraph::io::{RdfFormat, RdfParser};
 use oxigraph::model::{GraphNameRef, NamedNode, Subject, Term, Triple};
 use oxigraph::store::Store;
 use serde::{Deserialize, Serialize};
@@ -606,10 +606,8 @@ impl OntologyFixture {
         // Create new store
         let store = Store::new()?;
         store.load_from_reader(
-            GraphFormat::Turtle,
+            RdfParser::from_format(RdfFormat::Turtle),
             self.ttl.as_bytes(),
-            GraphNameRef::DefaultGraph,
-            None,
         )?;
 
         *store_opt = Some(store.clone());
@@ -715,7 +713,7 @@ impl OntologyBuilder {
         self
     }
 
-    pub fn build_ttl(self) -> String {
+    pub fn build_ttl(&self) -> String {
         let mut ttl = String::new();
 
         // Add prefixes
@@ -760,6 +758,7 @@ impl OntologyBuilder {
         let ttl = self.build_ttl();
         let description = self
             .description
+            .clone()
             .unwrap_or_else(|| "Test ontology".to_string());
 
         OntologyFixture {
@@ -772,7 +771,7 @@ impl OntologyBuilder {
                 tags: HashSet::new(),
             },
             ttl,
-            prefixes: self.prefixes,
+            prefixes: self.prefixes.clone(),
             store: Arc::new(Mutex::new(None)),
         }
     }
@@ -1052,7 +1051,7 @@ impl Fixtures {
 pub struct UserFixtures;
 
 impl UserFixtures {
-    pub fn minimal() -> AggregateFixture {
+    pub fn minimal(&self) -> AggregateFixture {
         AggregateBuilder::new("User")
             .with_id("user_001")
             .with_field("id", "UserId", true)
@@ -1065,7 +1064,7 @@ impl UserFixtures {
             .build()
     }
 
-    pub fn complete() -> AggregateFixture {
+    pub fn complete(&self) -> AggregateFixture {
         AggregateBuilder::new("User")
             .with_id("user_002")
             .with_field("id", "UserId", true)
@@ -1090,7 +1089,7 @@ impl UserFixtures {
             .build()
     }
 
-    pub fn invalid() -> AggregateFixture {
+    pub fn invalid(&self) -> AggregateFixture {
         AggregateBuilder::new("User")
             .with_id("user_invalid")
             .invalid()
@@ -1104,7 +1103,7 @@ impl UserFixtures {
 pub struct OrderFixtures;
 
 impl OrderFixtures {
-    pub fn empty() -> AggregateFixture {
+    pub fn empty(&self) -> AggregateFixture {
         AggregateBuilder::new("Order")
             .with_id("order_001")
             .with_field("id", "OrderId", true)
@@ -1118,7 +1117,7 @@ impl OrderFixtures {
             .build()
     }
 
-    pub fn with_items(count: usize) -> AggregateFixture {
+    pub fn with_items(&self, count: usize) -> AggregateFixture {
         let mut builder = AggregateBuilder::new("Order")
             .with_id(format!("order_{:03}", count))
             .with_field("id", "OrderId", true)
@@ -1142,7 +1141,7 @@ impl OrderFixtures {
         builder.build()
     }
 
-    pub fn cancelled() -> AggregateFixture {
+    pub fn cancelled(&self) -> AggregateFixture {
         AggregateBuilder::new("Order")
             .with_id("order_cancelled")
             .with_field("id", "OrderId", true)
@@ -1163,7 +1162,7 @@ impl OrderFixtures {
 pub struct ProductFixtures;
 
 impl ProductFixtures {
-    pub fn in_stock() -> AggregateFixture {
+    pub fn in_stock(&self) -> AggregateFixture {
         AggregateBuilder::new("Product")
             .with_id("product_in_stock")
             .with_field("id", "ProductId", true)
@@ -1180,7 +1179,7 @@ impl ProductFixtures {
             .build()
     }
 
-    pub fn out_of_stock() -> AggregateFixture {
+    pub fn out_of_stock(&self) -> AggregateFixture {
         AggregateBuilder::new("Product")
             .with_id("product_out_of_stock")
             .with_field("id", "ProductId", true)
@@ -1201,7 +1200,7 @@ impl ProductFixtures {
 pub struct PaymentFixtures;
 
 impl PaymentFixtures {
-    pub fn pending() -> AggregateFixture {
+    pub fn pending(&self) -> AggregateFixture {
         AggregateBuilder::new("Payment")
             .with_id("payment_pending")
             .with_field("id", "PaymentId", true)
@@ -1215,7 +1214,7 @@ impl PaymentFixtures {
             .build()
     }
 
-    pub fn completed() -> AggregateFixture {
+    pub fn completed(&self) -> AggregateFixture {
         AggregateBuilder::new("Payment")
             .with_id("payment_completed")
             .with_field("id", "PaymentId", true)
@@ -1230,7 +1229,7 @@ impl PaymentFixtures {
             .build()
     }
 
-    pub fn failed() -> AggregateFixture {
+    pub fn failed(&self) -> AggregateFixture {
         AggregateBuilder::new("Payment")
             .with_id("payment_failed")
             .with_field("id", "PaymentId", true)
@@ -1251,14 +1250,14 @@ impl PaymentFixtures {
 pub struct ConfigFixtures;
 
 impl ConfigFixtures {
-    pub fn minimal() -> ConfigFixture {
+    pub fn minimal(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/minimal")
             .description("Minimal configuration")
             .build()
     }
 
-    pub fn complete() -> ConfigFixture {
+    pub fn complete(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/complete")
             .cache_capacity(10)
@@ -1271,7 +1270,7 @@ impl ConfigFixtures {
             .build()
     }
 
-    pub fn development() -> ConfigFixture {
+    pub fn development(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/dev")
             .cache_capacity(3)
@@ -1282,7 +1281,7 @@ impl ConfigFixtures {
             .build()
     }
 
-    pub fn production() -> ConfigFixture {
+    pub fn production(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/prod")
             .cache_capacity(20)
@@ -1294,7 +1293,7 @@ impl ConfigFixtures {
             .build()
     }
 
-    pub fn invalid_cache_too_small() -> ConfigFixture {
+    pub fn invalid_cache_too_small(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/invalid")
             .cache_capacity(0)
@@ -1303,7 +1302,7 @@ impl ConfigFixtures {
             .build()
     }
 
-    pub fn invalid_timeout_too_low() -> ConfigFixture {
+    pub fn invalid_timeout_too_low(&self) -> ConfigFixture {
         ConfigBuilder::new()
             .workspace_root("/tmp/invalid")
             .tool_timeout_ms(50)
@@ -1317,7 +1316,7 @@ impl ConfigFixtures {
 pub struct OntologyFixtures;
 
 impl OntologyFixtures {
-    pub fn single_aggregate() -> OntologyFixture {
+    pub fn single_aggregate(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .add_aggregate("User")
             .add_command("CreateUser")
@@ -1326,7 +1325,7 @@ impl OntologyFixtures {
             .build()
     }
 
-    pub fn complete_domain() -> OntologyFixture {
+    pub fn complete_domain(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .add_aggregate("User")
             .add_aggregate("Order")
@@ -1345,7 +1344,7 @@ impl OntologyFixtures {
             .build()
     }
 
-    pub fn mcp_tools() -> OntologyFixture {
+    pub fn mcp_tools(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .prefix("mcp", "https://modelcontextprotocol.io/schema#")
             .add_aggregate("Tool")
@@ -1359,7 +1358,7 @@ impl OntologyFixtures {
             .build()
     }
 
-    pub fn ddd_patterns() -> OntologyFixture {
+    pub fn ddd_patterns(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .add_aggregate("Aggregate")
             .add_value_object("ValueObject")
@@ -1370,7 +1369,7 @@ impl OntologyFixtures {
             .build()
     }
 
-    pub fn invalid_missing_type() -> OntologyFixture {
+    pub fn invalid_missing_type(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .add_triple("ex:InvalidEntity", "rdfs:label", "\"Invalid\"")
             .description("Invalid ontology: missing rdf:type")
@@ -1378,7 +1377,7 @@ impl OntologyFixtures {
             .build()
     }
 
-    pub fn invalid_cyclic_hierarchy() -> OntologyFixture {
+    pub fn invalid_cyclic_hierarchy(&self) -> OntologyFixture {
         OntologyBuilder::new()
             .add_triple("ex:A", "rdfs:subClassOf", "ex:B")
             .add_triple("ex:B", "rdfs:subClassOf", "ex:C")
@@ -1492,38 +1491,35 @@ pub mod utils {
 
 /// AAA (Arrange-Act-Assert) pattern helper
 pub struct AAAPattern<T> {
-    arranged: Option<T>,
-    acted: Option<T>,
+    /// Holds the arranged value before `act`, and the acted value after.
+    value: Option<T>,
 }
 
 impl<T> AAAPattern<T> {
     pub fn new() -> Self {
-        Self {
-            arranged: None,
-            acted: None,
-        }
+        Self { value: None }
     }
 
     pub fn arrange(mut self, data: T) -> Self {
-        self.arranged = Some(data);
+        self.value = Some(data);
         self
     }
 
-    pub fn act<F>(mut self, f: F) -> Self
+    /// Act may change the type: arrange `A`, act `A -> B`, assert on `B`.
+    pub fn act<U, F>(self, f: F) -> AAAPattern<U>
     where
-        F: FnOnce(T) -> T,
+        F: FnOnce(T) -> U,
     {
-        if let Some(data) = self.arranged.take() {
-            self.acted = Some(f(data));
+        AAAPattern {
+            value: self.value.map(f),
         }
-        self
     }
 
     pub fn assert<F>(self, f: F)
     where
         F: FnOnce(Option<T>),
     {
-        f(self.acted);
+        f(self.value);
     }
 }
 

@@ -3,11 +3,11 @@
 //! Demonstrates programmatic usage of the DoD validation system.
 
 use anyhow::{Context, Result};
-use ggen_mcp::dod::check::{CheckContext, CheckRegistry, DodCheck};
-use ggen_mcp::dod::executor::CheckExecutor;
-use ggen_mcp::dod::profile::DodProfile;
-use ggen_mcp::dod::remediation::RemediationGenerator;
-use ggen_mcp::dod::types::*;
+use spreadsheet_mcp::dod::check::{CheckContext, CheckRegistry, DodCheck};
+use spreadsheet_mcp::dod::executor::CheckExecutor;
+use spreadsheet_mcp::dod::profile::DodProfile;
+use spreadsheet_mcp::dod::remediation::RemediationGenerator;
+use spreadsheet_mcp::dod::types::*;
 use std::path::PathBuf;
 
 /// Example 1: Basic validation with default profile
@@ -18,7 +18,7 @@ async fn example_basic_validation() -> Result<()> {
     println!("=== Example 1: Basic Validation ===\n");
 
     // Create registry with all built-in checks
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
 
     // Use default development profile
     let profile = DodProfile::default_dev();
@@ -81,7 +81,7 @@ async fn example_basic_validation() -> Result<()> {
 async fn example_custom_profile() -> Result<()> {
     println!("=== Example 2: Custom Profile ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
 
     // Create custom profile
     let mut profile = DodProfile::default_dev();
@@ -140,7 +140,7 @@ async fn example_custom_profile() -> Result<()> {
 async fn example_single_check() -> Result<()> {
     println!("=== Example 3: Single Check ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
     let profile = DodProfile::default_dev();
     let executor = CheckExecutor::new(registry, profile);
     let context = CheckContext::new(PathBuf::from("."));
@@ -289,7 +289,7 @@ async fn example_custom_check() -> Result<()> {
 async fn example_remediation() -> Result<()> {
     println!("=== Example 5: Remediation Suggestions ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
     let profile = DodProfile::default_dev();
     let executor = CheckExecutor::new(registry, profile);
     let context = CheckContext::new(PathBuf::from("."));
@@ -342,7 +342,7 @@ async fn example_remediation() -> Result<()> {
 async fn example_category_filtering() -> Result<()> {
     println!("=== Example 6: Category Filtering ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
 
     // Get only build checks
     let build_checks = registry.get_by_category(CheckCategory::BuildCorrectness);
@@ -385,7 +385,7 @@ async fn example_category_filtering() -> Result<()> {
 async fn example_evidence() -> Result<()> {
     println!("=== Example 7: Evidence Collection ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
     let profile = DodProfile::default_dev();
     let executor = CheckExecutor::new(registry, profile);
     let context = CheckContext::new(PathBuf::from("."));
@@ -503,7 +503,7 @@ fail_on_clippy_warnings = false
 async fn example_timeout_handling() -> Result<()> {
     println!("=== Example 9: Timeout Handling ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
 
     // Create profile with short timeouts
     let mut profile = DodProfile::default_dev();
@@ -541,19 +541,19 @@ async fn example_timeout_handling() -> Result<()> {
 /// Compare serial and parallel execution modes.
 #[tokio::main]
 async fn example_parallelism() -> Result<()> {
-    use ggen_mcp::dod::profile::ParallelismConfig;
+    use spreadsheet_mcp::dod::profile::ParallelismConfig;
     use std::time::Instant;
 
     println!("=== Example 10: Parallelism ===\n");
 
-    let registry = ggen_mcp::dod::checks::create_registry();
+    let registry = spreadsheet_mcp::dod::checks::create_registry();
     let context = CheckContext::new(PathBuf::from("."));
 
     // Serial execution
     let mut profile_serial = DodProfile::default_dev();
     profile_serial.parallelism = ParallelismConfig::Serial;
 
-    let executor_serial = CheckExecutor::new(registry.clone(), profile_serial);
+    let executor_serial = CheckExecutor::new(spreadsheet_mcp::dod::checks::create_registry(), profile_serial);
 
     println!("Running checks in SERIAL mode...");
     let start = Instant::now();

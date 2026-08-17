@@ -2,7 +2,7 @@
 //!
 //! Tests report formatting, all verdict types, and remediation sections.
 
-use ggen_mcp::dod::*;
+use spreadsheet_mcp::dod::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 

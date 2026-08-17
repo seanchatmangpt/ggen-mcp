@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ggen_mcp::dod::checks::intent::IntentAlignmentCheck;
-use ggen_mcp::dod::{CheckContext, CheckStatus, DodCheck};
+use spreadsheet_mcp::dod::checks::intent::IntentAlignmentCheck;
+use spreadsheet_mcp::dod::{CheckContext, CheckStatus, DodCheck};
 use std::fs;
 use std::path::PathBuf;
 

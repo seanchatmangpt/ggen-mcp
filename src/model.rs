@@ -14,6 +14,24 @@ impl WorkbookId {
     }
 }
 
+impl From<&str> for WorkbookId {
+    fn from(s: &str) -> Self {
+        WorkbookId(s.to_string())
+    }
+}
+
+impl From<&String> for WorkbookId {
+    fn from(s: &String) -> Self {
+        WorkbookId(s.clone())
+    }
+}
+
+impl From<String> for WorkbookId {
+    fn from(s: String) -> Self {
+        WorkbookId(s)
+    }
+}
+
 impl std::fmt::Display for WorkbookId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

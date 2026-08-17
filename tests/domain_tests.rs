@@ -4,7 +4,7 @@ mod tests {
 
     test!(test_ontology_validate, {
         // Arrange
-        let ontology = crate::domain::aggregates::Ontology::new(
+        let ontology = spreadsheet_mcp::domain::aggregates::Ontology::new(
             "ont-test123".to_string(),
             "path/to/onto.ttl".to_string(),
         );
@@ -17,7 +17,7 @@ mod tests {
     test!(test_receipt_validate, {
         // Arrange
         let receipt =
-            crate::domain::aggregates::Receipt::new("receipt-123".to_string(), "hash1".to_string());
+            spreadsheet_mcp::domain::aggregates::Receipt::new("receipt-123".to_string(), "hash1".to_string());
 
         // Act & Assert
         receipt.validate();

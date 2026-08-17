@@ -3,11 +3,11 @@
 //! These tests verify that the type system prevents invalid operations at compile time.
 //! Some tests are commented out because they demonstrate compile errors that would occur.
 
-use crate::domain::value_objects::{QueryName, ResourceName, TemplateName, ToolName};
-use crate::ontology::state_machine::{OntologyStore, Unvalidated, Validated};
-use crate::tools::ggen_sync::state::{Initial, Previewed, SyncExecutor};
-use crate::tools::ggen_sync::SyncGgenParams;
-use crate::tools::ggen_sync::report::SyncMode;
+use spreadsheet_mcp::domain::value_objects::{QueryName, ResourceName, TemplateName, ToolName};
+use spreadsheet_mcp::ontology::state_machine::{OntologyStore, Unvalidated, Validated};
+use spreadsheet_mcp::tools::ggen_sync::state::{Initial, Previewed, SyncExecutor};
+use spreadsheet_mcp::tools::ggen_sync::SyncGgenParams;
+use spreadsheet_mcp::tools::ggen_sync::report::SyncMode;
 
 #[test]
 fn test_cannot_execute_unvalidated_ontology() {

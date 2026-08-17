@@ -153,7 +153,7 @@ impl CacheStats {
 mod tests {
     use super::*;
     use crate::tools::ontology_sparql::{QueryPerformance, QueryResult};
-    use oxigraph::store::Store;
+    use ggen_ontology_core::TripleStore;
 
     #[test]
     fn test_ontology_cache() {
@@ -162,9 +162,9 @@ mod tests {
         let id2 = OntologyId::new("test2");
         let id3 = OntologyId::new("test3");
 
-        let store1 = Store::new().unwrap();
-        let store2 = Store::new().unwrap();
-        let store3 = Store::new().unwrap();
+        let store1 = TripleStore::new().unwrap();
+        let store2 = TripleStore::new().unwrap();
+        let store3 = TripleStore::new().unwrap();
 
         cache.insert(id1.clone(), store1);
         cache.insert(id2.clone(), store2);

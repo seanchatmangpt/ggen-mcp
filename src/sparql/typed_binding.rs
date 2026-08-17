@@ -465,17 +465,18 @@ mod tests {
     use oxigraph::sparql::QuerySolution;
 
     fn create_test_solution() -> QuerySolution {
-        let mut bindings = Vec::new();
-        bindings.push((
-            "iri".to_string(),
-            Term::NamedNode(NamedNode::new("http://example.org/test").unwrap()),
-        ));
-        bindings.push((
-            "literal".to_string(),
-            Term::Literal(Literal::new_simple_literal("test value")),
-        ));
+        let vars: std::sync::Arc<[oxigraph::sparql::Variable]> = std::sync::Arc::from(vec![
+            oxigraph::sparql::Variable::new("iri").unwrap(),
+            oxigraph::sparql::Variable::new("literal").unwrap(),
+        ]);
+        let values: Vec<Option<Term>> = vec![
+            Some(Term::NamedNode(
+                NamedNode::new("http://example.org/test").unwrap(),
+            )),
+            Some(Term::Literal(Literal::new_simple_literal("test value"))),
+        ];
 
-        QuerySolution::from(bindings)
+        QuerySolution::from((vars, values))
     }
 
     #[test]

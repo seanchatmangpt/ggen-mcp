@@ -11,8 +11,6 @@
 //! Chicago-style TDD: Real implementations, no mocks, state-based assertions.
 
 use anyhow::{Context, Result};
-use rmcp::transport::Pipe;
-use rmcp::{Model, Protocol};
 use serde_json::{Value, json};
 use spreadsheet_mcp::config::ServerConfig;
 use spreadsheet_mcp::server::SpreadsheetServer;
@@ -35,7 +33,29 @@ impl MpcTestHarness {
         let workspace = TempDir::new()?;
         let config = Arc::new(ServerConfig {
             workspace_root: workspace.path().to_path_buf(),
-            ..Default::default()
+            cache_capacity: 8,
+            supported_extensions: vec!["xlsx".to_string()],
+            single_workbook: None,
+            enabled_tools: None,
+            transport: spreadsheet_mcp::TransportKind::Stdio,
+            http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+            recalc_enabled: false,
+            vba_enabled: false,
+            max_concurrent_recalcs: 2,
+            tool_timeout_ms: Some(30_000),
+            max_response_bytes: Some(1_000_000),
+            allow_overwrite: false,
+            graceful_shutdown_timeout_secs: 30,
+            ontology_cache_size: 16,
+            ontology_cache_ttl_secs: 300,
+            query_cache_size: 128,
+            query_cache_ttl_secs: 60,
+            entitlement_enabled: false,
+            entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+                provider_type: "disabled".to_string(),
+                local_path: ".ggen_license".to_string(),
+                gcp_config: Default::default(),
+            },
         });
         let state = Arc::new(AppState::new(config.clone()));
 
@@ -47,7 +67,7 @@ impl MpcTestHarness {
     }
 
     async fn create_server(&self) -> Result<SpreadsheetServer> {
-        SpreadsheetServer::from_state(self.state.clone())
+        Ok(SpreadsheetServer::from_state(self.state.clone()))
     }
 }
 
@@ -61,9 +81,6 @@ async fn call_mcp_tool(
     tool_name: &str,
     arguments: Value,
 ) -> Result<Value> {
-    // Create a pipe for bidirectional communication
-    let (client, server_transport) = Pipe::create();
-
     // This is a simplified test that would need the full rmcp setup
     // For now, we'll test the tool directly
     Ok(json!({"status": "mocked"}))

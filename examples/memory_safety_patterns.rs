@@ -403,7 +403,6 @@ fn example_weak_references() {
 // Example 6: Spawn Blocking for CPU-Bound Operations
 // =============================================================================
 
-#[tokio::main]
 async fn example_spawn_blocking() {
     println!("\n=== Example 6: Spawn Blocking ===");
 
@@ -659,7 +658,7 @@ fn example_atomic_counters() {
 // Main Function
 // =============================================================================
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     println!("╔════════════════════════════════════════════════════════════════╗");
     println!("║      Memory Safety Patterns for Rust MCP Servers              ║");
     println!("║      Based on ggen-mcp Analysis (2026-01-20)                  ║");
@@ -679,12 +678,14 @@ fn main() {
 
     // Async example
     let rt = tokio::runtime::Runtime::new().unwrap();
-    rt.block_on(example_spawn_blocking());
+    rt.block_on(async { example_spawn_blocking().await });
 
     println!("\n╔════════════════════════════════════════════════════════════════╗");
     println!("║      All examples completed successfully!                     ║");
     println!("║      No unsafe code, no memory leaks, no panics.              ║");
     println!("╚════════════════════════════════════════════════════════════════╝");
+
+    Ok(())
 }
 
 // =============================================================================

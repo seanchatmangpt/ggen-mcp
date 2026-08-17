@@ -1,8 +1,8 @@
 //! Tests for tool registry consistency check
 
-use ggen_mcp::dod::check::{CheckContext, DodCheck};
-use ggen_mcp::dod::checks::tool_registry::ToolRegistryCheck;
-use ggen_mcp::dod::types::{CheckCategory, CheckSeverity, CheckStatus};
+use spreadsheet_mcp::dod::check::{CheckContext, DodCheck};
+use spreadsheet_mcp::dod::checks::tool_registry::ToolRegistryCheck;
+use spreadsheet_mcp::dod::types::{CheckCategory, CheckSeverity, CheckStatus};
 use std::path::PathBuf;
 
 #[tokio::test]

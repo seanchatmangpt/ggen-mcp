@@ -10,7 +10,7 @@
 //! - Verdict computation logic
 
 use async_trait::async_trait;
-use ggen_mcp::dod::*;
+use spreadsheet_mcp::dod::*;
 use std::path::PathBuf;
 
 // ============================================================================
@@ -56,7 +56,7 @@ impl DodCheck for MockCheck {
         &self.id
     }
 
-    fn name(&self) -> &str {
+    fn description(&self) -> &str {
         &self.name
     }
 

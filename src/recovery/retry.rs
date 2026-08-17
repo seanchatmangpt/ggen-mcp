@@ -273,10 +273,10 @@ mod tests {
 
     #[test]
     fn test_retry_with_policy_success_on_retry() {
-        let mut attempt_count = 0;
+        let attempt_cell = std::cell::Cell::new(0);
         let operation = || {
-            attempt_count += 1;
-            if attempt_count < 3 {
+            attempt_cell.set(attempt_cell.get() + 1);
+            if attempt_cell.get() < 3 {
                 Err(anyhow!("timeout"))
             } else {
                 Ok(42)
@@ -287,7 +287,7 @@ mod tests {
         let result = retry_with_policy(operation, &policy, "test_operation");
 
         assert_eq!(result.unwrap(), 42);
-        assert_eq!(attempt_count, 3);
+        assert_eq!(attempt_cell.get(), 3);
     }
 
     #[test]

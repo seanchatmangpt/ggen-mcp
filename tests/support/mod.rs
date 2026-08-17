@@ -95,6 +95,17 @@ impl TestWorkspace {
             tool_timeout_ms: Some(30_000),
             max_response_bytes: Some(1_000_000),
             allow_overwrite: false,
+            graceful_shutdown_timeout_secs: 30,
+            ontology_cache_size: 16,
+            ontology_cache_ttl_secs: 300,
+            query_cache_size: 128,
+            query_cache_ttl_secs: 60,
+            entitlement_enabled: false,
+            entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+                provider_type: "disabled".to_string(),
+                local_path: ".ggen_license".to_string(),
+                gcp_config: Default::default(),
+            },
         }
     }
 

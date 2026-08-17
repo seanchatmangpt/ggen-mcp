@@ -18,6 +18,26 @@ mod harness;
 use chicago_tdd_tools::prelude::*;
 use harness::*;
 
+// `test!` requires the body's error type to implement `std::error::Error`,
+// which `anyhow::Error` deliberately does not. This wrapper lets `?` on
+// anyhow results keep working inside `test!` bodies.
+#[derive(Debug)]
+struct TestError(anyhow::Error);
+
+impl std::fmt::Display for TestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl std::error::Error for TestError {}
+
+impl From<anyhow::Error> for TestError {
+    fn from(e: anyhow::Error) -> Self {
+        TestError(e)
+    }
+}
+
 // ============================================================================
 // Simple Scenarios
 // ============================================================================
@@ -60,7 +80,7 @@ test!(test_simple_aggregate_complete_pipeline, {
     harness.metrics.print_summary();
     alert_success!("All stages completed successfully");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_simple_aggregate_ontology_loading, {
@@ -94,7 +114,7 @@ test!(test_simple_aggregate_ontology_loading, {
         result.ontology_result.triple_count
     );
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_simple_aggregate_sparql_extraction, {
@@ -126,7 +146,7 @@ test!(test_simple_aggregate_sparql_extraction, {
     alert_debug!("Extracted entities: {:?}", entity_names);
     alert_success!("{} entities extracted", entity_names.len());
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_simple_aggregate_template_rendering, {
@@ -156,7 +176,7 @@ test!(test_simple_aggregate_template_rendering, {
         alert_success!("Rendered: {} ({} bytes)", file_name, code.len());
     }
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_simple_aggregate_code_validation, {
@@ -182,7 +202,7 @@ test!(test_simple_aggregate_code_validation, {
         alert_success!("Valid: {}", file_name);
     }
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_simple_aggregate_file_writing, {
@@ -212,7 +232,7 @@ test!(test_simple_aggregate_file_writing, {
         alert_success!("Written: {}", path.display());
     }
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -254,7 +274,7 @@ test!(test_complete_domain_pipeline, {
     // Print metrics for debugging
     harness.metrics.print_summary();
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_complete_domain_with_value_objects, {
@@ -286,7 +306,7 @@ test!(test_complete_domain_with_value_objects, {
         alert_warning!("No value objects found in domain");
     }
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -321,7 +341,7 @@ test!(test_mcp_tool_generation, {
         result.sparql_result.entities.len()
     );
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -374,7 +394,7 @@ test!(test_missing_template_fallback, {
 
     alert_success!("Fallback to default templates worked");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -408,13 +428,15 @@ test!(test_golden_file_comparison, {
         alert_success!("Generated code matches golden files perfectly");
     }
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
-test!(
-    #[ignore] // Only run when explicitly requested
-    test_update_golden_files,
-    {
+// The `test!` macro takes no attributes; written out so the author's
+// pre-existing `#[ignore]` is preserved verbatim.
+#[test]
+#[ignore] // Only run when explicitly requested
+fn test_update_golden_files() {
+    (|| {
         alert_info!("Test: Golden File - Update Golden Files");
 
         // Arrange: Set up harness with fixture
@@ -430,9 +452,10 @@ test!(
 
         alert_success!("Golden files updated");
 
-        Ok::<(), anyhow::Error>(())
-    }
-);
+        Ok::<(), TestError>(())
+    })()
+    .unwrap();
+}
 
 // ============================================================================
 // Incremental Updates
@@ -464,7 +487,7 @@ test!(test_incremental_generation, {
 
     alert_success!("Incremental generation: {} files", files1);
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -503,7 +526,7 @@ test!(test_pipeline_performance, {
 
     alert_success!("Performance within acceptable limits");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 test!(test_complex_domain_performance, {
@@ -534,7 +557,7 @@ test!(test_complex_domain_performance, {
 
     alert_success!("Complex domain performance acceptable");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -561,7 +584,7 @@ test!(test_programmatic_api, {
 
     alert_success!("Programmatic API works correctly");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });
 
 // ============================================================================
@@ -645,5 +668,5 @@ test!(test_comprehensive_pipeline_validation, {
 
     alert_success!("All validation checks passed!");
 
-    Ok::<(), anyhow::Error>(())
+    Ok::<(), TestError>(())
 });

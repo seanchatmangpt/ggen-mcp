@@ -14,36 +14,48 @@ fn create_test_context() -> CheckContext {
         workspace_root: PathBuf::from("."),
         mode: ValidationMode::Fast,
         timeout_ms: 60_000,
+        metadata: std::collections::HashMap::new(),
     }
 }
 
 /// Create registry with all checks
 fn create_full_registry() -> CheckRegistry {
+    use spreadsheet_mcp::dod::checks::*;
+
     let mut registry = CheckRegistry::new();
 
-    // Register all workspace checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::workspace::get_workspace_checks());
+    // Category A: Workspace Integrity
+    registry.register(Box::new(workspace::WorkspaceIntegrityCheck));
 
-    // Register all build checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::build::get_build_checks());
+    // Category B: Intent Alignment
+    registry.register(Box::new(intent::IntentAlignmentCheck));
 
-    // Register all test checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::tests::get_test_checks());
+    // Category C: Tool Registry
+    registry.register(Box::new(tool_registry::ToolRegistryCheck));
 
-    // Register all safety checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::safety::get_safety_checks());
+    // Category D: Build Correctness
+    registry.register(Box::new(build::BuildFmtCheck));
+    registry.register(Box::new(build::BuildClippyCheck));
+    registry.register(Box::new(build::BuildCheckCheck));
 
-    // Register all ggen checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::ggen::get_ggen_checks());
+    // Category E: Test Truth
+    registry.register(Box::new(tests::TestUnitCheck));
+    registry.register(Box::new(tests::TestIntegrationCheck));
+    registry.register(Box::new(tests::TestSnapshotCheck));
 
-    // Register all intent checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::intent::get_intent_checks());
+    // Category F: ggen Pipeline
+    registry.register(Box::new(ggen::GgenOntologyCheck));
+    registry.register(Box::new(ggen::GgenSparqlCheck));
+    registry.register(Box::new(ggen::GgenDryRunCheck));
+    registry.register(Box::new(ggen::GgenRenderCheck));
 
-    // Register all tool registry checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::tool_registry::get_tool_registry_checks());
+    // Category G: Safety Invariants
+    registry.register(Box::new(safety::SecretDetectionCheck));
+    registry.register(Box::new(safety::LicenseHeaderCheck));
+    registry.register(Box::new(safety::DependencyRiskCheck));
 
-    // Register all deployment checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::deployment::get_deployment_checks());
+    // Category H: Deployment Readiness
+    registry.register(Box::new(deployment::ArtifactBuildCheck));
 
     registry
 }
@@ -79,7 +91,7 @@ async fn test_dev_profile_meets_5s_target() -> Result<()> {
 #[tokio::test]
 async fn test_enterprise_profile_meets_10s_target() -> Result<()> {
     let registry = create_full_registry();
-    let profile = DodProfile::default_enterprise();
+    let profile = DodProfile::enterprise_strict();
     let executor = CheckExecutor::new(registry, profile);
     let context = create_test_context();
 
@@ -117,7 +129,7 @@ async fn test_timeout_enforcement() -> Result<()> {
             "SLOW_CHECK"
         }
 
-        fn name(&self) -> &str {
+        fn description(&self) -> &str {
             "Slow Check"
         }
 
@@ -156,7 +168,7 @@ async fn test_timeout_enforcement() -> Result<()> {
 
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
-    profile.required_checks.insert("SLOW_CHECK".to_string());
+    profile.required_checks.push("SLOW_CHECK".to_string());
     profile.timeouts_ms.build = 100; // 100ms timeout
 
     let executor = CheckExecutor::new(registry, profile);
@@ -314,7 +326,7 @@ async fn test_evidence_size_limits() -> Result<()> {
             "LARGE_EVIDENCE"
         }
 
-        fn name(&self) -> &str {
+        fn description(&self) -> &str {
             "Large Evidence Check"
         }
 
@@ -359,7 +371,7 @@ async fn test_evidence_size_limits() -> Result<()> {
 
     let mut profile = DodProfile::default_dev();
     profile.required_checks.clear();
-    profile.required_checks.insert("LARGE_EVIDENCE".to_string());
+    profile.required_checks.push("LARGE_EVIDENCE".to_string());
 
     let executor = CheckExecutor::new(registry, profile);
     let context = create_test_context();
@@ -469,7 +481,7 @@ async fn test_concurrent_executions() -> Result<()> {
     );
 
     // All should complete successfully
-    for (i, result, duration) in results {
+    for (i, result, duration) in &results {
         assert!(result.is_ok(), "Execution {} should succeed", i);
         println!("Execution {}: {:.2}s", i, duration.as_secs_f64());
     }

@@ -5,7 +5,7 @@
 
 mod harness;
 
-use harness::{OntologyBuilder, OntologyTestHarness};
+use harness::turtle_ontology_harness::{OntologyBuilder, OntologyTestHarness};
 
 // =============================================================================
 // VALID ONTOLOGY TESTS - These should all pass
@@ -630,9 +630,11 @@ fn test_assertion_failures_are_clear() {
         .expect("Failed to build");
 
     // WHEN/THEN: Assertion failures should have clear messages
-    let result = std::panic::catch_unwind(|| {
+    // The harness holds an oxigraph Store, which is not UnwindSafe; the
+    // assertion under test only reads it, so assert that explicitly.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         harness.assert_class_defined("http://test.example.org/NonExistent");
-    });
+    }));
 
     assert!(
         result.is_err(),

@@ -3,7 +3,8 @@
 //! Comprehensive test suite for ontology validation and consistency checking.
 //! Tests invalid ontologies to ensure proper error detection.
 
-use oxigraph::io::GraphFormat;
+use oxigraph::io::{RdfFormat, RdfParser};
+use ggen_ontology_core::TripleStore;
 use oxigraph::model::{GraphNameRef, NamedNode, Subject, Term, Triple};
 use oxigraph::store::Store;
 use spreadsheet_mcp::ontology::{
@@ -15,6 +16,26 @@ use spreadsheet_mcp::ontology::{
 // Test Utilities
 // =============================================================================
 
+/// The lib validators take `ggen_ontology_core::TripleStore`, which wraps its
+/// oxigraph `Store` privately and only loads from a path. Round-trip the graph
+/// through Turtle so these tests keep building stores the way they always did.
+fn to_triple_store(store: &Store) -> TripleStore {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    store
+        .dump_to_writer(RdfFormat::Turtle, &mut buf)
+        .expect("dump turtle");
+    let ts = TripleStore::new().expect("TripleStore::new");
+    let mut f = tempfile::Builder::new()
+        .suffix(".ttl")
+        .tempfile()
+        .expect("tempfile");
+    f.write_all(&buf).expect("write ttl");
+    f.flush().expect("flush");
+    ts.load_turtle(f.path()).expect("load_turtle");
+    ts
+}
+
 fn create_test_store() -> Store {
     Store::new().unwrap()
 }
@@ -25,11 +46,12 @@ fn add_triple(store: &Store, subject: &str, predicate: &str, object: &str) {
     let o = NamedNode::new(object).unwrap();
 
     store
-        .insert(Triple {
-            subject: Subject::NamedNode(s),
-            predicate: p,
-            object: Term::NamedNode(o),
-        })
+        .insert(oxigraph::model::QuadRef::new(
+            &s,
+            &p,
+            oxigraph::model::TermRef::NamedNode(o.as_ref()),
+            GraphNameRef::DefaultGraph,
+        ))
         .unwrap();
 }
 
@@ -39,11 +61,12 @@ fn add_literal_triple(store: &Store, subject: &str, predicate: &str, literal: &s
     let lit = oxigraph::model::Literal::new_simple_literal(literal);
 
     store
-        .insert(Triple {
-            subject: Subject::NamedNode(s),
-            predicate: p,
-            object: Term::Literal(lit),
-        })
+        .insert(oxigraph::model::QuadRef::new(
+            &s,
+            &p,
+            oxigraph::model::TermRef::Literal(lit.as_ref()),
+            GraphNameRef::DefaultGraph,
+        ))
         .unwrap();
 }
 
@@ -75,7 +98,7 @@ fn test_detect_cyclic_hierarchy() {
         "http://example.org/A",
     );
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let report = checker.check_all();
 
     assert!(!report.valid, "Should detect cycle");
@@ -103,7 +126,7 @@ fn test_valid_hierarchy() {
         "http://example.org/C",
     );
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let mut report = spreadsheet_mcp::ontology::ConsistencyReport::new();
     checker.check_class_hierarchy(&mut report).unwrap();
 
@@ -139,10 +162,10 @@ fn test_cardinality_violation() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let report = checker.check_all();
 
     assert!(!report.valid, "Should detect cardinality violations");
@@ -171,10 +194,10 @@ fn test_missing_required_property() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let report = checker.check_all();
 
     assert!(!report.valid, "Should detect missing required property");
@@ -203,10 +226,10 @@ fn test_property_domain_violation() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let report = checker.check_all();
 
     // Note: Domain checking requires type inference which may not catch all violations
@@ -239,10 +262,10 @@ fn test_consistency_stats() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let checker = ConsistencyChecker::new(store);
+    let checker = ConsistencyChecker::new(to_triple_store(&store));
     let report = checker.check_all();
 
     assert!(report.stats.total_classes >= 3, "Should count classes");
@@ -280,10 +303,10 @@ fn test_invalid_ddd_structure() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let validator = SchemaValidator::new(store);
+    let validator = SchemaValidator::new(to_triple_store(&store));
     let report = validator.validate_all();
 
     assert!(!report.valid, "Should detect invalid DDD structure");
@@ -311,10 +334,10 @@ fn test_invalid_invariant() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let validator = SchemaValidator::new(store);
+    let validator = SchemaValidator::new(to_triple_store(&store));
     let report = validator.validate_all();
 
     assert!(!report.valid, "Should detect invalid invariant");
@@ -336,10 +359,10 @@ fn test_orphaned_node_detection() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let validator = SchemaValidator::new(store);
+    let validator = SchemaValidator::new(to_triple_store(&store));
     let report = validator.validate_all();
 
     // Orphaned nodes generate warnings, not errors
@@ -354,7 +377,7 @@ fn test_required_namespaces() {
     let store = create_test_store();
 
     // Empty ontology - missing recommended namespaces
-    let validator = SchemaValidator::new(store);
+    let validator = SchemaValidator::new(to_triple_store(&store));
     let report = validator.validate_all();
 
     // Should have warnings about missing namespaces
@@ -373,10 +396,10 @@ fn test_untyped_property_warning() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let validator = SchemaValidator::new(store);
+    let validator = SchemaValidator::new(to_triple_store(&store));
     let report = validator.validate_all();
 
     // Untyped properties should generate warnings
@@ -491,14 +514,14 @@ fn test_successful_merge() {
     "#;
 
     target
-        .load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), target_ttl.as_bytes())
         .unwrap();
     source
-        .load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), source_ttl.as_bytes())
         .unwrap();
 
     let merger = OntologyMerger::new();
-    let result = merger.merge(&target, &source).unwrap();
+    let result = merger.merge(&mut to_triple_store(&target), &to_triple_store(&source)).unwrap();
 
     assert!(result.success, "Merge should succeed");
     assert!(result.conflicts.is_empty(), "Should have no conflicts");
@@ -528,14 +551,14 @@ fn test_merge_conflict_detection() {
     "#;
 
     target
-        .load_from_reader(GraphFormat::Turtle, target_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), target_ttl.as_bytes())
         .unwrap();
     source
-        .load_from_reader(GraphFormat::Turtle, source_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), source_ttl.as_bytes())
         .unwrap();
 
     let merger = OntologyMerger::new();
-    let result = merger.merge(&target, &source).unwrap();
+    let result = merger.merge(&mut to_triple_store(&target), &to_triple_store(&source)).unwrap();
 
     assert!(!result.success, "Merge should fail due to conflicts");
     assert!(!result.conflicts.is_empty(), "Should detect conflicts");
@@ -556,14 +579,14 @@ fn test_merge_duplicate_triples() {
     "#;
 
     target
-        .load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), same_ttl.as_bytes())
         .unwrap();
     source
-        .load_from_reader(GraphFormat::Turtle, same_ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), same_ttl.as_bytes())
         .unwrap();
 
     let merger = OntologyMerger::new();
-    let result = merger.merge(&target, &source).unwrap();
+    let result = merger.merge(&mut to_triple_store(&target), &to_triple_store(&source)).unwrap();
 
     // Duplicate triples should be handled gracefully
     assert!(result.success, "Duplicate triples should not cause failure");
@@ -583,10 +606,10 @@ fn test_compute_hash() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let verifier = HashVerifier::new(store);
+    let verifier = HashVerifier::new(to_triple_store(&store));
     let hash = verifier.compute_hash().unwrap();
 
     assert!(!hash.is_empty(), "Should compute non-empty hash");
@@ -604,14 +627,14 @@ fn test_hash_deterministic() {
     "#;
 
     store1
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
     store2
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let verifier1 = HashVerifier::new(store1);
-    let verifier2 = HashVerifier::new(store2);
+    let verifier1 = HashVerifier::new(to_triple_store(&store1));
+    let verifier2 = HashVerifier::new(to_triple_store(&store2));
 
     let hash1 = verifier1.compute_hash().unwrap();
     let hash2 = verifier2.compute_hash().unwrap();
@@ -635,14 +658,14 @@ fn test_hash_changes_with_content() {
     "#;
 
     store1
-        .load_from_reader(GraphFormat::Turtle, ttl1.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl1.as_bytes())
         .unwrap();
     store2
-        .load_from_reader(GraphFormat::Turtle, ttl2.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl2.as_bytes())
         .unwrap();
 
-    let verifier1 = HashVerifier::new(store1);
-    let verifier2 = HashVerifier::new(store2);
+    let verifier1 = HashVerifier::new(to_triple_store(&store1));
+    let verifier2 = HashVerifier::new(to_triple_store(&store2));
 
     let hash1 = verifier1.compute_hash().unwrap();
     let hash2 = verifier2.compute_hash().unwrap();
@@ -663,10 +686,10 @@ fn test_verify_hash_match() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let verifier = HashVerifier::new(store);
+    let verifier = HashVerifier::new(to_triple_store(&store));
     let hash = verifier.compute_hash().unwrap();
 
     // Should verify successfully
@@ -683,10 +706,10 @@ fn test_verify_hash_mismatch() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let verifier = HashVerifier::new(store);
+    let verifier = HashVerifier::new(to_triple_store(&store));
 
     // Try to verify with wrong hash
     let wrong_hash = "0000000000000000000000000000000000000000000000000000000000000000";
@@ -714,10 +737,10 @@ fn test_store_and_retrieve_hash() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
-    let verifier = HashVerifier::new(store);
+    let verifier = HashVerifier::new(to_triple_store(&store));
     let hash = verifier.compute_hash().unwrap();
 
     // Store hash
@@ -772,21 +795,21 @@ fn test_full_validation_pipeline() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
     // Run consistency checks
-    let consistency_checker = ConsistencyChecker::new(store.clone());
+    let consistency_checker = ConsistencyChecker::new(to_triple_store(&store));
     let consistency_report = consistency_checker.check_all();
     assert!(consistency_report.valid, "Consistency check should pass");
 
     // Run schema validation
-    let schema_validator = SchemaValidator::new(store.clone());
+    let schema_validator = SchemaValidator::new(to_triple_store(&store));
     let schema_report = schema_validator.validate_all();
     // May have warnings but should not have critical errors
 
     // Compute and verify hash
-    let hash_verifier = HashVerifier::new(store);
+    let hash_verifier = HashVerifier::new(to_triple_store(&store));
     let hash = hash_verifier.compute_hash().unwrap();
     assert!(hash_verifier.verify_hash(&hash).is_ok());
 }
@@ -817,15 +840,15 @@ fn test_invalid_ontology_detection() {
     "#;
 
     store
-        .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+        .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
         .unwrap();
 
     // Should detect multiple errors
-    let consistency_checker = ConsistencyChecker::new(store.clone());
+    let consistency_checker = ConsistencyChecker::new(to_triple_store(&store));
     let consistency_report = consistency_checker.check_all();
     assert!(!consistency_report.valid, "Should detect errors");
 
-    let schema_validator = SchemaValidator::new(store);
+    let schema_validator = SchemaValidator::new(to_triple_store(&store));
     let schema_report = schema_validator.validate_all();
     assert!(!schema_report.valid, "Should detect schema errors");
 }

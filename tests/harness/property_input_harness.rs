@@ -61,6 +61,8 @@ use oxigraph::model::{NamedNode, Quad, Subject, Term};
 use oxigraph::store::Store;
 use proptest::prelude::*;
 use serde_json::Value as JsonValue;
+use serde_json::json;
+use proptest::strategy::ValueTree;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -252,6 +254,14 @@ fn arb_http_bind_address() -> impl Strategy<Value = String> {
     (0u8..=255, 0u8..=255, 0u8..=255, 0u8..=255, 1024u16..=65535)
         .prop_map(|(a, b, c, d, port)| format!("{}.{}.{}.{}:{}", a, b, c, d, port))
 }
+
+// Config bounds mirrored from `src/config.rs` (private consts there).
+const MIN_CONCURRENT_RECALCS: usize = 1;
+const MAX_CONCURRENT_RECALCS: usize = 100;
+const MIN_TOOL_TIMEOUT_MS: u64 = 100;
+const MAX_TOOL_TIMEOUT_MS: u64 = 600_000;
+const MIN_MAX_RESPONSE_BYTES: u64 = 1024;
+const MAX_MAX_RESPONSE_BYTES: u64 = 100_000_000;
 
 fn arb_max_concurrent_recalcs() -> impl Strategy<Value = usize> {
     MIN_CONCURRENT_RECALCS..=MAX_CONCURRENT_RECALCS
@@ -449,7 +459,7 @@ fn arb_property_value() -> impl Strategy<Value = String> {
 
 /// Strategy for generating valid Tera template contexts
 pub fn arb_valid_tera_context() -> impl Strategy<Value = JsonValue> {
-    arb_json_object(0..=5)
+    arb_json_object(2).prop_map(JsonValue::Object)
 }
 
 /// Strategy for generating invalid Tera template contexts
@@ -483,7 +493,7 @@ pub fn arb_edge_case_tera_context() -> impl Strategy<Value = JsonValue> {
             "control": "\u{0000}\u{001F}",
         })),
         // Very long strings
-        (1000..=10000).prop_map(|n| json!({"long_string": "a".repeat(n)})),
+        (1000usize..=10000).prop_map(|n| json!({"long_string": "a".repeat(n)})),
         // Null values in arrays
         Just(json!({
             "array": [null, 1, null, "value", null]
@@ -744,7 +754,7 @@ proptest! {
     /// Property: Any valid TOML config string should parse successfully
     #[test]
     fn prop_toml_valid_always_parses(config_str in arb_valid_toml_config()) {
-        let result: Result<serde_yaml::Value> = serde_yaml::from_str(&config_str);
+        let result: std::result::Result<serde_yaml::Value, serde_yaml::Error> = serde_yaml::from_str(&config_str);
         prop_assert!(
             result.is_ok() || config_str.is_empty(),
             "Valid TOML should parse: {:?}",
@@ -755,7 +765,7 @@ proptest! {
     /// Property: Invalid TOML config should error gracefully (no panic)
     #[test]
     fn prop_toml_invalid_errors_gracefully(config_str in arb_invalid_toml_config()) {
-        let result: Result<serde_yaml::Value> = serde_yaml::from_str(&config_str);
+        let result: std::result::Result<serde_yaml::Value, serde_yaml::Error> = serde_yaml::from_str(&config_str);
         // Should either parse (if accidentally valid) or error gracefully
         let _ = result;
         // If we get here without panicking, the property holds
@@ -764,8 +774,8 @@ proptest! {
     /// Property: TOML parsing is deterministic
     #[test]
     fn prop_toml_parsing_deterministic(config_str in arb_valid_toml_config()) {
-        let result1: Result<serde_yaml::Value> = serde_yaml::from_str(&config_str);
-        let result2: Result<serde_yaml::Value> = serde_yaml::from_str(&config_str);
+        let result1: std::result::Result<serde_yaml::Value, serde_yaml::Error> = serde_yaml::from_str(&config_str);
+        let result2: std::result::Result<serde_yaml::Value, serde_yaml::Error> = serde_yaml::from_str(&config_str);
 
         prop_assert_eq!(
             result1.is_ok(),
@@ -1057,7 +1067,7 @@ proptest! {
         if store1.load_from_reader(RdfFormat::Turtle, ttl.as_bytes()).is_ok() {
             // Serialize back to Turtle
             let mut serialized = Vec::new();
-            store1.dump_to_writer(&mut serialized, RdfFormat::Turtle).unwrap();
+            store1.dump_to_writer(RdfFormat::Turtle, &mut serialized).unwrap();
 
             // Parse again
             let store2 = Store::new().unwrap();
@@ -1220,7 +1230,7 @@ mod shrinking_tests {
     #[test]
     fn test_shrinking_finds_minimal_toml_error() {
         // Intentionally create a failing property to verify shrinking works
-        let result = proptest!(|(cache_capacity in 0usize..=2000)| {
+        let result = std::panic::catch_unwind(|| proptest!(|(cache_capacity in 0usize..=2000)| {
             // This will fail for values < 1 or > 1000
             if cache_capacity < MIN_CACHE_CAPACITY || cache_capacity > MAX_CACHE_CAPACITY {
                 let clamped = clamp_cache_capacity(cache_capacity);
@@ -1231,7 +1241,7 @@ mod shrinking_tests {
                     cache_capacity
                 );
             }
-        });
+        }));
 
         // The test should fail, demonstrating shrinking works
         assert!(result.is_err());
@@ -1240,11 +1250,11 @@ mod shrinking_tests {
     #[test]
     fn test_shrinking_preserves_property() {
         // Verify that shrunk test cases still fail the property
-        let result = proptest!(|(s in ".*")| {
+        let result = std::panic::catch_unwind(|| proptest!(|(s in ".*")| {
             if s.contains("INJECT") {
                 prop_assert!(!s.contains("INJECT"), "Should find minimal injection string");
             }
-        });
+        }));
 
         if result.is_err() {
             // Shrinking should have found minimal string containing "INJECT"

@@ -32,17 +32,25 @@ use tokio::sync::RwLock;
 /// - Event emission
 /// - Audit logging
 /// - Real MCP protocol
+/// Boxed future returned by workflow steps and assertions.
+///
+/// Steps receive `&IntegrationWorkflowHarness`, so their future borrows the
+/// harness; a plain `Fut: 'static` bound cannot express that, hence the
+/// explicit HRTB-friendly box.
+pub type StepFuture<'a> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
+
 pub struct IntegrationWorkflowHarness {
     /// Temporary workspace for workflow execution
-    workspace: TempDir,
+    pub workspace: TempDir,
     /// Workflow execution context
-    context: Arc<RwLock<WorkflowContext>>,
+    pub context: Arc<RwLock<WorkflowContext>>,
     /// Events emitted during workflow
-    events: Arc<RwLock<Vec<WorkflowEvent>>>,
+    pub events: Arc<RwLock<Vec<WorkflowEvent>>>,
     /// Audit log entries
-    audit_log: Arc<RwLock<Vec<AuditEntry>>>,
+    pub audit_log: Arc<RwLock<Vec<AuditEntry>>>,
     /// Docker container management
-    docker: Option<DockerManager>,
+    pub docker: Option<DockerManager>,
 }
 
 /// Workflow execution context
@@ -51,83 +59,83 @@ pub struct IntegrationWorkflowHarness {
 #[derive(Debug, Clone)]
 pub struct WorkflowContext {
     /// Current workflow name
-    workflow_name: String,
+    pub workflow_name: String,
     /// Shared data across steps
-    data: HashMap<String, Value>,
+    pub data: HashMap<String, Value>,
     /// State transitions
-    state_history: Vec<StateTransition>,
+    pub state_history: Vec<StateTransition>,
     /// Current state
-    current_state: String,
+    pub current_state: String,
     /// Ontology graph (TTL content)
-    ontology: Option<String>,
+    pub ontology: Option<String>,
     /// Generated code artifacts
-    generated_code: HashMap<String, String>,
+    pub generated_code: HashMap<String, String>,
     /// MCP tool registrations
-    tool_registrations: HashMap<String, ToolRegistration>,
+    pub tool_registrations: HashMap<String, ToolRegistration>,
     /// Persistent storage path
-    storage_path: PathBuf,
+    pub storage_path: PathBuf,
 }
 
 /// State transition record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTransition {
     /// State name before transition
-    from_state: String,
+    pub from_state: String,
     /// State name after transition
-    to_state: String,
+    pub to_state: String,
     /// Timestamp of transition
-    timestamp: chrono::DateTime<chrono::Utc>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     /// Trigger that caused transition
-    trigger: String,
+    pub trigger: String,
 }
 
 /// Workflow event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowEvent {
     /// Event type
-    event_type: String,
+    pub event_type: String,
     /// Event payload
-    payload: Value,
+    pub payload: Value,
     /// Timestamp
-    timestamp: chrono::DateTime<chrono::Utc>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     /// Source step
-    source_step: String,
+    pub source_step: String,
 }
 
 /// Audit log entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditEntry {
     /// Action performed
-    action: String,
+    pub action: String,
     /// Actor (user/system)
-    actor: String,
+    pub actor: String,
     /// Timestamp
-    timestamp: chrono::DateTime<chrono::Utc>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
     /// Additional details
-    details: Value,
+    pub details: Value,
 }
 
 /// Tool registration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolRegistration {
     /// Tool name
-    name: String,
+    pub name: String,
     /// Tool description
-    description: String,
+    pub description: String,
     /// Input schema
-    input_schema: Value,
+    pub input_schema: Value,
     /// Handler code
-    handler: String,
+    pub handler: String,
 }
 
 /// Docker container manager
 pub struct DockerManager {
     /// Container ID
-    container_id: Option<String>,
+    pub container_id: Option<String>,
     /// Network name
-    network: String,
+    pub network: String,
     /// Volume mounts
-    volumes: Vec<(PathBuf, String)>,
+    pub volumes: Vec<(PathBuf, String)>,
 }
 
 impl IntegrationWorkflowHarness {
@@ -259,16 +267,16 @@ impl Drop for IntegrationWorkflowHarness {
 ///     .await
 /// ```
 pub struct WorkflowBuilder {
-    name: String,
-    harness: IntegrationWorkflowHarness,
-    steps: Vec<WorkflowStep>,
-    assertions: Vec<WorkflowAssertion>,
+    pub name: String,
+    pub harness: IntegrationWorkflowHarness,
+    pub steps: Vec<WorkflowStep>,
+    pub assertions: Vec<WorkflowAssertion>,
 }
 
 /// A workflow step
 pub struct WorkflowStep {
-    name: String,
-    executor: Box<dyn WorkflowStepExecutor>,
+    pub name: String,
+    pub executor: Box<dyn WorkflowStepExecutor>,
 }
 
 /// Workflow step executor trait
@@ -283,8 +291,8 @@ pub trait WorkflowStepExecutor: Send + Sync {
 
 /// Workflow assertion
 pub struct WorkflowAssertion {
-    name: String,
-    verifier: Box<dyn WorkflowAssertionVerifier>,
+    pub name: String,
+    pub verifier: Box<dyn WorkflowAssertionVerifier>,
 }
 
 /// Workflow assertion verifier trait
@@ -306,8 +314,10 @@ impl WorkflowBuilder {
             ctx.workflow_name = name.into();
         }
 
+        let name = harness.context.blocking_read().workflow_name.clone();
+
         Ok(Self {
-            name: harness.context.blocking_read().workflow_name.clone(),
+            name,
             harness,
             steps: Vec::new(),
             assertions: Vec::new(),
@@ -315,23 +325,23 @@ impl WorkflowBuilder {
     }
 
     /// Add a step to the workflow
-    pub fn step<F, Fut>(mut self, name: impl Into<String>, executor: F) -> Self
+    pub fn step<F>(mut self, name: impl Into<String>, executor: F) -> Self
     where
-        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut
+        F: for<'a> Fn(Arc<RwLock<WorkflowContext>>, &'a IntegrationWorkflowHarness) -> StepFuture<'a>
             + Send
             + Sync
             + 'static,
-        Fut: std::future::Future<Output = Result<()>> + Send + 'static,
     {
         struct FnExecutor<F> {
-            func: F,
+            pub func: F,
         }
 
         #[async_trait::async_trait]
-        impl<F, Fut> WorkflowStepExecutor for FnExecutor<F>
+        impl<F> WorkflowStepExecutor for FnExecutor<F>
         where
-            F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync,
-            Fut: std::future::Future<Output = Result<()>> + Send + 'static,
+            F: for<'a> Fn(Arc<RwLock<WorkflowContext>>, &'a IntegrationWorkflowHarness) -> StepFuture<'a>
+                + Send
+                + Sync,
         {
             async fn execute(
                 &self,
@@ -350,23 +360,23 @@ impl WorkflowBuilder {
     }
 
     /// Add an assertion to the workflow
-    pub fn assert<F, Fut>(mut self, name: impl Into<String>, verifier: F) -> Self
+    pub fn assert<F>(mut self, name: impl Into<String>, verifier: F) -> Self
     where
-        F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut
+        F: for<'a> Fn(Arc<RwLock<WorkflowContext>>, &'a IntegrationWorkflowHarness) -> StepFuture<'a>
             + Send
             + Sync
             + 'static,
-        Fut: std::future::Future<Output = Result<()>> + Send + 'static,
     {
         struct FnVerifier<F> {
-            func: F,
+            pub func: F,
         }
 
         #[async_trait::async_trait]
-        impl<F, Fut> WorkflowAssertionVerifier for FnVerifier<F>
+        impl<F> WorkflowAssertionVerifier for FnVerifier<F>
         where
-            F: Fn(Arc<RwLock<WorkflowContext>>, &IntegrationWorkflowHarness) -> Fut + Send + Sync,
-            Fut: std::future::Future<Output = Result<()>> + Send + 'static,
+            F: for<'a> Fn(Arc<RwLock<WorkflowContext>>, &'a IntegrationWorkflowHarness) -> StepFuture<'a>
+                + Send
+                + Sync,
         {
             async fn verify(
                 &self,
@@ -655,9 +665,9 @@ pub async fn assert_state_consistent(context: Arc<RwLock<WorkflowContext>>) -> R
 /// MCP protocol tester
 pub struct McpProtocolTester {
     /// JSON-RPC request ID counter
-    request_id: Arc<RwLock<u64>>,
+    pub request_id: Arc<RwLock<u64>>,
     /// Mock server endpoint
-    endpoint: String,
+    pub endpoint: String,
 }
 
 impl McpProtocolTester {
@@ -842,15 +852,15 @@ mod tests {
     async fn test_workflow_builder_simple() {
         let result = WorkflowBuilder::new("test_workflow")
             .unwrap()
-            .step("step1", |ctx, _harness| async move {
+            .step("step1", |ctx, _harness| Box::pin(async move {
                 store_data(ctx.clone(), "test", json!("value")).await;
                 Ok(())
-            })
-            .assert("data_stored", |ctx, _harness| async move {
+            }))
+            .assert("data_stored", |ctx, _harness| Box::pin(async move {
                 let value = get_data(ctx.clone(), "test").await;
                 assert_eq!(value, Some(json!("value")));
                 Ok(())
-            })
+            }))
             .run()
             .await
             .unwrap();

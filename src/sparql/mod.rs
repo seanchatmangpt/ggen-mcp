@@ -19,6 +19,7 @@ pub mod graph_validator;
 pub mod query_wrappers;
 pub mod result_mapper;
 pub mod result_validation;
+pub mod inference_validation;
 pub mod typed_binding;
 
 // Re-export injection prevention components
@@ -39,7 +40,15 @@ pub use cache::{CacheConfig, CacheInvalidationStrategy, QueryResultCache};
 pub use graph_validator::{GraphValidationError, GraphValidator};
 pub use query_wrappers::*;
 pub use result_mapper::{FromSparql, MappingError, ResultMapper};
-pub use result_validation::{CardinalityConstraint, ResultSetValidator, ValidationError};
+pub use result_validation::{
+    CardinalityConstraint, ResultSetValidator, ValidationError as ResultValidationError,
+};
+pub use inference_validation::{
+    InferenceRule, InferenceRuleValidator, InferredTripleValidator, InvalidationStrategy,
+    MaterializationConfig, MaterializationManager, MaterializationStats, MaterializationStrategy,
+    PredicateBlacklist, Provenance, ReasoningConfig, ReasoningGuard, ReasoningStats,
+    RuleDependencyAnalyzer, Triple, TripleConstraint, ValidationError,
+};
 pub use typed_binding::{BindingError, TypedBinding, TypedValue};
 
 use oxigraph::sparql::QueryResults;

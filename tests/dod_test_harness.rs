@@ -364,7 +364,7 @@ impl DodAssertions {
     /// Assert remediation exists for failures
     pub fn assert_remediation_for_failures(
         results: &[DodCheckResult],
-        suggestions: &[crate::dod::RemediationSuggestion],
+        suggestions: &[spreadsheet_mcp::dod::RemediationSuggestion],
     ) {
         let failed_check_ids: Vec<_> = results
             .iter()

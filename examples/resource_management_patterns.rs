@@ -485,15 +485,15 @@ async fn demo_raii_guards() -> Result<()> {
 
     // Transaction guard with rollback
     {
-        let mut data = vec![1, 2, 3];
-        let backup = data.clone();
+        let data = std::cell::RefCell::new(vec![1, 2, 3]);
+        let backup = data.borrow().clone();
 
         let guard = TransactionGuard::new("txn-001".to_string(), || {
-            data.clone_from(&backup); // Rollback
+            data.borrow_mut().clone_from(&backup); // Rollback
         });
 
-        data.push(4);
-        data.push(5);
+        data.borrow_mut().push(4);
+        data.borrow_mut().push(5);
 
         // Simulate error - don't commit
         println!("Simulating error - transaction will rollback");
@@ -503,15 +503,15 @@ async fn demo_raii_guards() -> Result<()> {
 
     // Transaction guard with commit
     {
-        let mut data = vec![1, 2, 3];
-        let backup = data.clone();
+        let data = std::cell::RefCell::new(vec![1, 2, 3]);
+        let backup = data.borrow().clone();
 
         let guard = TransactionGuard::new("txn-002".to_string(), || {
-            data.clone_from(&backup);
+            data.borrow_mut().clone_from(&backup);
         });
 
-        data.push(4);
-        data.push(5);
+        data.borrow_mut().push(4);
+        data.borrow_mut().push(5);
 
         guard.commit(); // Success - no rollback
         println!("Transaction committed successfully\n");

@@ -485,13 +485,15 @@ pub fn load_guards(solutions: Vec<QuerySolution>) -> Result<Vec<GuardResult>, Ma
 mod tests {
     use super::*;
     use oxigraph::model::{Literal, Term};
+    use oxigraph::sparql::Variable;
+    use std::sync::Arc;
 
     fn create_aggregate_solution() -> QuerySolution {
-        let bindings = vec![(
-            "aggregateName".to_string(),
-            Term::Literal(Literal::new_simple_literal("TestAggregate")),
-        )];
-        QuerySolution::from(bindings)
+        let vars: Arc<[Variable]> = Arc::from(vec![Variable::new("aggregateName").unwrap()]);
+        let values: Vec<Option<Term>> = vec![Some(Term::Literal(Literal::new_simple_literal(
+            "TestAggregate",
+        )))];
+        QuerySolution::from((vars, values))
     }
 
     #[test]

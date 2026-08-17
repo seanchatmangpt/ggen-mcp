@@ -43,7 +43,6 @@ use spreadsheet_mcp::sparql::{QueryBuilder, QueryResultCache, ResultMapper};
 // ============================================================================
 
 /// Test harness for ontology-driven code generation workflows
-#[derive(Debug)]
 pub struct OntologyGenerationHarness {
     /// Root directory for test fixtures
     fixture_root: PathBuf,
@@ -65,8 +64,8 @@ pub struct OntologyGenerationHarness {
     tera: Tera,
     /// Registered template contents
     template_contents: HashMap<String, String>,
-    /// Query result cache
-    query_cache: QueryResultCache,
+    /// Query result cache (extracted bindings, keyed by query text)
+    query_cache: HashMap<String, Vec<HashMap<String, String>>>,
     /// Workflow execution metrics
     metrics: WorkflowMetrics,
 }
@@ -94,7 +93,7 @@ impl OntologyGenerationHarness {
             queries: HashMap::new(),
             tera: Tera::default(),
             template_contents: HashMap::new(),
-            query_cache: QueryResultCache::default(),
+            query_cache: HashMap::new(),
             metrics: WorkflowMetrics::default(),
         }
     }
@@ -273,7 +272,8 @@ impl OntologyGenerationHarness {
             let query_start = Instant::now();
 
             // Check cache first
-            let cached = self.query_cache.get(query_str);
+            let cached = self.query_cache.get(query_str).cloned();
+            let was_cached = cached.is_some();
             let bindings = if let Some(cached_result) = cached {
                 println!("    ⚡ Cache hit for query: {}", name);
                 cached_result
@@ -300,7 +300,7 @@ impl OntologyGenerationHarness {
                     query_name: name.clone(),
                     bindings,
                     execution_time: elapsed,
-                    from_cache: cached.is_some(),
+                    from_cache: was_cached,
                 },
             );
         }

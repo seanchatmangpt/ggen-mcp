@@ -13,6 +13,7 @@
 //! 7. Schema Validation
 
 use spreadsheet_mcp::model::*;
+use spreadsheet_mcp::tools::ReadTableParams;
 use spreadsheet_mcp::validation::*;
 
 // ============================================================================
@@ -150,12 +151,12 @@ fn test_empty_string_validation() {
 fn test_string_length_limits() {
     // Test various length boundaries
     let test_cases = vec![
-        ("a", true),                // Too short?
-        ("ab", true),               // Minimum length?
-        ("a".repeat(255), true),    // Normal length
-        ("a".repeat(256), true),    // Boundary
-        ("a".repeat(1000), false),  // Too long
-        ("a".repeat(10000), false), // Way too long
+        ("a".to_string(), true),      // Too short?
+        ("ab".to_string(), true),     // Minimum length?
+        ("a".repeat(255), true),      // Normal length
+        ("a".repeat(256), true),      // Boundary
+        ("a".repeat(1000), false),    // Too long
+        ("a".repeat(10000), false),   // Way too long
     ];
 
     for (input, should_be_valid) in test_cases {
@@ -277,7 +278,7 @@ fn test_numeric_bounds() {
 #[test]
 fn test_numeric_overflow() {
     // Test that numeric overflow is handled
-    let large_values = vec![i64::MAX, u64::MAX];
+    let large_values: Vec<u64> = vec![i64::MAX as u64, u64::MAX];
 
     for value in large_values {
         // Test conversion/validation doesn't panic
@@ -333,6 +334,8 @@ fn test_required_field_validation() {
         sheet_name: None, // Required field missing?
         table_name: None,
         region_id: None,
+        header_rows: None,
+        sample_mode: None,
         range: None,
         columns: None,
         filters: None,
@@ -354,6 +357,8 @@ fn test_mutually_exclusive_fields() {
         sheet_name: Some("Sheet1".to_string()),
         table_name: Some("Table1".to_string()), // Exclusive with range?
         region_id: Some(1),                     // Exclusive with others?
+        header_rows: None,
+        sample_mode: None,
         range: Some("A1:B2".to_string()),       // Exclusive with table_name?
         columns: None,
         filters: None,

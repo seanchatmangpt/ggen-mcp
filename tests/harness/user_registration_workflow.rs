@@ -24,15 +24,15 @@ use std::path::Path;
 /// - Verifies real state changes
 pub async fn run_user_registration_workflow() -> Result<WorkflowResult> {
     WorkflowBuilder::new("user_registration")?
-        .step("load_user_ontology", load_user_ontology)
-        .step("generate_user_code", generate_user_code)
-        .step("compile_generated_code", compile_generated_code)
-        .step("register_create_user_tool", register_create_user_tool)
-        .step("execute_create_user", execute_create_user)
-        .step("verify_user_persisted", verify_user_persisted)
-        .assert("user_created", assert_user_created)
-        .assert("events_emitted", assert_user_creation_events)
-        .assert("state_transitions_valid", assert_valid_state_transitions)
+        .step("load_user_ontology", |c, h| Box::pin(load_user_ontology(c, h)))
+        .step("generate_user_code", |c, h| Box::pin(generate_user_code(c, h)))
+        .step("compile_generated_code", |c, h| Box::pin(compile_generated_code(c, h)))
+        .step("register_create_user_tool", |c, h| Box::pin(register_create_user_tool(c, h)))
+        .step("execute_create_user", |c, h| Box::pin(execute_create_user(c, h)))
+        .step("verify_user_persisted", |c, h| Box::pin(verify_user_persisted(c, h)))
+        .assert("user_created", |c, h| Box::pin(assert_user_created(c, h)))
+        .assert("events_emitted", |c, h| Box::pin(assert_user_creation_events(c, h)))
+        .assert("state_transitions_valid", |c, h| Box::pin(assert_valid_state_transitions(c, h)))
         .run()
         .await
 }
@@ -50,7 +50,7 @@ async fn load_user_ontology(
         load_ontology_fixture(&fixture_path).await?
     } else {
         // Use embedded default ontology for testing
-        include_str!("../../../fixtures/workflows/user_registration/01_ontology.ttl").to_string()
+        include_str!("../../fixtures/workflows/user_registration/01_ontology.ttl").to_string()
     };
 
     // Store ontology in context

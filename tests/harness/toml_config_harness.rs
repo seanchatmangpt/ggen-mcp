@@ -970,11 +970,11 @@ pub fn assert_config_invalid(toml_str: &str, error_contains: &str) {
 /// Assert that a field equals a value
 pub fn assert_field_equals<F, V>(config: &TomlConfig, field_accessor: F, expected: V)
 where
-    F: Fn(&TomlConfig) -> V,
+    F: for<'a> Fn(&'a TomlConfig) -> &'a V,
     V: PartialEq + std::fmt::Debug,
 {
     let actual = field_accessor(config);
-    assert_eq!(actual, expected, "Field should equal expected value");
+    assert_eq!(actual, &expected, "Field should equal expected value");
 }
 
 /// Assert that defaults are applied

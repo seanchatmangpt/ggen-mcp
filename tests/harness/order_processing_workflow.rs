@@ -26,19 +26,19 @@ use std::path::Path;
 /// - Maintains audit trail
 pub async fn run_order_processing_workflow() -> Result<WorkflowResult> {
     WorkflowBuilder::new("order_processing")?
-        .step("load_order_ontology", load_order_ontology)
-        .step("generate_order_tools", generate_order_tools)
-        .step("create_order", create_order)
-        .step("add_items_to_cart", add_items_to_cart)
-        .step("calculate_order_total", calculate_order_total)
-        .step("validate_payment", validate_payment)
-        .step("process_payment", process_payment)
-        .step("finalize_order", finalize_order)
-        .assert("order_created", assert_order_created)
-        .assert("items_added", assert_items_added)
-        .assert("total_calculated", assert_total_calculated)
-        .assert("payment_processed", assert_payment_processed)
-        .assert("order_placed_event", assert_order_placed_event)
+        .step("load_order_ontology", |c, h| Box::pin(load_order_ontology(c, h)))
+        .step("generate_order_tools", |c, h| Box::pin(generate_order_tools(c, h)))
+        .step("create_order", |c, h| Box::pin(create_order(c, h)))
+        .step("add_items_to_cart", |c, h| Box::pin(add_items_to_cart(c, h)))
+        .step("calculate_order_total", |c, h| Box::pin(calculate_order_total(c, h)))
+        .step("validate_payment", |c, h| Box::pin(validate_payment(c, h)))
+        .step("process_payment", |c, h| Box::pin(process_payment(c, h)))
+        .step("finalize_order", |c, h| Box::pin(finalize_order(c, h)))
+        .assert("order_created", |c, h| Box::pin(assert_order_created(c, h)))
+        .assert("items_added", |c, h| Box::pin(assert_items_added(c, h)))
+        .assert("total_calculated", |c, h| Box::pin(assert_total_calculated(c, h)))
+        .assert("payment_processed", |c, h| Box::pin(assert_payment_processed(c, h)))
+        .assert("order_placed_event", |c, h| Box::pin(assert_order_placed_event(c, h)))
         .run()
         .await
 }
@@ -55,7 +55,7 @@ async fn load_order_ontology(
         load_ontology_fixture(&fixture_path).await?
     } else {
         // Use embedded default ontology for testing
-        include_str!("../../../fixtures/workflows/order_processing/01_ontology.ttl").to_string()
+        include_str!("../../fixtures/workflows/order_processing/01_ontology.ttl").to_string()
     };
 
     {

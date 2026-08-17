@@ -1254,7 +1254,7 @@ mod tests {
         let product_id = ProductId::generate();
 
         let order = OrderBuilder::new(user_id)
-            .add_item(product_id, 1, Money::usd(500))
+            .add_item(product_id.clone(), 1, Money::usd(500))
             .calculate_total()
             .build()
             .unwrap();
@@ -1484,7 +1484,7 @@ mod tests {
 
         let order = OrderBuilder::new(user_id)
             .add_item(product_id.clone(), 2, Money::usd(1000))
-            .add_item(product_id, 1, Money::usd(500))
+            .add_item(product_id.clone(), 1, Money::usd(500))
             .calculate_total()
             .build()
             .unwrap();

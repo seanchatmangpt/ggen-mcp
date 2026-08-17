@@ -58,7 +58,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_env_var_no_license() {
-        std::env::remove_var("GGEN_LICENSE");
+        unsafe { std::env::remove_var("GGEN_LICENSE"); }
         let provider = EnvVarProvider::new();
 
         let result = provider.check_capability(Capability::ApplyMode).await;
@@ -71,7 +71,7 @@ mod tests {
         let license_json = r#"{
             "capabilities": ["apply_mode", "jira_create"]
         }"#;
-        std::env::set_var("GGEN_LICENSE", license_json);
+        unsafe { std::env::set_var("GGEN_LICENSE", license_json); }
 
         let provider = EnvVarProvider::new();
 
@@ -94,7 +94,7 @@ mod tests {
                 .unwrap()
         );
 
-        std::env::remove_var("GGEN_LICENSE");
+        unsafe { std::env::remove_var("GGEN_LICENSE"); }
     }
 
     #[tokio::test]

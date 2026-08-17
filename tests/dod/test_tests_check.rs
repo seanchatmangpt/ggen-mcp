@@ -3,6 +3,7 @@
 use spreadsheet_mcp::dod::{CheckContext, CheckSeverity, CheckStatus, DodCheck};
 use std::path::PathBuf;
 
+#[path = "common.rs"]
 mod common;
 
 #[tokio::test]

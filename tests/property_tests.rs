@@ -939,18 +939,20 @@ proptest! {
 #[allow(clippy::unwrap_used)] // Test code: unwrap is acceptable
 mod shrinking_tests {
     use super::*;
+    use std::result::Result;
 
     test!(test_shrinking_finds_minimal_failing_case, {
         // Arrange: Set up proptest to intentionally fail for values > 100
         // This demonstrates proptest's shrinking capability
 
         // Act: Run proptest with a condition that fails for n > 100
-        let result = proptest!(|(n in 0u32..1000)| {
+        // proptest! panics on failure rather than returning a Result, so catch it.
+        let result = std::panic::catch_unwind(|| proptest!(|(n in 0u32..1000)| {
             if n > 100 {
                 // This will fail for n > 100
                 prop_assert!(n <= 100);
             }
-        });
+        }));
 
         // Assert: The test should fail, and shrinking should find n = 101 as minimal case
         assert!(result.is_err());

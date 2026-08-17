@@ -310,6 +310,13 @@ async fn test_app_state_shutdown_handler() {
         max_response_bytes: None,
         allow_overwrite: false,
         graceful_shutdown_timeout_secs: None,
+        ontology_cache_size: None,
+        ontology_cache_ttl_secs: None,
+        query_cache_size: None,
+        query_cache_ttl_secs: None,
+        entitlement_enabled: false,
+        entitlement_provider: None,
+        entitlement_license_path: None,
     })
     .expect("Failed to create config");
 

@@ -54,28 +54,27 @@ use spreadsheet_mcp::template::{SafeRenderer, TemplateContext, TemplateRegistry}
 // ============================================================================
 
 /// Main test harness for the complete code generation pipeline
-#[derive(Debug)]
 pub struct CodegenPipelineHarness {
     /// Root directory for test fixtures
-    fixture_root: PathBuf,
+    pub fixture_root: PathBuf,
     /// Currently loaded fixture
-    current_fixture: Option<String>,
+    pub current_fixture: Option<String>,
     /// Enable validation checks
-    enable_validation: bool,
+    pub enable_validation: bool,
     /// Enable golden file comparison
-    enable_golden_files: bool,
+    pub enable_golden_files: bool,
     /// Enable incremental updates
-    enable_incremental: bool,
+    pub enable_incremental: bool,
     /// Output directory for generated files
-    output_dir: PathBuf,
+    pub output_dir: PathBuf,
     /// Artifact tracker for dependency management
-    artifact_tracker: ArtifactTracker,
+    pub artifact_tracker: ArtifactTracker,
     /// Template registry
-    template_registry: TemplateRegistry,
+    pub template_registry: TemplateRegistry,
     /// Query result cache
-    query_cache: QueryResultCache,
+    pub query_cache: QueryResultCache,
     /// Performance metrics
-    metrics: PipelineMetrics,
+    pub metrics: PipelineMetrics,
 }
 
 impl CodegenPipelineHarness {
@@ -88,6 +87,8 @@ impl CodegenPipelineHarness {
         // Ensure output directory exists
         fs::create_dir_all(&output_dir).ok();
 
+        let artifacts_state = output_dir.join("artifacts.json");
+
         Self {
             fixture_root,
             current_fixture: None,
@@ -95,8 +96,8 @@ impl CodegenPipelineHarness {
             enable_golden_files: true,
             enable_incremental: false,
             output_dir,
-            artifact_tracker: ArtifactTracker::new(),
-            template_registry: TemplateRegistry::new(),
+            artifact_tracker: ArtifactTracker::new(artifacts_state),
+            template_registry: TemplateRegistry::new().expect("TemplateRegistry::new"),
             query_cache: QueryResultCache::default(),
             metrics: PipelineMetrics::default(),
         }
@@ -205,7 +206,11 @@ impl CodegenPipelineHarness {
 
         // Run consistency checks
         let consistency_report = if self.enable_validation {
-            let checker = ConsistencyChecker::new(store.clone());
+            let ts = ggen_ontology_core::TripleStore::new()
+                .map_err(|e| anyhow!("TripleStore::new: {e}"))?;
+            ts.load_turtle(&input_path)
+                .map_err(|e| anyhow!("TripleStore::load_turtle: {e}"))?;
+            let checker = ConsistencyChecker::new(ts);
             Some(checker.check_all())
         } else {
             None
@@ -335,18 +340,20 @@ impl CodegenPipelineHarness {
 
         // Render code for each entity
         let mut rendered_code = HashMap::new();
-        let renderer = SafeRenderer::new();
+        let renderer = SafeRenderer::new(spreadsheet_mcp::template::RenderConfig::default())?;
 
         for entity in entities {
             let template_name = self.get_template_for_entity(&entity.entity_type);
 
             if let Some(template_content) = templates.get(&template_name) {
-                let mut context = TemplateContext::new();
-                context.insert("name", &entity.name);
-                context.insert("type", &entity.entity_type);
-                context.insert("properties", &entity.properties);
+                renderer.add_template(&template_name, template_content)?;
 
-                let rendered = renderer.render_safe(template_content, &context)?;
+                let mut context = spreadsheet_mcp::template::RenderContext::new();
+                context.insert("name", &entity.name)?;
+                context.insert("type", &entity.entity_type)?;
+                context.insert("properties", &entity.properties)?;
+
+                let rendered = renderer.render_safe(&template_name, &context)?;
                 let file_name = format!("{}.rs", entity.name);
                 rendered_code.insert(file_name, rendered);
             }
@@ -359,10 +366,11 @@ impl CodegenPipelineHarness {
 
         println!("    ⏱️  Duration: {:?}", duration);
 
+        let render_count = rendered_code.len();
         Ok(TemplateResult {
             templates,
             rendered_code,
-            render_count: rendered_code.len(),
+            render_count,
             duration,
         })
     }
@@ -436,7 +444,7 @@ impl CodegenPipelineHarness {
         println!("  ✅ Stage 4: Code Validation");
         let start = Instant::now();
 
-        let validator = GeneratedCodeValidator::new();
+        let mut validator = GeneratedCodeValidator::new();
         let mut validated_code = HashMap::new();
         let mut validation_reports = Vec::new();
 
@@ -444,7 +452,7 @@ impl CodegenPipelineHarness {
             println!("    🔍 Validating {}", file_name);
 
             // Validate syntax
-            let report = validator.validate_syntax(code)?;
+            let report = validator.validate_code(code, file_name)?;
             validation_reports.push((file_name.clone(), report.clone()));
 
             if report.is_valid() {
@@ -460,7 +468,7 @@ impl CodegenPipelineHarness {
             } else {
                 println!("      ✗ Validation failed: {} issues", report.issues.len());
                 for issue in &report.issues {
-                    println!("        - {}: {}", issue.severity, issue.message);
+                    println!("        - {:?}: {}", issue.severity, issue.message);
                 }
             }
         }
@@ -511,8 +519,12 @@ impl CodegenPipelineHarness {
             written_files.push(output_path.clone());
 
             // Track artifact
-            self.artifact_tracker
-                .track_artifact(&output_path, code.as_bytes(), Vec::new())?;
+            self.artifact_tracker.record_artifact(
+                output_path.clone(),
+                String::new(),
+                String::new(),
+                Vec::new(),
+            )?;
 
             println!("    ✓ Wrote {}", output_path.display());
         }
@@ -714,7 +726,6 @@ impl Default for CodegenPipelineHarness {
 // ============================================================================
 
 /// Complete pipeline execution result
-#[derive(Debug)]
 pub struct PipelineResult {
     pub fixture: String,
     pub ontology_result: OntologyResult,
@@ -727,7 +738,7 @@ pub struct PipelineResult {
 }
 
 /// Result of ontology loading stage
-#[derive(Debug)]
+#[allow(dead_code)]
 pub struct OntologyResult {
     pub store: Store,
     pub ttl_content: String,

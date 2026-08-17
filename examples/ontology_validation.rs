@@ -9,11 +9,31 @@
 //! ```
 
 use anyhow::Result;
-use oxigraph::io::GraphFormat;
+use oxigraph::io::{RdfFormat, RdfParser};
+use ggen_ontology_core::TripleStore;
 use oxigraph::store::Store;
 use spreadsheet_mcp::ontology::{
     ConsistencyChecker, HashVerifier, NamespaceManager, SchemaValidator,
 };
+
+/// The lib validators take `TripleStore`, which loads only from a path; the
+/// example builds an oxigraph `Store`, so round-trip through Turtle.
+fn to_triple_store(store: &Store) -> TripleStore {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    store
+        .dump_to_writer(RdfFormat::Turtle, &mut buf)
+        .expect("dump turtle");
+    let ts = TripleStore::new().expect("TripleStore::new");
+    let mut f = tempfile::Builder::new()
+        .suffix(".ttl")
+        .tempfile()
+        .expect("tempfile");
+    f.write_all(&buf).expect("write ttl");
+    f.flush().expect("flush");
+    ts.load_turtle(f.path()).expect("load_turtle");
+    ts
+}
 
 fn main() -> Result<()> {
     println!("=== Ontology Validation Example ===\n");
@@ -22,7 +42,11 @@ fn main() -> Result<()> {
     let store = Store::new()?;
 
     println!("Loading ontology...");
-    match store.load_from_file("ontology/mcp-domain.ttl", GraphFormat::Turtle) {
+    match std::fs::read("ontology/mcp-domain.ttl").map_err(anyhow::Error::from).and_then(|b| {
+        store
+            .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), b.as_slice())
+            .map_err(anyhow::Error::from)
+    }) {
         Ok(_) => println!("✓ Ontology loaded successfully\n"),
         Err(e) => {
             eprintln!("✗ Failed to load ontology: {}", e);
@@ -32,7 +56,7 @@ fn main() -> Result<()> {
 
     // 1. Run Consistency Checks
     println!("=== Running Consistency Checks ===");
-    let consistency_checker = ConsistencyChecker::new(store.clone());
+    let consistency_checker = ConsistencyChecker::new(to_triple_store(&store));
     let consistency_report = consistency_checker.check_all();
 
     println!("\nConsistency Report:");
@@ -82,7 +106,7 @@ fn main() -> Result<()> {
 
     // 2. Run Schema Validation
     println!("\n=== Running Schema Validation ===");
-    let schema_validator = SchemaValidator::new(store.clone());
+    let schema_validator = SchemaValidator::new(to_triple_store(&store));
     let schema_report = schema_validator.validate_all();
 
     println!("\nSchema Validation Report:");
@@ -135,7 +159,7 @@ fn main() -> Result<()> {
 
     // 4. Hash Verification
     println!("\n=== Hash Verification ===");
-    let hash_verifier = HashVerifier::new(store);
+    let hash_verifier = HashVerifier::new(to_triple_store(&store));
     let computed_hash = hash_verifier.compute_hash()?;
 
     println!("\nOntology hash (SHA-256):");

@@ -65,6 +65,14 @@ fn empty_extensions_is_error() {
         tool_timeout_ms: None,
         max_response_bytes: None,
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: None,
+        ontology_cache_size: None,
+        ontology_cache_ttl_secs: None,
+        query_cache_size: None,
+        query_cache_ttl_secs: None,
+        entitlement_enabled: false,
+        entitlement_provider: None,
+        entitlement_license_path: None,
     };
     let err = ServerConfig::from_args(args).expect_err("expected failure");
     assert!(err.to_string().contains("at least one file extension"));
@@ -86,6 +94,17 @@ fn ensure_workspace_root_errors_for_missing_dir() {
         tool_timeout_ms: Some(30_000),
         max_response_bytes: Some(1_000_000),
         allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+            provider_type: "disabled".to_string(),
+            local_path: ".ggen_license".to_string(),
+            gcp_config: Default::default(),
+        },
     };
     let err = config.ensure_workspace_root().expect_err("missing dir");
     assert!(

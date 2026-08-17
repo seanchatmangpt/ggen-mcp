@@ -308,11 +308,11 @@ async_test_with_timeout!(test_workflow_step_failure_cleanup, 30, {
 
     // Arrange: Create a workflow with an intentional failure in middle step
     let workflow_builder = WorkflowBuilder::new("failing_workflow")?
-        .step("step1", |_ctx, _harness| async move { Ok(()) })
-        .step("failing_step", |_ctx, _harness| async move {
+        .step("step1", |_ctx, _harness| Box::pin(async move { Ok(()) }))
+        .step("failing_step", |_ctx, _harness| Box::pin(async move {
             Err(anyhow::anyhow!("Intentional failure"))
-        })
-        .step("step3", |_ctx, _harness| async move { Ok(()) });
+        }))
+        .step("step3", |_ctx, _harness| Box::pin(async move { Ok(()) }));
 
     // Act: Run the workflow (expecting failure)
     let result = workflow_builder.run().await;
@@ -328,11 +328,11 @@ async_test_with_timeout!(test_workflow_step_failure_cleanup, 30, {
 async_test_with_timeout!(test_workflow_assertion_failure, 30, {
     // Arrange: Create a workflow with a failing assertion
     let workflow_builder = WorkflowBuilder::new("assertion_failing")?
-        .step("step1", |ctx, _harness| async move {
+        .step("step1", |ctx, _harness| Box::pin(async move {
             store_data(ctx.clone(), "value", serde_json::json!(42)).await;
             Ok(())
-        })
-        .assert("wrong_value", |ctx, _harness| async move {
+        }))
+        .assert("wrong_value", |ctx, _harness| Box::pin(async move {
             let value = get_data(ctx.clone(), "value")
                 .await
                 .and_then(|v| v.as_i64())
@@ -342,7 +342,7 @@ async_test_with_timeout!(test_workflow_assertion_failure, 30, {
                 return Err(anyhow::anyhow!("Expected 100, got {}", value));
             }
             Ok(())
-        });
+        }));
 
     // Act: Run the workflow (expecting assertion failure)
     let result = workflow_builder.run().await;

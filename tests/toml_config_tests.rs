@@ -373,7 +373,7 @@ name = "bad"
 fn test_assert_field_equals_helper() {
     let config = ConfigBuilder::new().project_name("field-test").build();
 
-    assert_field_equals(&config, |c| &c.project.name, &"field-test".to_string());
+    assert_field_equals(&config, |c| &c.project.name, "field-test".to_string());
 }
 
 #[test]

@@ -20,7 +20,10 @@ mod workbook_recovery;
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState};
 pub use fallback::{RecalcFallback, RegionDetectionFallback};
 pub use partial_success::{BatchOperationResult, BatchResult, PartialSuccessHandler};
-pub use retry::{RetryConfig, RetryPolicy, exponential_backoff, retry_with_policy};
+pub use retry::{
+    ExponentialBackoff, RetryConfig, RetryPolicy, exponential_backoff, retry_async_with_policy,
+    retry_with_policy,
+};
 pub use workbook_recovery::{CorruptionDetector, RecoveryAction, WorkbookRecoveryStrategy};
 
 /// Recovery context for tracking recovery attempts and state

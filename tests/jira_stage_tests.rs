@@ -19,7 +19,7 @@ fn test_jira_config_from_toml_disabled() {
 
 #[test]
 fn test_jira_config_from_toml_dry_run() {
-    std::env::set_var("JIRA_TOKEN_TEST", "test-token-123");
+    unsafe { std::env::set_var("JIRA_TOKEN_TEST", "test-token-123"); }
 
     let toml_str = r#"
         [jira]
@@ -48,7 +48,7 @@ fn test_jira_config_from_toml_dry_run() {
 
 #[test]
 fn test_jira_config_from_toml_create_mode() {
-    std::env::set_var("JIRA_API_KEY", "api-key-456");
+    unsafe { std::env::set_var("JIRA_API_KEY", "api-key-456"); }
 
     let toml_str = r#"
         [jira]
@@ -67,7 +67,7 @@ fn test_jira_config_from_toml_create_mode() {
 
 #[test]
 fn test_jira_config_from_toml_sync_mode() {
-    std::env::set_var("JIRA_SECRET", "secret-789");
+    unsafe { std::env::set_var("JIRA_SECRET", "secret-789"); }
 
     let toml_str = r#"
         [jira]
@@ -85,7 +85,7 @@ fn test_jira_config_from_toml_sync_mode() {
 
 #[test]
 fn test_jira_config_missing_token_env() {
-    std::env::remove_var("MISSING_TOKEN_VAR");
+    unsafe { std::env::remove_var("MISSING_TOKEN_VAR"); }
 
     let toml_str = r#"
         [jira]
@@ -105,7 +105,7 @@ fn test_jira_config_missing_token_env() {
 
 #[test]
 fn test_jira_config_invalid_mode() {
-    std::env::set_var("JIRA_TOKEN", "token");
+    unsafe { std::env::set_var("JIRA_TOKEN", "token"); }
 
     let toml_str = r#"
         [jira]
@@ -125,7 +125,7 @@ fn test_jira_config_invalid_mode() {
 
 #[test]
 fn test_jira_config_default_mapping() {
-    std::env::set_var("JIRA_TOKEN", "token");
+    unsafe { std::env::set_var("JIRA_TOKEN", "token"); }
 
     let toml_str = r#"
         [jira]
@@ -146,7 +146,7 @@ fn test_jira_config_default_mapping() {
 
 #[test]
 fn test_generate_plan_empty_files() {
-    std::env::set_var("JIRA_TOKEN", "token");
+    unsafe { std::env::set_var("JIRA_TOKEN", "token"); }
 
     let config = JiraConfig {
         enabled: true,
@@ -177,7 +177,7 @@ fn test_generate_plan_empty_files() {
 
 #[test]
 fn test_generate_plan_multiple_files() {
-    std::env::set_var("JIRA_TOKEN", "token");
+    unsafe { std::env::set_var("JIRA_TOKEN", "token"); }
 
     let config = JiraConfig {
         enabled: true,
@@ -266,7 +266,7 @@ fn test_jira_mode_serialization() {
 
 #[test]
 fn test_get_auth_token_success() {
-    std::env::set_var("AUTH_TOKEN_SUCCESS", "success-token");
+    unsafe { std::env::set_var("AUTH_TOKEN_SUCCESS", "success-token"); }
 
     let config = JiraConfig {
         enabled: true,
@@ -288,7 +288,7 @@ fn test_get_auth_token_success() {
 
 #[test]
 fn test_get_auth_token_failure() {
-    std::env::remove_var("AUTH_TOKEN_MISSING");
+    unsafe { std::env::remove_var("AUTH_TOKEN_MISSING"); }
 
     let config = JiraConfig {
         enabled: true,

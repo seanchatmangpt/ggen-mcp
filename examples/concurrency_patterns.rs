@@ -194,7 +194,12 @@ impl PerResourceLockRegistry {
     pub async fn exclusive_operation(&self, resource_id: String) {
         // Acquire per-resource lock (not global lock)
         let lock = self.acquire_operation_lock(&resource_id);
-        let _guard = lock.lock();
+        // parking_lot's guard is !Send, so it cannot be held across an .await
+        // inside a spawned task; scope the critical section instead.
+        {
+            let _guard = lock.lock();
+            println!("[PerResource] Acquired lock on {}", resource_id);
+        }
 
         println!("[PerResource] Operating on {}", resource_id);
         time::sleep(Duration::from_millis(50)).await;
@@ -209,7 +214,7 @@ impl PerResourceLockRegistry {
 /// Demonstrates RAII pattern for rollback on error (like ForkCreationGuard)
 pub struct TransactionGuard<T> {
     resource: Option<T>,
-    rollback: Box<dyn FnOnce(&T) + Send>,
+    rollback: Option<Box<dyn FnOnce(&T) + Send>>,
     committed: bool,
 }
 
@@ -217,7 +222,7 @@ impl<T> TransactionGuard<T> {
     pub fn new(resource: T, rollback: impl FnOnce(&T) + Send + 'static) -> Self {
         Self {
             resource: Some(resource),
-            rollback: Box::new(rollback),
+            rollback: Some(Box::new(rollback)),
             committed: false,
         }
     }
@@ -231,9 +236,10 @@ impl<T> TransactionGuard<T> {
 impl<T> Drop for TransactionGuard<T> {
     fn drop(&mut self) {
         if !self.committed {
-            if let Some(resource) = &self.resource {
+            // FnOnce must be moved out to be called; `drop` only has &mut self.
+            if let (Some(resource), Some(rollback)) = (&self.resource, self.rollback.take()) {
                 println!("[RAII] Rolling back transaction");
-                (self.rollback)(resource);
+                rollback(resource);
             }
         }
     }
@@ -421,6 +427,7 @@ impl CircuitBreaker {
     where
         F: std::future::Future<Output = Result<T, E>>,
         E: std::fmt::Display,
+        T: std::fmt::Debug,
     {
         let state = *self.state.lock();
 

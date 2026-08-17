@@ -13,10 +13,14 @@ async fn test_metrics_integration_end_to_end() -> Result<()> {
     let mut registry = CheckRegistry::new();
 
     // Register workspace checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::workspace::get_workspace_checks());
+    registry.register(Box::new(
+        spreadsheet_mcp::dod::checks::workspace::WorkspaceIntegrityCheck,
+    ));
 
     // Register build checks
-    registry.register_all(&spreadsheet_mcp::dod::checks::build::get_build_checks());
+    registry.register(Box::new(spreadsheet_mcp::dod::checks::build::BuildFmtCheck));
+    registry.register(Box::new(spreadsheet_mcp::dod::checks::build::BuildClippyCheck));
+    registry.register(Box::new(spreadsheet_mcp::dod::checks::build::BuildCheckCheck));
 
     let profile = DodProfile::default_dev();
     let executor = CheckExecutor::new(registry, profile);
@@ -25,6 +29,7 @@ async fn test_metrics_integration_end_to_end() -> Result<()> {
         workspace_root: PathBuf::from("."),
         mode: ValidationMode::Fast,
         timeout_ms: 60_000,
+        metadata: std::collections::HashMap::new(),
     };
 
     // Execute validation
@@ -160,17 +165,17 @@ async fn test_metrics_recorder_integration() -> Result<()> {
 fn test_opentelemetry_span_creation() {
     // Test span creation (doesn't require full OTel setup)
     let span1 = DodSpan::validation_run("dev");
-    assert_eq!(span1.metadata().name(), "dod_validation");
+    assert_eq!(span1.metadata().expect("span has metadata").name(), "dod_validation");
 
     let span2 = DodSpan::check_execution("BUILD_CHECK", CheckCategory::BuildCorrectness);
-    assert_eq!(span2.metadata().name(), "dod_check");
+    assert_eq!(span2.metadata().expect("span has metadata").name(), "dod_check");
 
     let span3 = DodSpan::evidence_collection("TEST_UNIT");
-    assert_eq!(span3.metadata().name(), "dod_evidence");
+    assert_eq!(span3.metadata().expect("span has metadata").name(), "dod_evidence");
 
     let span4 = DodSpan::report_generation("markdown");
-    assert_eq!(span4.metadata().name(), "dod_report");
+    assert_eq!(span4.metadata().expect("span has metadata").name(), "dod_report");
 
     let span5 = DodSpan::receipt_generation();
-    assert_eq!(span5.metadata().name(), "dod_receipt");
+    assert_eq!(span5.metadata().expect("span has metadata").name(), "dod_receipt");
 }

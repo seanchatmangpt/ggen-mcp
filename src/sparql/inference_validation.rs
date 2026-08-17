@@ -45,6 +45,7 @@ pub struct Provenance {
     pub triple: Triple,
     pub rule_id: String,
     pub source_triples: Vec<Triple>,
+    #[serde(skip, default = "Instant::now")]
     pub inferred_at: Instant,
     pub confidence: f64,
 }
@@ -327,7 +328,7 @@ pub struct ReasoningGuard {
 }
 
 #[derive(Debug, Clone)]
-struct ReasoningCheckpoint {
+pub struct ReasoningCheckpoint {
     iteration: usize,
     triple_count: usize,
     timestamp: Instant,
@@ -507,7 +508,7 @@ impl RuleDependencyAnalyzer {
         // Queue of nodes with in-degree 0
         let mut queue: VecDeque<String> = in_degree
             .iter()
-            .filter(|(_, &deg)| deg == 0)
+            .filter(|(_, deg)| **deg == 0)
             .map(|(node, _)| node.clone())
             .collect();
 
@@ -732,7 +733,8 @@ impl InferredTripleValidator {
         self.provenance_map.remove(triple);
 
         // Recursively retract dependent triples
-        for dependent in &to_retract {
+        let direct: Vec<_> = to_retract.clone();
+        for dependent in &direct {
             let mut transitive = self.retract_triple(dependent);
             to_retract.append(&mut transitive);
         }
@@ -952,6 +954,7 @@ impl MaterializationManager {
 pub struct MaterializationStats {
     pub materialized_count: usize,
     pub query_count: usize,
+    #[serde(skip, default = "Instant::now")]
     pub last_update: Instant,
 }
 

@@ -28,7 +28,7 @@ test!(test_basic_template_rendering, {
 
     // Assert
     assert_eq!(output, "Hello World!");
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_template_with_loop, {
@@ -54,7 +54,7 @@ test!(test_template_with_loop, {
     assert!(output.contains("- a"));
     assert!(output.contains("- b"));
     assert!(output.contains("- c"));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_template_with_conditionals, {
@@ -84,7 +84,7 @@ Feature is disabled
     let output = renderer.render_safe("conditional", &context)?;
     assert!(output.contains("Feature is disabled"));
 
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -120,7 +120,7 @@ test!(test_context_scoping, {
 
     // Assert - root cannot access child variables
     assert!(root_arc.get("child_var").is_none());
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_context_recursion_depth, {
@@ -139,7 +139,7 @@ test!(test_context_recursion_depth, {
 
     // Assert - should exceed limit
     assert_err!(current.check_recursion_depth(5));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_context_macro_counting, {
@@ -154,7 +154,7 @@ test!(test_context_macro_counting, {
 
     // Assert - fourth increment should fail
     assert_err!(context.increment_macro_count(config.max_macro_expansions));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -181,7 +181,7 @@ fn main() {
         "Valid code should have no errors: {:?}",
         errors
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_unbalanced_braces, {
@@ -200,7 +200,7 @@ fn main() {
     // Assert
     assert!(!errors.is_empty(), "Should detect unbalanced delimiters");
     assert!(errors.iter().any(|e| e.message.contains("brackets")));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_unbalanced_parentheses, {
@@ -213,7 +213,7 @@ test!(test_validator_unbalanced_parentheses, {
 
     // Assert
     assert!(!errors.is_empty(), "Should detect unbalanced parentheses");
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_security_unsafe_code, {
@@ -236,7 +236,7 @@ unsafe {
             .iter()
             .any(|e| e.message.to_lowercase().contains("unsafe"))
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_security_command_execution, {
@@ -261,7 +261,7 @@ fn run_command() {
             .iter()
             .any(|e| e.message.to_lowercase().contains("command"))
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_security_filesystem_ops, {
@@ -281,7 +281,7 @@ fn delete_file() {
 
     // Assert
     assert!(!errors.is_empty(), "Should detect filesystem operations");
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_validator_invalid_identifiers, {
@@ -302,7 +302,7 @@ fn 123invalid() {
         e.severity,
         ValidationSeverity::Warning | ValidationSeverity::Error
     )));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -324,7 +324,7 @@ test!(test_malicious_infinite_loop, {
     let _ = renderer.render_safe("infinite", &context);
 
     // Assert - if we get here, it didn't hang indefinitely
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_malicious_deep_nesting, {
@@ -349,7 +349,7 @@ test!(test_malicious_deep_nesting, {
     let _ = renderer.render_safe("deep", &context);
 
     // Assert - if we get here, it handled deep nesting without panic
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_malicious_large_output, {
@@ -373,12 +373,10 @@ This is a very long line that will be repeated many times to exceed the output s
 
     // Assert - should fail with OutputSizeExceeded error
     match result {
-        Err(RenderingError::OutputSizeExceeded { .. }) => {
-            // Expected error
-            Ok(())
-        }
-        Err(e) => Err(format!("Expected OutputSizeExceeded error, got: {:?}", e).into()),
-        Ok(_) => Err("Expected error but got Ok".into()),
+        // Expected error
+        Err(RenderingError::OutputSizeExceeded { .. }) => {}
+        Err(e) => panic!("Expected OutputSizeExceeded error, got: {:?}", e),
+        Ok(_) => panic!("Expected error but got Ok"),
     }
 });
 
@@ -420,11 +418,9 @@ impl {{ name }} {
             let validator = OutputValidator::new(false, true);
             let errors = validator.validate(&output)?;
             assert!(!errors.is_empty(), "Should detect unsafe code");
-            Ok(())
         }
         Err(_) => {
             // Also acceptable if rendering fails
-            Ok(())
         }
     }
 });
@@ -456,7 +452,7 @@ fn query_user(id: &str) -> String {
             .iter()
             .any(|e| e.message.to_lowercase().contains("sql"))
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_malicious_path_traversal, {
@@ -484,7 +480,7 @@ fn read_file(path: &str) -> String {
 
     // Assert - should detect filesystem operations
     assert!(!errors.is_empty());
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -504,7 +500,7 @@ test!(test_error_recovery_basic, {
     // Assert - now has errors
     assert!(recovery.has_errors());
     assert_eq!(recovery.errors().len(), 1);
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_error_recovery_suggestions, {
@@ -524,7 +520,7 @@ test!(test_error_recovery_suggestions, {
     assert!(!suggestions.is_empty());
     assert!(suggestions.iter().any(|s| s.contains("timed out")));
     assert!(suggestions.iter().any(|s| s.contains("Recursion")));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_error_recovery_report, {
@@ -540,7 +536,7 @@ test!(test_error_recovery_report, {
     // Assert
     assert!(report.contains("Rendering Errors: 1"));
     assert!(report.contains("Partial Output Available"));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_error_recovery_with_partial_output, {
@@ -558,7 +554,7 @@ test!(test_error_recovery_with_partial_output, {
 
     // Assert
     assert_eq!(recovery.partial_output(), Some("partial content"));
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -582,7 +578,7 @@ test!(test_render_guard_cleanup, {
 
     // Assert - file should be cleaned up
     assert!(!temp_file.exists(), "Temp file should be cleaned up");
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_render_guard_commit_preserves_files, {
@@ -606,7 +602,7 @@ test!(test_render_guard_commit_preserves_files, {
 
     // Cleanup
     std::fs::remove_file(&temp_file).ok();
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_render_guard_metrics, {
@@ -622,7 +618,7 @@ test!(test_render_guard_metrics, {
 
     // Assert
     assert!(metrics.duration.as_millis() >= 10);
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -657,7 +653,7 @@ test!(test_config_validation, {
     };
     assert_err!(invalid_size.validate());
 
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_config_builder, {
@@ -680,7 +676,7 @@ test!(test_config_builder, {
     assert!(config.security_checks);
     assert!(config.allow_partial_rendering);
     assert!(config.collect_metrics);
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_config_chaining, {
@@ -696,7 +692,7 @@ test!(test_config_chaining, {
     assert_eq!(config.max_recursion_depth, 15);
     assert!(!config.validate_syntax);
     assert!(!config.security_checks);
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_config_limits_enforced, {
@@ -715,7 +711,7 @@ test!(test_config_limits_enforced, {
     assert!(config.timeout_ms <= MAX_TIMEOUT_MS);
     assert!(config.max_recursion_depth <= MAX_RECURSION_DEPTH);
     // Note: max_output_size might not be clamped in with_ methods
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -800,7 +796,7 @@ impl {{ struct_name }} {
         "Should have no critical errors: {:?}",
         critical_errors
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 test!(test_complex_ddd_template, {
@@ -889,7 +885,7 @@ impl {{ name }}Aggregate {
         !OutputValidator::has_critical_errors(&errors),
         "Generated aggregate should be valid"
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });
 
 // ============================================================================
@@ -923,5 +919,5 @@ Item {{ i }}: {{ value }}
         "Rendering took too long: {:?}",
         duration
     );
-    Ok(())
+    Ok::<(), std::convert::Infallible>(())
 });

@@ -253,7 +253,7 @@ impl Resource<Acquired> {
     }
 }
 
-impl Drop for Resource<Acquired> {
+impl<State> Drop for Resource<State> {
     fn drop(&mut self) {
         println!("Auto-releasing resource on drop");
     }

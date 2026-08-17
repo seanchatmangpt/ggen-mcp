@@ -230,7 +230,7 @@ impl JiraStage {
     }
 
     /// Generate plan for ticket creation (dry-run mode)
-    fn generate_plan(ctx: &SyncContext, config: &JiraConfig) -> Result<JiraPlan> {
+    pub fn generate_plan(ctx: &SyncContext, config: &JiraConfig) -> Result<JiraPlan> {
         let mut tickets = Vec::new();
 
         // Analyze generated files and create ticket plan
@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn test_jira_config_parsing_dry_run() {
-        std::env::set_var("JIRA_TOKEN", "test-token");
+        unsafe { std::env::set_var("JIRA_TOKEN", "test-token"); }
 
         let toml_str = r#"
             [jira]
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_jira_config_parsing_create_mode() {
-        std::env::set_var("JIRA_API_TOKEN", "test-token-2");
+        unsafe { std::env::set_var("JIRA_API_TOKEN", "test-token-2"); }
 
         let toml_str = r#"
             [jira]
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_jira_config_parsing_missing_token() {
-        std::env::remove_var("MISSING_TOKEN");
+        unsafe { std::env::remove_var("MISSING_TOKEN"); }
 
         let toml_str = r#"
             [jira]
@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_generate_plan() {
-        std::env::set_var("JIRA_TOKEN", "test-token");
+        unsafe { std::env::set_var("JIRA_TOKEN", "test-token"); }
 
         let config = JiraConfig {
             enabled: true,

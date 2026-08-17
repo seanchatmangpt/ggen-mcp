@@ -249,7 +249,7 @@ mod tests {
             &self.id
         }
 
-        fn name(&self) -> &str {
+        fn description(&self) -> &str {
             "Mock Check"
         }
 

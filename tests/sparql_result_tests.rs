@@ -15,11 +15,14 @@ mod result_validation_tests {
 
     // Helper function to create a test solution
     fn create_solution(bindings: Vec<(&str, Term)>) -> QuerySolution {
-        let mapped: Vec<(String, Term)> = bindings
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect();
-        QuerySolution::from(mapped)
+        let vars: std::sync::Arc<[oxigraph::sparql::Variable]> = std::sync::Arc::from(
+            bindings
+                .iter()
+                .map(|(k, _)| oxigraph::sparql::Variable::new(*k).unwrap())
+                .collect::<Vec<_>>(),
+        );
+        let values: Vec<Option<Term>> = bindings.into_iter().map(|(_, v)| Some(v)).collect();
+        QuerySolution::from((vars, values))
     }
 
     #[test]
@@ -598,9 +601,12 @@ mod edge_case_tests {
 
 // Helper function for creating test solutions
 fn create_solution(bindings: Vec<(&str, Term)>) -> QuerySolution {
-    let mapped: Vec<(String, Term)> = bindings
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect();
-    QuerySolution::from(mapped)
+    let vars: std::sync::Arc<[oxigraph::sparql::Variable]> = std::sync::Arc::from(
+        bindings
+            .iter()
+            .map(|(k, _)| oxigraph::sparql::Variable::new(*k).unwrap())
+            .collect::<Vec<_>>(),
+    );
+    let values: Vec<Option<Term>> = bindings.into_iter().map(|(_, v)| Some(v)).collect();
+    QuerySolution::from((vars, values))
 }

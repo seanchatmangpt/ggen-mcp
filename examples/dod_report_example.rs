@@ -4,7 +4,7 @@
 //!
 //! Run with: cargo run --example dod_report_example
 
-use ggen_mcp::dod::*;
+use spreadsheet_mcp::dod::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 

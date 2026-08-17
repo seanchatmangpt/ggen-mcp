@@ -526,13 +526,13 @@ pub struct SparqlTestHelpers;
 impl SparqlTestHelpers {
     /// Extract variable bindings from SPARQL result
     pub fn extract_bindings(
-        results: &oxigraph::sparql::QueryResults,
+        results: oxigraph::sparql::QueryResults,
         var_name: &str,
     ) -> Vec<String> {
         let mut bindings = Vec::new();
 
         if let oxigraph::sparql::QueryResults::Solutions(solutions) = results {
-            for solution in solutions.clone() {
+            for solution in solutions {
                 if let Ok(sol) = solution {
                     if let Some(term) = sol.get(var_name) {
                         bindings.push(term.to_string());
@@ -545,9 +545,9 @@ impl SparqlTestHelpers {
     }
 
     /// Assert SPARQL query returns expected number of results
-    pub fn assert_result_count(results: &oxigraph::sparql::QueryResults, expected: usize) {
+    pub fn assert_result_count(results: oxigraph::sparql::QueryResults, expected: usize) {
         if let oxigraph::sparql::QueryResults::Solutions(solutions) = results {
-            let actual = solutions.clone().count();
+            let actual = solutions.count();
             assert_eq!(
                 actual, expected,
                 "SPARQL query returned unexpected number of results:\n\

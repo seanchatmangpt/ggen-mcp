@@ -208,6 +208,18 @@ impl RenderConfig {
         self
     }
 
+    /// Set maximum output size in bytes (chaining method)
+    pub fn with_max_output_size(mut self, size: usize) -> Self {
+        self.max_output_size = size.min(MAX_OUTPUT_SIZE);
+        self
+    }
+
+    /// Set maximum macro expansions (chaining method)
+    pub fn with_max_macro_expansions(mut self, count: usize) -> Self {
+        self.max_macro_expansions = count;
+        self
+    }
+
     /// Enable or disable syntax validation (chaining method)
     pub fn with_syntax_validation(mut self, enable: bool) -> Self {
         self.validate_syntax = enable;

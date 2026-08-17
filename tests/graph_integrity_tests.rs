@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 fn create_store_with_triples(triples: Vec<Triple>) -> Result<Store> {
     let store = Store::new()?;
     for triple in triples {
-        store.insert(&triple.into())?;
+        store.insert(&triple.in_graph(oxigraph::model::GraphName::DefaultGraph))?;
     }
     Ok(store)
 }

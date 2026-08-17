@@ -888,11 +888,8 @@ mod determinism_tests {
 
         // Act & Assert - Generated code should not contain dynamic timestamps
         // that would break determinism
-        let timestamp_patterns = vec![
-            "Generated at:",
-            "Created:",
-            chrono::Local::now().format("%Y").to_string().as_str(),
-        ];
+        let current_year = chrono::Local::now().format("%Y").to_string();
+        let timestamp_patterns = vec!["Generated at:", "Created:", current_year.as_str()];
 
         for pattern in timestamp_patterns {
             // Allow year in copyright notices but not in comments about generation time

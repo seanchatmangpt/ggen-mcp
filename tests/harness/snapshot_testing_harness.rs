@@ -44,13 +44,13 @@ use sha2::{Digest, Sha256};
 #[derive(Debug)]
 pub struct SnapshotTestHarness {
     /// Root directory for snapshots
-    snapshot_root: PathBuf,
+    pub snapshot_root: PathBuf,
     /// Whether to update snapshots automatically
-    update_mode: UpdateMode,
+    pub update_mode: UpdateMode,
     /// Snapshot metadata cache
-    metadata_cache: HashMap<String, SnapshotMetadata>,
+    pub metadata_cache: HashMap<String, SnapshotMetadata>,
     /// Statistics for the test run
-    stats: SnapshotStats,
+    pub stats: SnapshotStats,
 }
 
 /// Update mode for snapshots

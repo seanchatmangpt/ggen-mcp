@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use tracing::Instrument as _;
 use tracing::Level;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -146,7 +147,7 @@ mod logging_tests {
     #[test]
     fn test_logging_config_otel_endpoint() {
         // Set OTEL endpoint env var
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317");
+        unsafe { std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"); }
 
         let config = LoggingConfig::from_env();
         assert!(config.enable_otel);
@@ -156,68 +157,68 @@ mod logging_tests {
         );
 
         // Clean up
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
     }
 
     #[test]
     fn test_logging_config_sampling_rate() {
         // Set sampling rate env var
-        std::env::set_var("OTEL_SAMPLING_RATE", "0.5");
+        unsafe { std::env::set_var("OTEL_SAMPLING_RATE", "0.5"); }
 
         let config = LoggingConfig::from_env();
         assert_eq!(config.otel_sampling_rate, 0.5);
 
         // Clean up
-        std::env::remove_var("OTEL_SAMPLING_RATE");
+        unsafe { std::env::remove_var("OTEL_SAMPLING_RATE"); }
     }
 
     #[test]
     fn test_logging_config_invalid_sampling_rate() {
         // Set invalid sampling rate (should be clamped)
-        std::env::set_var("OTEL_SAMPLING_RATE", "1.5");
+        unsafe { std::env::set_var("OTEL_SAMPLING_RATE", "1.5"); }
 
         let config = LoggingConfig::from_env();
         assert_eq!(config.otel_sampling_rate, 1.0); // Should be clamped to 1.0
 
         // Clean up
-        std::env::remove_var("OTEL_SAMPLING_RATE");
+        unsafe { std::env::remove_var("OTEL_SAMPLING_RATE"); }
     }
 
     #[test]
     fn test_logging_format_variants() {
         // Test JSON format
-        std::env::set_var("LOG_FORMAT", "json");
+        unsafe { std::env::set_var("LOG_FORMAT", "json"); }
         let config = LoggingConfig::from_env();
         assert_eq!(config.format, LogFormat::Json);
 
         // Test pretty format
-        std::env::set_var("LOG_FORMAT", "pretty");
+        unsafe { std::env::set_var("LOG_FORMAT", "pretty"); }
         let config = LoggingConfig::from_env();
         assert_eq!(config.format, LogFormat::Pretty);
 
         // Clean up
-        std::env::remove_var("LOG_FORMAT");
+        unsafe { std::env::remove_var("LOG_FORMAT"); }
     }
 
     #[test]
     fn test_logging_output_variants() {
         // Test stdout output
-        std::env::set_var("LOG_OUTPUT", "stdout");
+        unsafe { std::env::set_var("LOG_OUTPUT", "stdout"); }
         let config = LoggingConfig::from_env();
         assert_eq!(config.output, LogOutput::Stdout);
 
         // Test stderr output
-        std::env::set_var("LOG_OUTPUT", "stderr");
+        unsafe { std::env::set_var("LOG_OUTPUT", "stderr"); }
         let config = LoggingConfig::from_env();
         assert_eq!(config.output, LogOutput::Stderr);
 
         // Test file output
-        std::env::set_var("LOG_OUTPUT", "file");
+        unsafe { std::env::set_var("LOG_OUTPUT", "file"); }
         let config = LoggingConfig::from_env();
         assert_eq!(config.output, LogOutput::File);
 
         // Clean up
-        std::env::remove_var("LOG_OUTPUT");
+        unsafe { std::env::remove_var("LOG_OUTPUT"); }
     }
 }
 

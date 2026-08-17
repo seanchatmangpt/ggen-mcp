@@ -531,7 +531,7 @@ mod tests {
         let named_node = NamedNode::new("http://example.org/test").unwrap();
         let subject = Subject::NamedNode(named_node);
 
-        assert!(iri_type.matches(&subject));
+        assert!(iri_type.matches(subject.as_ref()));
     }
 
     #[test]

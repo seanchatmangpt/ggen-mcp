@@ -1,7 +1,7 @@
 // Integration tests for validate_generated_code tool
 // Chicago-TDD: Real implementations, state-based testing
 
-use ggen_mcp::tools::ontology_generation::{
+use spreadsheet_mcp::tools::ontology_generation::{
     ValidateGeneratedCodeParams, ValidateGeneratedCodeResponse, validate_generated_code,
 };
 use std::path::PathBuf;

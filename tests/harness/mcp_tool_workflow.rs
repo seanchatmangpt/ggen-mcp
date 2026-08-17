@@ -27,17 +27,17 @@ use std::path::Path;
 pub async fn run_mcp_tool_workflow() -> Result<WorkflowResult> {
     WorkflowBuilder::new("mcp_tool")?
         .with_docker("mcp-test-network")
-        .step("define_tool_in_ontology", define_tool_in_ontology)
-        .step("generate_tool_handler", generate_tool_handler)
-        .step("compile_handler", compile_handler)
-        .step("register_with_mcp", register_with_mcp)
-        .step("invoke_tool_via_protocol", invoke_tool_via_protocol)
-        .step("validate_tool_response", validate_tool_response)
-        .step("verify_audit_log", verify_audit_log)
-        .assert("tool_registered", assert_tool_registered)
-        .assert("invocation_succeeded", assert_invocation_succeeded)
-        .assert("response_valid", assert_response_valid)
-        .assert("audit_complete", assert_audit_complete)
+        .step("define_tool_in_ontology", |c, h| Box::pin(define_tool_in_ontology(c, h)))
+        .step("generate_tool_handler", |c, h| Box::pin(generate_tool_handler(c, h)))
+        .step("compile_handler", |c, h| Box::pin(compile_handler(c, h)))
+        .step("register_with_mcp", |c, h| Box::pin(register_with_mcp(c, h)))
+        .step("invoke_tool_via_protocol", |c, h| Box::pin(invoke_tool_via_protocol(c, h)))
+        .step("validate_tool_response", |c, h| Box::pin(validate_tool_response(c, h)))
+        .step("verify_audit_log", |c, h| Box::pin(verify_audit_log(c, h)))
+        .assert("tool_registered", |c, h| Box::pin(assert_tool_registered(c, h)))
+        .assert("invocation_succeeded", |c, h| Box::pin(assert_invocation_succeeded(c, h)))
+        .assert("response_valid", |c, h| Box::pin(assert_response_valid(c, h)))
+        .assert("audit_complete", |c, h| Box::pin(assert_audit_complete(c, h)))
         .run()
         .await
 }
@@ -54,7 +54,7 @@ async fn define_tool_in_ontology(
         load_ontology_fixture(&fixture_path).await?
     } else {
         // Use embedded default ontology for testing
-        include_str!("../../../fixtures/workflows/mcp_tool/01_ontology.ttl").to_string()
+        include_str!("../../fixtures/workflows/mcp_tool/01_ontology.ttl").to_string()
     };
 
     {
@@ -244,7 +244,7 @@ async fn invoke_tool_via_protocol(
     // Invoke tool via JSON-RPC 2.0
     let response = tester.invoke_tool(tool_name, arguments.clone()).await?;
 
-    store_data(context.clone(), "invocation_request", arguments).await;
+    store_data(context.clone(), "invocation_request", arguments.clone()).await;
     store_data(context.clone(), "invocation_response", response.clone()).await;
 
     harness

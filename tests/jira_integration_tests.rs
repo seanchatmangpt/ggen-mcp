@@ -750,9 +750,11 @@ async fn simulate_sync_spreadsheet_to_jira(
             }
         } else {
             // Create new
-            let summary = row.get("Summary").unwrap_or(&String::new());
-            let description = row.get("Description").unwrap_or(&String::new());
-            let priority = row.get("Priority").unwrap_or(&"Medium".to_string());
+            let empty = String::new();
+            let default_priority = "Medium".to_string();
+            let summary = row.get("Summary").unwrap_or(&empty);
+            let description = row.get("Description").unwrap_or(&empty);
+            let priority = row.get("Priority").unwrap_or(&default_priority);
 
             server.create_ticket(summary, description, priority).await?;
             created_count += 1;

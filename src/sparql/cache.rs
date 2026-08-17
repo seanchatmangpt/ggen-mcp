@@ -460,7 +460,7 @@ mod tests {
         let query = "SELECT ?name WHERE { ?s ?p ?name }";
         let solutions = vec![]; // Empty for test
 
-        cache.put(query, solutions.clone(), None, vec![]);
+        cache.put(query, solutions, None, vec![]);
 
         let cached = cache.get(query);
         assert!(cached.is_some());

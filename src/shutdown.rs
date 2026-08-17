@@ -388,6 +388,19 @@ pub trait ShutdownHandler: Send + Sync {
     }
 }
 
+/// Shared handles delegate to the inner handler, so an `Arc<H>` can be
+/// registered while the caller keeps a handle to inspect afterwards.
+#[async_trait::async_trait]
+impl<T: ShutdownHandler + ?Sized> ShutdownHandler for Arc<T> {
+    async fn shutdown(&self) -> Result<()> {
+        (**self).shutdown().await
+    }
+
+    async fn flush(&self) -> Result<()> {
+        (**self).flush().await
+    }
+}
+
 /// Shutdown handler for AppState
 pub struct AppStateShutdownHandler {
     state: Arc<AppState>,

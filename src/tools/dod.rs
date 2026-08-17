@@ -337,6 +337,7 @@ impl DodValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dod::types::{CheckCategory, CheckSeverity};
 
     #[tokio::test]
     async fn test_validate_minimal_profile() {
@@ -432,28 +433,37 @@ mod tests {
     fn test_calculate_summary() {
         let results = vec![
             DodCheckResult {
-                check_id: "test1".to_string(),
-                category: "workspace".to_string(),
+                id: "test1".to_string(),
+                category: CheckCategory::WorkspaceIntegrity,
                 status: CheckStatus::Pass,
+                severity: CheckSeverity::Fatal,
                 message: "OK".to_string(),
+                evidence: vec![],
+                remediation: vec![],
                 duration_ms: 10,
-                evidence: None,
+                check_hash: String::new(),
             },
             DodCheckResult {
-                check_id: "test2".to_string(),
-                category: "build".to_string(),
+                id: "test2".to_string(),
+                category: CheckCategory::BuildCorrectness,
                 status: CheckStatus::Fail,
+                severity: CheckSeverity::Fatal,
                 message: "Failed".to_string(),
+                evidence: vec![],
+                remediation: vec![],
                 duration_ms: 20,
-                evidence: None,
+                check_hash: String::new(),
             },
             DodCheckResult {
-                check_id: "test3".to_string(),
-                category: "tests".to_string(),
+                id: "test3".to_string(),
+                category: CheckCategory::TestTruth,
                 status: CheckStatus::Warn,
+                severity: CheckSeverity::Warning,
                 message: "Warning".to_string(),
+                evidence: vec![],
+                remediation: vec![],
                 duration_ms: 5,
-                evidence: None,
+                check_hash: String::new(),
             },
         ];
 

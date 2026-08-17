@@ -3,13 +3,13 @@
 //! Tests all 15 operations through single dispatch point.
 //! Verifies: delegation correctness, error handling, response structure.
 
-use ggen_mcp::state::AppState;
-use ggen_mcp::tools::ggen_config::{GenerationMode, GenerationRule};
-use ggen_mcp::tools::ggen_unified::{
+use spreadsheet_mcp::state::AppState;
+use spreadsheet_mcp::tools::ggen_config::{GenerationMode, GenerationRule};
+use spreadsheet_mcp::tools::ggen_unified::{
     ManageGgenResourceParams, ResourceOperation, manage_ggen_resource,
 };
-use ggen_mcp::tools::tera_authoring;
-use ggen_mcp::tools::turtle_authoring::{EntityName, EntityType, PropertyName, PropertySpec};
+use spreadsheet_mcp::tools::tera_authoring;
+use spreadsheet_mcp::tools::turtle_authoring::{EntityName, EntityType, PropertyName, PropertySpec};
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
@@ -21,11 +21,33 @@ use tempfile::TempDir;
 // ============================================================================
 
 fn create_test_state(workspace: &TempDir) -> Arc<AppState> {
-    let config = ggen_mcp::config::Config {
+    let config = spreadsheet_mcp::ServerConfig {
         workspace_root: workspace.path().to_path_buf(),
-        ..Default::default()
+        cache_capacity: 8,
+        supported_extensions: vec!["xlsx".to_string()],
+        single_workbook: None,
+        enabled_tools: None,
+        transport: spreadsheet_mcp::TransportKind::Stdio,
+        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        recalc_enabled: false,
+        vba_enabled: false,
+        max_concurrent_recalcs: 2,
+        tool_timeout_ms: Some(30_000),
+        max_response_bytes: Some(1_000_000),
+        allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+            provider_type: "disabled".to_string(),
+            local_path: ".ggen_license".to_string(),
+            gcp_config: Default::default(),
+        },
     };
-    Arc::new(AppState::new(config))
+    Arc::new(AppState::new(std::sync::Arc::new(config)))
 }
 
 fn create_sample_ggen_toml(path: &PathBuf) {

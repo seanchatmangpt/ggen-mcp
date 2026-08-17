@@ -135,7 +135,9 @@ fn test_blocks_drop_statement() {
     let result = executor.validate_and_execute(query, &store, "test-drop".to_string());
     assert!(result.is_err(), "DROP statement should be blocked");
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert_eq!(err.code, ErrorCode::SparqlError);
     assert!(err.message.contains("DROP"));
 
@@ -154,7 +156,9 @@ fn test_blocks_clear_statement() {
     let result = executor.validate_and_execute(query, &store, "test-clear".to_string());
     assert!(result.is_err(), "CLEAR statement should be blocked");
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert_eq!(err.code, ErrorCode::SparqlError);
     assert!(err.message.contains("CLEAR"));
 }
@@ -211,7 +215,9 @@ fn test_budget_enforces_triple_pattern_limit() {
     let result = executor.validate_and_execute(query, &store, "test-budget".to_string());
     assert!(result.is_err(), "Should fail budget validation");
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     // Should be either SparqlError or ResourceExhausted depending on error mapping
     assert!(
         err.code == ErrorCode::SparqlError || err.code == ErrorCode::ResourceExhausted,
@@ -431,7 +437,9 @@ fn test_invalid_query_syntax_error() {
     let result = executor.validate_and_execute(query, &store, "test-syntax".to_string());
     assert!(result.is_err(), "Invalid syntax should fail");
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert_eq!(err.code, ErrorCode::SparqlError);
     assert!(
         err.message.contains("failed") || err.message.contains("syntax"),
@@ -449,7 +457,9 @@ fn test_error_has_suggestions() {
     let result = executor.validate_and_execute(query, &store, "test-suggest".to_string());
     assert!(result.is_err());
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert!(
         !err.context.suggestions.is_empty(),
         "Error should have suggestions"
@@ -466,7 +476,9 @@ fn test_error_includes_context() {
     let result = executor.validate_and_execute(query, &store, "test-context".to_string());
     assert!(result.is_err());
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert_eq!(
         err.context.operation,
         Some("sparql_query_validation".to_string())
@@ -507,7 +519,9 @@ fn test_fail_fast_on_anti_patterns() {
         "Should fail fast on anti-patterns when configured"
     );
 
-    let err = result.unwrap_err();
+    let Err(err) = result else {
+        panic!("expected an error");
+    };
     assert!(
         err.message.contains("anti-pattern"),
         "Error should mention anti-patterns"
@@ -671,7 +685,11 @@ fn test_concurrent_query_execution() {
                 "#
             );
 
-            executor.validate_and_execute(&query, &store, format!("thread-{}", i))
+            // SafeQueryResult borrows the store and is not Send; collapse to a
+            // bool inside the thread so only the outcome crosses the boundary.
+            executor
+                .validate_and_execute(&query, &store, format!("thread-{}", i))
+                .is_ok()
         });
 
         handles.push(handle);
@@ -680,10 +698,8 @@ fn test_concurrent_query_execution() {
     // Wait for all threads
     let mut successes = 0;
     for handle in handles {
-        if let Ok(result) = handle.join() {
-            if result.is_ok() {
-                successes += 1;
-            }
+        if let Ok(true) = handle.join() {
+            successes += 1;
         }
     }
 

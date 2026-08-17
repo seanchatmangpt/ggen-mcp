@@ -46,7 +46,7 @@ mod mocks {
         pub preview: bool,
     }
 
-    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(rename_all = "snake_case")]
     pub enum SyncStatus {
         Success,
@@ -509,11 +509,12 @@ async fn test_force_mode_overwrites_existing() -> Result<()> {
     let old_content = fs::read_to_string(&existing_file)?;
 
     // Act
+    let force_flag = params.force;
     let result = sync_ggen(Arc::new(mock_state()), params).await?;
 
     // Assert
     assert!(!result.preview);
-    assert!(params.force, "Force flag should be set");
+    assert!(force_flag, "Force flag should be set");
 
     // In real implementation, verify file was overwritten
     // let new_content = fs::read_to_string(&existing_file)?;

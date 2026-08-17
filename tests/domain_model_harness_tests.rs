@@ -35,7 +35,7 @@ test!(test_entities_within_boundary, {
 
     // Act: Create order with entity items
     let order = OrderBuilder::new(user_id)
-        .add_item(product_id, 1, Money::usd(500))
+        .add_item(product_id.clone(), 1, Money::usd(500))
         .calculate_total()
         .build()?;
 
@@ -278,7 +278,7 @@ test!(test_order_total_calculation, {
     // Act: Build order with calculated total
     let order = OrderBuilder::new(user_id)
         .add_item(product_id.clone(), 2, Money::usd(1000))
-        .add_item(product_id, 1, Money::usd(500))
+        .add_item(product_id.clone(), 1, Money::usd(500))
         .calculate_total()
         .build()?;
 

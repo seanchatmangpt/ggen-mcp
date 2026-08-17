@@ -89,9 +89,9 @@ fn test_user_aggregate_code_generation() {
     match result {
         Ok(_) => println!("✓ UserAggregate snapshot matches"),
         Err(e) => {
-            if let Some(diff) = e.diff {
+            if let Some(diff) = e.diff.as_ref() {
                 println!("✗ UserAggregate snapshot differs:");
-                harness.print_diff(&diff);
+                harness.print_diff(diff);
             }
             panic!("Snapshot mismatch: {}", e);
         }

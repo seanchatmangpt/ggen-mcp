@@ -117,8 +117,9 @@ impl SparqlTestHarness {
     /// Validate query syntax without execution
     pub fn validate_query_syntax(&self, query: &str) -> Result<()> {
         // Oxigraph will parse and validate the query
-        self.store
-            .prepare_query(query)
+        // oxigraph 0.5 removed Store::prepare_query; parsing the query is the
+        // equivalent syntax-only validation.
+        oxigraph::sparql::Query::parse(query, None)
             .with_context(|| "Query syntax validation failed")?;
         Ok(())
     }
@@ -130,7 +131,7 @@ impl SparqlTestHarness {
 }
 
 /// Result set from a SPARQL query
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct QueryResultSet {
     pub solutions: Vec<QuerySolution>,
 }
@@ -748,7 +749,7 @@ mod query_execution_tests {
         // Load test data
         let graph = create_domain_entity_graph();
         for triple in graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         // Query for aggregates
@@ -770,7 +771,7 @@ mod query_execution_tests {
         // Load test data
         let graph = create_domain_entity_graph();
         for triple in graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         // Query with filter
@@ -801,13 +802,13 @@ mod queries_directory_tests {
         // Load domain entities graph
         let graph = create_domain_entity_graph();
         for triple in graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         // Load MCP tools graph
         let tools_graph = create_mcp_tools_graph();
         for triple in tools_graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         harness
@@ -940,7 +941,7 @@ mod end_to_end_tests {
         // 1. Load ontology data
         let graph = create_domain_entity_graph();
         for triple in graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         // 2. Build query programmatically
@@ -1065,7 +1066,7 @@ mod result_assertion_tests {
         let mut harness = SparqlTestHarness::new();
         let graph = create_domain_entity_graph();
         for triple in graph.iter() {
-            harness.store.insert(triple.as_ref()).unwrap();
+            harness.store.insert(triple.in_graph(oxigraph::model::GraphNameRef::DefaultGraph)).unwrap();
         }
 
         let query = r#"

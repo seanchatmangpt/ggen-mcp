@@ -616,7 +616,7 @@ async fn simulate_add_generation_rule(
     let content = fs::read_to_string(path)?;
     let mut config: toml::Value = toml::from_str(&content)?;
 
-    let new_rule = toml::toml! {
+    let new_rule: toml::value::Table = toml::toml! {
         name = name
         query = query
         template = template
@@ -624,12 +624,15 @@ async fn simulate_add_generation_rule(
     };
 
     if let Some(gen_array) = config.get_mut("generation").and_then(|v| v.as_array_mut()) {
-        gen_array.push(new_rule);
+        gen_array.push(toml::Value::Table(new_rule.clone()));
     } else {
         config
             .as_table_mut()
             .unwrap()
-            .insert("generation".to_string(), toml::Value::Array(vec![new_rule]));
+            .insert(
+                "generation".to_string(),
+                toml::Value::Array(vec![toml::Value::Table(new_rule)]),
+            );
     }
 
     fs::write(path, toml::to_string(&config)?)?;

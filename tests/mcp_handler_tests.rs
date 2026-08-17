@@ -2,11 +2,11 @@
 //!
 //! Tests for DoD validation MCP tool handler
 
-use ggen_mcp::dod::mcp_handler::{
+use spreadsheet_mcp::dod::mcp_handler::{
     ValidateDefinitionOfDoneParams, ValidateDefinitionOfDoneResponse, validate_definition_of_done,
 };
-use ggen_mcp::dod::types::{CheckStatus, OverallVerdict};
-use ggen_mcp::state::AppState;
+use spreadsheet_mcp::dod::types::{CheckStatus, OverallVerdict};
+use spreadsheet_mcp::state::AppState;
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -15,7 +15,33 @@ use tempfile::TempDir;
 // =============================================================================
 
 fn create_test_state() -> Arc<AppState> {
-    Arc::new(AppState::default())
+    let config = spreadsheet_mcp::ServerConfig {
+        workspace_root: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")),
+        cache_capacity: 8,
+        supported_extensions: vec!["xlsx".to_string()],
+        single_workbook: None,
+        enabled_tools: None,
+        transport: spreadsheet_mcp::TransportKind::Stdio,
+        http_bind_address: "127.0.0.1:8079".parse().unwrap(),
+        recalc_enabled: false,
+        vba_enabled: false,
+        max_concurrent_recalcs: 2,
+        tool_timeout_ms: Some(30_000),
+        max_response_bytes: Some(1_000_000),
+        allow_overwrite: false,
+        graceful_shutdown_timeout_secs: 30,
+        ontology_cache_size: 16,
+        ontology_cache_ttl_secs: 300,
+        query_cache_size: 128,
+        query_cache_ttl_secs: 60,
+        entitlement_enabled: false,
+        entitlement_config: spreadsheet_mcp::entitlement::EntitlementConfig {
+            provider_type: "disabled".to_string(),
+            local_path: ".ggen_license".to_string(),
+            gcp_config: Default::default(),
+        },
+    };
+    Arc::new(AppState::new(Arc::new(config)))
 }
 
 async fn run_validation(
@@ -46,7 +72,7 @@ async fn test_params_default_profile() {
 
     assert!(result.is_ok(), "Should use default dev profile");
     let response = result.unwrap();
-    assert_eq!(response.verdict, "Ready" || response.verdict == "NotReady");
+    assert!(response.verdict == "Ready" || response.verdict == "NotReady");
 }
 
 #[tokio::test]

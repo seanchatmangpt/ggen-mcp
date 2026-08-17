@@ -401,11 +401,11 @@ mod tests {
     use oxigraph::model::{Literal, NamedNode, Term};
 
     fn create_test_solution(name: &str, value: &str) -> QuerySolution {
-        let bindings = vec![(
-            name.to_string(),
-            Term::Literal(Literal::new_simple_literal(value)),
-        )];
-        QuerySolution::from(bindings)
+        let vars: std::sync::Arc<[oxigraph::sparql::Variable]> =
+            std::sync::Arc::from(vec![oxigraph::sparql::Variable::new(name).unwrap()]);
+        let values: Vec<Option<Term>> =
+            vec![Some(Term::Literal(Literal::new_simple_literal(value)))];
+        QuerySolution::from((vars, values))
     }
 
     #[test]

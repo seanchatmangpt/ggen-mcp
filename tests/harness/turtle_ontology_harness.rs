@@ -44,14 +44,14 @@
 //! ```
 
 use anyhow::{Context, Result, anyhow};
-use oxigraph::io::GraphFormat;
+use oxigraph::io::{RdfFormat, RdfParser};
 use oxigraph::model::{GraphNameRef, NamedNode, NamedNodeRef, Subject, Term, Triple};
 use oxigraph::sparql::{Query, QueryResults};
 use oxigraph::store::Store;
 use spreadsheet_mcp::ontology::{
     ConsistencyChecker, ConsistencyReport, HashVerifier, NamespaceManager, SchemaValidator,
-    ValidationReport,
 };
+use ggen_ontology_core::TripleStore;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -63,6 +63,8 @@ use std::path::{Path, PathBuf};
 #[derive(Clone)]
 pub struct OntologyTestHarness {
     store: Store,
+    /// Raw TTL source, needed to build a `TripleStore` for the lib validators
+    ttl_source: String,
     namespace_manager: NamespaceManager,
     source_info: SourceInfo,
 }
@@ -92,6 +94,7 @@ impl OntologyTestHarness {
 
         Self {
             store: Store::new().expect("Failed to create RDF store"),
+            ttl_source: String::new(),
             namespace_manager,
             source_info: SourceInfo {
                 source_type: SourceType::Builder,
@@ -105,12 +108,15 @@ impl OntologyTestHarness {
         let path = path.as_ref();
         let store = Store::new()?;
 
+        let content = std::fs::read(path)
+            .with_context(|| format!("Failed to read TTL file: {:?}", path))?;
         store
-            .load_from_file(path, GraphFormat::Turtle)
+            .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), content.as_slice())
             .with_context(|| format!("Failed to parse TTL file: {:?}", path))?;
 
         let mut harness = Self::new();
         harness.store = store;
+        harness.ttl_source = String::from_utf8_lossy(&content).into_owned();
         harness.source_info = SourceInfo {
             source_type: SourceType::File(path.to_path_buf()),
             description: format!("Loaded from file: {}", path.display()),
@@ -124,11 +130,12 @@ impl OntologyTestHarness {
         let store = Store::new()?;
 
         store
-            .load_from_reader(GraphFormat::Turtle, ttl.as_bytes())
+            .load_from_reader(RdfParser::from_format(RdfFormat::Turtle), ttl.as_bytes())
             .context("Failed to parse TTL string")?;
 
         let mut harness = Self::new();
         harness.store = store;
+        harness.ttl_source = ttl.to_string();
         harness.source_info = SourceInfo {
             source_type: SourceType::String,
             description: format!("Loaded from string ({} bytes)", ttl.len()),
@@ -151,15 +158,33 @@ impl OntologyTestHarness {
     // VALIDATION METHODS
     // =========================================================================
 
+    /// Build a `TripleStore` over this harness's TTL source.
+    ///
+    /// `TripleStore` wraps its inner oxigraph `Store` privately and only loads
+    /// from a path, so the source is round-tripped through a temp file.
+    pub fn triple_store(&self) -> Result<TripleStore> {
+        use std::io::Write;
+        let store = TripleStore::new().map_err(|e| anyhow!("TripleStore::new: {e}"))?;
+        let mut f = tempfile::Builder::new().suffix(".ttl").tempfile()?;
+        f.write_all(self.ttl_source.as_bytes())?;
+        f.flush()?;
+        store
+            .load_turtle(f.path())
+            .map_err(|e| anyhow!("TripleStore::load_turtle: {e}"))?;
+        Ok(store)
+    }
+
     /// Run full consistency validation
     pub fn validate_consistency(&self) -> ConsistencyReport {
-        let checker = ConsistencyChecker::new(self.store.clone());
+        let store = self.triple_store().expect("failed to build TripleStore");
+        let checker = ConsistencyChecker::new(store);
         checker.check_all()
     }
 
     /// Run schema validation
-    pub fn validate_schema(&self) -> ValidationReport {
-        let validator = SchemaValidator::new(self.store.clone());
+    pub fn validate_schema(&self) -> ConsistencyReport {
+        let store = self.triple_store().expect("failed to build TripleStore");
+        let validator = SchemaValidator::new(store);
         validator.validate_all()
     }
 
@@ -176,7 +201,7 @@ impl OntologyTestHarness {
 
     /// Compute ontology hash for change detection
     pub fn compute_hash(&self) -> Result<String> {
-        let verifier = HashVerifier::new(self.store.clone());
+        let verifier = HashVerifier::new(self.triple_store()?);
         verifier.compute_hash()
     }
 
@@ -511,7 +536,7 @@ impl OntologyTestHarness {
 #[derive(Debug)]
 pub struct ValidationResult {
     pub consistency: ConsistencyReport,
-    pub schema: ValidationReport,
+    pub schema: ConsistencyReport,
 }
 
 impl ValidationResult {

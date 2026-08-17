@@ -27,7 +27,7 @@ async fn test_secret_detection_no_secrets() {
     let src_file = workspace.path().join("src/main.rs");
     fs::write(&src_file, "fn main() { println!(\"Hello, world!\"); }").unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -43,7 +43,7 @@ async fn test_secret_detection_aws_key() {
     let src_file = workspace.path().join("src/config.rs");
     fs::write(&src_file, "const AWS_KEY: &str = \"AKIAIOSFODNN7EXAMPLE\";").unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -69,7 +69,7 @@ async fn test_secret_detection_github_token() {
     )
     .unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -88,7 +88,7 @@ MIIBogIBAAJBAL...";"#,
     )
     .unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -107,7 +107,7 @@ async fn test_secret_detection_high_entropy() {
     )
     .unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -119,7 +119,7 @@ async fn test_secret_detection_high_entropy() {
 async fn test_license_header_check_no_generated() {
     let workspace = create_test_workspace();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = LicenseHeaderCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -140,7 +140,7 @@ async fn test_license_header_check_with_spdx() {
     )
     .unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = LicenseHeaderCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -156,7 +156,7 @@ async fn test_license_header_check_missing_spdx() {
     let gen_file = workspace.path().join("src/generated/types.rs");
     fs::write(&gen_file, "pub struct Type;").unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = LicenseHeaderCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -168,7 +168,7 @@ async fn test_license_header_check_missing_spdx() {
 async fn test_dependency_risk_check_no_cargo_audit() {
     let workspace = create_test_workspace();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = DependencyRiskCheck;
     let result = check.execute(&context).await.unwrap();
 
@@ -218,7 +218,7 @@ const GITHUB_TOKEN: &str = "ghp_1234567890abcdefghijklmnopqrstuvw";
     )
     .unwrap();
 
-    let context = CheckContext::new(workspace.path().to_path_buf(), ValidationMode::Fast);
+    let context = CheckContext::new(workspace.path().to_path_buf());
     let check = SecretDetectionCheck;
     let result = check.execute(&context).await.unwrap();
 

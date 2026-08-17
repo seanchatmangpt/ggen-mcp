@@ -343,6 +343,7 @@ mod tests {
             workspace_root: std::path::PathBuf::from("."),
             mode: ValidationMode::Fast,
             timeout_ms: 60_000,
+            metadata: std::collections::HashMap::new(),
         }
     }
 
@@ -394,7 +395,7 @@ mod tests {
         }));
 
         let mut profile = DodProfile::default_dev();
-        profile.required_checks.insert("GGEN_RENDER".to_string());
+        profile.required_checks.push("GGEN_RENDER".to_string());
 
         let executor = CheckExecutor::new(registry, profile);
 
@@ -432,7 +433,7 @@ mod tests {
 
         let mut profile = DodProfile::default_dev();
         profile.required_checks.clear();
-        profile.required_checks.insert("SLOW_CHECK".to_string());
+        profile.required_checks.push("SLOW_CHECK".to_string());
 
         // Set short timeout for build checks
         profile.timeouts_ms.build = 100; // 100ms
@@ -468,9 +469,9 @@ mod tests {
         let mut profile = DodProfile::default_dev();
         profile.parallelism = ParallelismConfig::Serial;
         profile.required_checks.clear();
-        profile.required_checks.insert("CHECK_1".to_string());
-        profile.required_checks.insert("CHECK_2".to_string());
-        profile.required_checks.insert("CHECK_3".to_string());
+        profile.required_checks.push("CHECK_1".to_string());
+        profile.required_checks.push("CHECK_2".to_string());
+        profile.required_checks.push("CHECK_3".to_string());
 
         let executor = CheckExecutor::new(registry, profile);
 
