@@ -2,6 +2,7 @@ pub mod multi_format_validator;
 pub mod parameter_validation;
 pub mod rendering_safety;
 pub mod schemas;
+pub mod tolerant_load;
 
 // Re-export parameter validation components
 pub use parameter_validation::{

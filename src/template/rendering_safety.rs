@@ -1065,9 +1065,13 @@ impl SafeRenderer {
     pub fn from_directory<P: AsRef<Path>>(dir: P, config: RenderConfig) -> Result<Self> {
         config.validate()?;
 
-        let pattern = format!("{}/**/*", dir.as_ref().display());
-        let tera = Tera::new(&pattern)
+        // Load per-template: an unparseable template must not prevent every
+        // other template in the directory from being rendered. Rendering the
+        // bad template still fails (it was never registered), and
+        // `TemplateValidator` reports the parse error against its name.
+        let loaded = crate::template::tolerant_load::load_dir_tolerant(dir.as_ref(), false)
             .with_context(|| format!("Failed to load templates from {:?}", dir.as_ref()))?;
+        let tera = loaded.tera;
 
         let validator = OutputValidator::new(config.validate_syntax, config.security_checks);
 

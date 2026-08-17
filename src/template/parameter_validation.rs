@@ -725,20 +725,27 @@ impl Default for ParameterValidator {
 pub struct TemplateValidator {
     /// Tera instance for syntax checking
     tera: Tera,
+    /// Per-template parse errors recorded at load time
+    load_errors: std::collections::HashMap<String, String>,
     /// Parameter validator
     param_validator: ParameterValidator,
 }
 
 impl TemplateValidator {
     /// Create a new template validator
+    ///
+    /// Templates are loaded one at a time: an unparseable template does not
+    /// prevent the validator from being constructed, it is recorded and
+    /// reported as a `SyntaxError` when that specific template is validated.
     pub fn new(template_dir: impl AsRef<Path>) -> Result<Self> {
-        let pattern = template_dir.as_ref().join("**/*.tera");
-        let tera = Tera::new(pattern.to_str().unwrap()).with_context(|| {
-            format!("failed to load templates from {:?}", template_dir.as_ref())
-        })?;
+        let loaded = crate::template::tolerant_load::load_dir_tolerant(&template_dir, true)
+            .with_context(|| {
+                format!("failed to load templates from {:?}", template_dir.as_ref())
+            })?;
 
         Ok(Self {
-            tera,
+            tera: loaded.tera,
+            load_errors: loaded.errors,
             param_validator: ParameterValidator::new(),
         })
     }
@@ -750,6 +757,15 @@ impl TemplateValidator {
 
     /// Validate template syntax
     pub fn validate_syntax(&self, template_name: &str) -> Result<(), ValidationError> {
+        // A template that failed to parse at load time is reported against its
+        // own name, rather than having taken the whole directory down with it.
+        if let Some(message) = self.load_errors.get(template_name) {
+            return Err(ValidationError::SyntaxError {
+                template: template_name.to_string(),
+                message: message.clone(),
+            });
+        }
+
         self.tera
             .get_template(template_name)
             .map_err(|e| ValidationError::SyntaxError {
