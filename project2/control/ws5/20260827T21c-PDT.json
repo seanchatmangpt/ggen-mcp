@@ -1,0 +1,16 @@
+{
+  "project": 2,
+  "ocel_key": "ggen/ecosystem/ocel/current",
+  "cycle_id": "20260827T21c-PDT",
+  "workstation": 5,
+  "claimed_at": "2026-08-27T21:31:30-07:00",
+  "lease_until": "2026-08-27T22:48:00-07:00",
+  "status": "ACTIVE",
+  "claims": [
+    {"claim_id":"ws5-20260827-21c-livevue","work_key":"seanchatmangpt/live_vue@branch:project2/ws5-learning-20260827-21c","repo":"seanchatmangpt/live_vue","default":"main","base":"a7de5573f6ca83181ac92cd81a5305d58e7feca5","head":"a7de5573f6ca83181ac92cd81a5305d58e7feca5","branch":"project2/ws5-learning-20260827-21c","semantic_unit_ids":["LV31","LV32","LV33","LV34","LV35","LV36","LV37","LV38","LV39","LV40"]},
+    {"claim_id":"ws5-20260827-21c-ashr2rml","work_key":"seanchatmangpt/ash_r2rml@branch:project2/ws5-learning-20260827-21c","repo":"seanchatmangpt/ash_r2rml","default":"main","base":"c7763b2e0a5977dba87dc370ac25cea921ab0ddd","head":"c7763b2e0a5977dba87dc370ac25cea921ab0ddd","branch":"project2/ws5-learning-20260827-21c","semantic_unit_ids":["AR31","AR32","AR33","AR34","AR35","AR36","AR37","AR38","AR39","AR40"]},
+    {"claim_id":"ws5-20260827-21c-ex4pm","work_key":"seanchatmangpt/ex4pm@branch:project2/ws5-learning-20260827-21c","repo":"seanchatmangpt/ex4pm","default":"main","base":"f2b366fa456ef96136f7ae3a5b02a4a976cf3452","head":"f2b366fa456ef96136f7ae3a5b02a4a976cf3452","branch":"project2/ws5-learning-20260827-21c","semantic_unit_ids":["EX31","EX32","EX33","EX34","EX35","EX36","EX37","EX38","EX39","EX40"]},
+    {"claim_id":"ws5-20260827-21c-ggenigniter","work_key":"seanchatmangpt/ggen_igniter@branch:project2/ws5-learning-20260827-21c","repo":"seanchatmangpt/ggen_igniter","default":"main","base":"a429f91dc9d03e2670157b7fe793e83f5a510993","head":"a429f91dc9d03e2670157b7fe793e83f5a510993","branch":"project2/ws5-learning-20260827-21c","semantic_unit_ids":["GI31","GI32","GI33","GI34","GI35","GI36","GI37","GI38","GI39","GI40"]},
+    {"claim_id":"ws5-20260827-21c-ggenmcp","work_key":"seanchatmangpt/ggen-mcp@branch:project2/ws5-learning-20260827-21c","repo":"seanchatmangpt/ggen-mcp","default":"main","base":"5ccc8e5e017c2ccbaf9bdb54a6f78553804c5dab","head":"5ccc8e5e017c2ccbaf9bdb54a6f78553804c5dab","branch":"project2/ws5-learning-20260827-21c","semantic_unit_ids":["GM31","GM32","GM33","GM34","GM35","GM36","GM37","GM38","GM39","GM40"]}
+  ]
+}
